@@ -1,3 +1,15 @@
+input[id^=postcard-] {
+  display: inline;
+  width: 0;
+  height: 0;
+  overflow:hidden;
+  visibility: hidden;
+
+  &:checked ~ label .postcard  {
+    --flip: 180deg;
+  }
+}
+
 .postcard {
   aspect-ratio: var(--aspect-ratio);
   position: relative;
@@ -20,125 +32,126 @@
     tan(135deg - var(--flip)/2)
   )) * 192 + 64);
   --offset: translate(0px, 0px);
-}
 
-.postcard .shadow {
-  width: 90%;
-  margin: 5%;
-  aspect-ratio: var(--aspect-ratio);
-  position: absolute;
-  z-index: 0;
-  transform-style: preserve-3d;
-  background: rgb(0, 0, 0, 0.1) !important;
-  box-shadow: 0px 0px 45px 45px rgb(0, 0, 0, 0.1);
-  --offset: translate(40px, 40px);
-}
+  .shadow {
+    width: 90%;
+    margin: 5%;
+    aspect-ratio: var(--aspect-ratio);
+    position: absolute;
+    z-index: 0;
+    transform-style: preserve-3d;
+    background: rgb(0, 0, 0, 0.1) !important;
+    box-shadow: 0px 0px 45px 45px rgb(0, 0, 0, 0.1);
+    --offset: translate(40px, 40px);
+  }
 
-.postcard.portrait .shadow {
-  width:auto;
-  height:90%;
-  margin: 5%;
-}
+  &::before,&::after {
+    content: '';
+    width: 100%;
+    aspect-ratio: var(--aspect-ratio);
+    position: absolute;
+    box-sizing: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transform-style: preserve-3d;
+    background-blend-mode: multiply;
+    z-index: 2;
+  }
 
-.postcard.portrait {
-  flex-direction: column;
-}
+  &.portrait {
+    flex-direction: column;
+  
+    .shadow {
+      width:auto;
+      height:90%;
+      margin: 5%;
+    }
 
-.postcard::before,.postcard::after {
-  content: '';
-  width: 100%;
-  aspect-ratio: var(--aspect-ratio);
-  position: absolute;
-  box-sizing: inherit;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  transform-style: preserve-3d;
-  background-blend-mode: multiply;
-  z-index: 2;
-}
+    &::before,&::after {
+      width:auto;
+      height:100%;
+    }
+  }
 
-.postcard.portrait::before,.postcard.portrait::after {
-  width:auto;
-  height:100%;
-}
+  &::after {
+    background: no-repeat top/100%;
+    mask: var(--postcard) top/100%;
+  }
+  
+  &::before {
+    background: no-repeat bottom/100%;
+    mask: var(--postcard) bottom/100%;
+  }
 
-.postcard::after {
-  background: no-repeat top/100%;
-  mask: var(--postcard) top/100%;
-}
+  /* TODO: Does this break accessibility? */
+  img {
+    display: none;
+  }
 
-.postcard::before {
-  background: no-repeat bottom/100%;
-  mask: var(--postcard) bottom/100%;
-}
+  &.left-hand,&.right-hand {
+    aspect-ratio: 1/1;
+  }
 
-.postcard img {
-  display: none;
-}
+  &.book::after,&.book .shadow {
+    transform: var(--p) var(--offset) rotateY(var(--flip));
+    background-image: linear-gradient(to right,
+        rgb(var(--v1), var(--v1), var(--v1)),
+        rgb(var(--v2), var(--v2), var(--v2))
+      ), var(--postcard);
+  }
+  &.book::before {
+    transform: var(--p) rotateY(calc(var(--flip) + 180deg));
+    background-image: linear-gradient(to right,
+        rgb(var(--v1), var(--v1), var(--v1)),
+        rgb(var(--v2), var(--v2), var(--v2))
+      ), var(--postcard);
+  }
 
-.postcard.left-hand,.postcard.right-hand {
-  aspect-ratio: 1/1;
-}
-
-.postcard.book::after,.postcard.book .shadow {
-  transform: var(--p) var(--offset) rotateY(var(--flip));
-  background-image: linear-gradient(to right,
-      rgb(var(--v1), var(--v1), var(--v1)),
-      rgb(var(--v2), var(--v2), var(--v2))
-    ), var(--postcard);
-}
-.postcard.book::before {
-  transform: var(--p) rotateY(calc(var(--flip) + 180deg));
-  background-image: linear-gradient(to right,
-      rgb(var(--v1), var(--v1), var(--v1)),
-      rgb(var(--v2), var(--v2), var(--v2))
-    ), var(--postcard);
-}
-
-.postcard.calendar::after,.postcard.calendar .shadow {
-  transform: var(--p) var(--offset) rotateX(var(--flip));
-  background-image: linear-gradient(to top,
-      rgb(var(--v1), var(--v1), var(--v1)),
-      rgb(var(--v2), var(--v2), var(--v2))
-    ), var(--postcard);
-}
-.postcard.calendar::before {
-  transform: var(--p) rotateX(calc(var(--flip) + 180deg));
-  background-image: linear-gradient(to top,
-      rgb(var(--v1), var(--v1), var(--v1)),
-      rgb(var(--v2), var(--v2), var(--v2))
-    ), var(--postcard);
-}
-
-.postcard.right-hand::after,.postcard.right-hand .shadow {
-  transform: var(--p) var(--offset) rotate3d(1,1,0,var(--flip));
-  background-image: linear-gradient(to top right,
-      rgb(var(--v1), var(--v1), var(--v1)),
-      rgb(var(--v2), var(--v2), var(--v2))
-    ), var(--postcard);
-}
-.postcard.right-hand::before {
-  transform: var(--p) rotate3d(1,1,0,calc(var(--flip) + 180deg)) rotate(-90deg);
-  background-image: linear-gradient(to bottom right,
-      rgb(var(--v1), var(--v1), var(--v1)),
-      rgb(var(--v2), var(--v2), var(--v2))
-    ), var(--postcard);
-}
-
-.postcard.left-hand::after,.postcard.left-hand .shadow {
-  transform: var(--p) var(--offset) rotate3d(-1,1,0,var(--flip));
-  background-image: linear-gradient(to bottom right,
-      rgb(var(--v1), var(--v1), var(--v1)),
-      rgb(var(--v2), var(--v2), var(--v2))
-    ), var(--postcard);
-}
-.postcard.left-hand::before {
-  transform: var(--p) rotate3d(-1,1,0,calc(var(--flip) + 180deg)) rotate(90deg);
-  background-image: linear-gradient(to top right,
-      rgb(var(--v1), var(--v1), var(--v1)),
-      rgb(var(--v2), var(--v2), var(--v2))
-    ), var(--postcard);
+  &.calendar::after,&.calendar .shadow {
+    transform: var(--p) var(--offset) rotateX(var(--flip));
+    background-image: linear-gradient(to top,
+        rgb(var(--v1), var(--v1), var(--v1)),
+        rgb(var(--v2), var(--v2), var(--v2))
+      ), var(--postcard);
+  }
+  &.calendar::before {
+    transform: var(--p) rotateX(calc(var(--flip) + 180deg));
+    background-image: linear-gradient(to top,
+        rgb(var(--v1), var(--v1), var(--v1)),
+        rgb(var(--v2), var(--v2), var(--v2))
+      ), var(--postcard);
+  }
+  
+  &.right-hand::after,&.right-hand .shadow {
+    transform: var(--p) var(--offset) rotate3d(1,1,0,var(--flip));
+    background-image: linear-gradient(to top right,
+        rgb(var(--v1), var(--v1), var(--v1)),
+        rgb(var(--v2), var(--v2), var(--v2))
+      ), var(--postcard);
+  }
+  &.right-hand::before {
+    transform: var(--p) rotate3d(1,1,0,calc(var(--flip) + 180deg)) rotate(-90deg);
+    background-image: linear-gradient(to bottom right,
+        rgb(var(--v1), var(--v1), var(--v1)),
+        rgb(var(--v2), var(--v2), var(--v2))
+      ), var(--postcard);
+  }
+  
+  &.left-hand::after,&.left-hand .shadow {
+    transform: var(--p) var(--offset) rotate3d(-1,1,0,var(--flip));
+    background-image: linear-gradient(to bottom right,
+        rgb(var(--v1), var(--v1), var(--v1)),
+        rgb(var(--v2), var(--v2), var(--v2))
+      ), var(--postcard);
+  }
+  &.left-hand::before {
+    transform: var(--p) rotate3d(-1,1,0,calc(var(--flip) + 180deg)) rotate(90deg);
+    background-image: linear-gradient(to top right,
+        rgb(var(--v1), var(--v1), var(--v1)),
+        rgb(var(--v2), var(--v2), var(--v2))
+      ), var(--postcard);
+  }
 }
