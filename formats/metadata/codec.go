@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"path"
+	"slices"
 
 	"github.com/jphastings/postcards/formats"
 	"github.com/jphastings/postcards/types"
@@ -27,25 +29,40 @@ type MetadataType string
 var AsJSON MetadataType = ".json"
 var AsYAML MetadataType = ".yaml"
 
+var Extensions = []string{string(AsJSON), string(AsYAML)}
+
 func Codec(ext MetadataType) formats.Codec { return codec{ext: ext} }
 
-func (c codec) Bundle(files []fs.File, _ fs.DirEntry) ([]formats.Bundle, []fs.File) {
+func BundleFromFile(file fs.File) (formats.Bundle, error) {
+	info, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	ext := path.Ext(info.Name())
+	if !slices.Contains(Extensions, ext) {
+		return nil, fmt.Errorf("unknown metadata extension '%s'", ext)
+	}
+
+	return bundle{file: file, ext: MetadataType(ext)}, nil
+}
+
+func (c codec) Bundle(files []fs.File, _ fs.ReadDirFS) ([]formats.Bundle, []fs.File, map[string]error) {
 	var bundles []formats.Bundle
 	var remaining []fs.File
 
 	for _, file := range files {
-		if formats.HasExtensions(file, string(c.ext)) {
+		if formats.HasFileSuffix(file, string(c.ext)) {
 			bundles = append(bundles, bundle{file: file, ext: c.ext})
 		} else {
 			remaining = append(remaining, file)
 		}
 	}
 
-	return bundles, remaining
+	return bundles, remaining, make(map[string]error)
 }
 
 // The structure information is stored in the internal/types/postcard.go file, because Go.
-func (c codec) Encode(pc types.Postcard, errs chan<- error) []formats.FileWriter {
+func (c codec) Encode(pc types.Postcard, _ formats.EncodeOptions, errs chan<- error) []formats.FileWriter {
 	name := fmt.Sprintf("%s-meta%s", pc.Name, c.ext)
 	writer := func(w io.WriteCloser) error {
 		switch c.ext {

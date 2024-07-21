@@ -3,6 +3,7 @@ package types
 import (
 	"encoding/json"
 	"fmt"
+	"image"
 
 	"gopkg.in/yaml.v3"
 )
@@ -10,8 +11,8 @@ import (
 type Postcard struct {
 	Name  string
 	Meta  Metadata
-	Front func() []byte
-	Back  func() []byte
+	Front image.Image
+	Back  image.Image
 }
 
 type Location struct {

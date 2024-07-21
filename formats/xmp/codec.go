@@ -25,22 +25,22 @@ func BundleFromBytes(data []byte) formats.Bundle {
 	return bundle{bytes.NewReader(data)}
 }
 
-func (c codec) Bundle(files []fs.File, _ fs.DirEntry) ([]formats.Bundle, []fs.File) {
+func (c codec) Bundle(files []fs.File, _ fs.ReadDirFS) ([]formats.Bundle, []fs.File, map[string]error) {
 	var bundles []formats.Bundle
 	var remaining []fs.File
 
 	for _, file := range files {
-		if formats.HasExtensions(file, ".xmp") {
+		if formats.HasFileSuffix(file, ".xmp") {
 			bundles = append(bundles, bundle{file})
 		} else {
 			remaining = append(remaining, file)
 		}
 	}
 
-	return bundles, remaining
+	return bundles, remaining, make(map[string]error)
 }
 
-func (c codec) Encode(pc types.Postcard, errs chan<- error) []formats.FileWriter {
+func (c codec) Encode(pc types.Postcard, _ formats.EncodeOptions, errs chan<- error) []formats.FileWriter {
 	filename := fmt.Sprintf("%s-meta.xmp", pc.Name)
 	writer := func(w io.WriteCloser) error {
 		if xmp, err := metadataToXMP(pc.Meta); err == nil {
