@@ -16,7 +16,7 @@ type Codec interface {
 	Bundle([]fs.File, fs.DirEntry) ([]Bundle, []fs.File)
 
 	// Encode must produce any files needed to represent postcards in this format.
-	Encode(types.Postcard, chan<- error) []io.ReadCloser
+	Encode(types.Postcard, chan<- error) []FileWriter
 }
 
 // Bundle represents a bundle of files that will be decoded together
@@ -36,8 +36,13 @@ func HasExtensions(file fs.File, exts ...string) bool {
 	return slices.Contains(exts, path.Ext(info.Name()))
 }
 
-// AsyncWriter is a helper function for creating a read stream for the return values of Encoders
-func AsyncWriter(fn func(w io.WriteCloser) error, errs chan<- error) io.ReadCloser {
+type FileWriter struct {
+	io.ReadCloser
+	filename string
+}
+
+// NewFileWriter is a helper function for creating a read stream for the return values of Encoders
+func NewFileWriter(filename string, fn func(w io.WriteCloser) error, errs chan<- error) FileWriter {
 	r, w := io.Pipe()
 	go func(fn func(w io.WriteCloser) error, w io.WriteCloser, errs chan<- error) {
 		if err := fn(w); err != nil {
@@ -45,5 +50,8 @@ func AsyncWriter(fn func(w io.WriteCloser) error, errs chan<- error) io.ReadClos
 		}
 	}(fn, w, errs)
 
-	return r
+	return FileWriter{
+		filename:   filename,
+		ReadCloser: r,
+	}
 }

@@ -20,11 +20,11 @@ func (c codec) Bundle(files []fs.File, _ fs.DirEntry) ([]formats.Bundle, []fs.Fi
 	return nil, files
 }
 
-func (c codec) Encode(_ types.Postcard, errs chan<- error) []io.ReadCloser {
-	r := formats.AsyncWriter(func(w io.WriteCloser) error {
+func (c codec) Encode(_ types.Postcard, errs chan<- error) []formats.FileWriter {
+	writer := func(w io.WriteCloser) error {
 		_, err := w.Write([]byte(postcardCSS))
 		return err
-	}, errs)
+	}
 
-	return []io.ReadCloser{r}
+	return []formats.FileWriter{formats.NewFileWriter("postcards.css", writer, errs)}
 }

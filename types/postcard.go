@@ -8,6 +8,7 @@ import (
 )
 
 type Postcard struct {
+	Name  string
 	Meta  Metadata
 	Front func() []byte
 	Back  func() []byte

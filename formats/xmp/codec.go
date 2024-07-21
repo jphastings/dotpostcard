@@ -40,17 +40,19 @@ func (c codec) Bundle(files []fs.File, _ fs.DirEntry) ([]formats.Bundle, []fs.Fi
 	return bundles, remaining
 }
 
-func (c codec) Encode(pc types.Postcard, errs chan<- error) []io.ReadCloser {
-	r := formats.AsyncWriter(func(w io.WriteCloser) error {
+func (c codec) Encode(pc types.Postcard, errs chan<- error) []formats.FileWriter {
+	filename := fmt.Sprintf("%s-meta.xmp", pc.Name)
+	writer := func(w io.WriteCloser) error {
 		if xmp, err := metadataToXMP(pc.Meta); err == nil {
 			_, writeErr := w.Write(xmp)
 			return writeErr
 		} else {
 			return err
 		}
-	}, errs)
+	}
+	fw := formats.NewFileWriter(filename, writer, errs)
 
-	return []io.ReadCloser{r}
+	return []formats.FileWriter{fw}
 }
 
 func (b bundle) Decode() (types.Postcard, error) {

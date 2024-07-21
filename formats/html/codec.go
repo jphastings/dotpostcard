@@ -33,10 +33,13 @@ func (c codec) Bundle(files []fs.File, _ fs.DirEntry) ([]formats.Bundle, []fs.Fi
 	return nil, files
 }
 
-func (c codec) Encode(pc types.Postcard, errs chan<- error) []io.ReadCloser {
-	r := formats.AsyncWriter(func(w io.WriteCloser) error {
+func (c codec) Encode(pc types.Postcard, errs chan<- error) []formats.FileWriter {
+	name := fmt.Sprintf("%s.html", pc.Name)
+	writer := func(w io.WriteCloser) error {
 		return htmlTmpl.Execute(w, pc)
-	}, errs)
+	}
 
-	return []io.ReadCloser{r}
+	return []formats.FileWriter{
+		formats.NewFileWriter(name, writer, errs),
+	}
 }
