@@ -35,8 +35,9 @@ func (c codec) Bundle(files []fs.File, _ fs.ReadDirFS) ([]formats.Bundle, []fs.F
 
 func (c codec) Encode(pc types.Postcard, _ formats.EncodeOptions, errs chan<- error) []formats.FileWriter {
 	name := fmt.Sprintf("%s.html", pc.Name)
-	writer := func(w io.WriteCloser) error {
-		return htmlTmpl.Execute(w, pc)
+	writer := func(w io.Writer) error {
+		pc.Meta.Name = pc.Name
+		return htmlTmpl.Execute(w, pc.Meta)
 	}
 
 	return []formats.FileWriter{

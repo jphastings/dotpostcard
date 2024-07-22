@@ -25,7 +25,7 @@ func (flip Flip) IsValid() bool {
 	return slices.Contains(ValidFlips, flip)
 }
 
-func (flip Flip) String() string {
+func (flip Flip) Description() string {
 	switch flip {
 	case FlipBook:
 		return "vertical axis (like a book)"

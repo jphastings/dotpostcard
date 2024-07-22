@@ -43,6 +43,7 @@ type Context struct {
 }
 
 type Metadata struct {
+	Name            string   `json:"-"`
 	Locale          string   `json:"locale"`
 	Location        Location `json:"location,omitempty"`
 	Flip            Flip     `json:"flip" yaml:"flip"`

@@ -4,14 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jphastings/postcards/formats"
 	"github.com/jphastings/postcards/types"
-)
-
-var (
-	// The first %s will contain the description of the front of the postcard, and the second the transcription of the back.
-	altTextFormats = map[string]string{
-		"en": "Both sides of a postcard. On the front: %s On the back, the handwritten text %s",
-	}
 )
 
 type xmpIptc4xmpCoreXML struct {
@@ -24,12 +18,7 @@ func addIPTCCoreSection(sections []interface{}, meta types.Metadata) []interface
 		return sections
 	}
 
-	lang := strings.Split(meta.Locale, "-")[0]
-	text, ok := altTextFormats[lang]
-	if !ok {
-		lang = "en"
-		text = altTextFormats["en"]
-	}
+	text, lang := formats.AltText(meta, strings.Split(meta.Locale, "-")[0])
 
 	return append(sections, xmpIptc4xmpCoreXML{
 		Namespace: "http://iptc.org/std/Iptc4xmpCore/1.0/xmlns/",

@@ -42,7 +42,7 @@ func (c codec) Bundle(files []fs.File, _ fs.ReadDirFS) ([]formats.Bundle, []fs.F
 
 func (c codec) Encode(pc types.Postcard, _ formats.EncodeOptions, errs chan<- error) []formats.FileWriter {
 	filename := fmt.Sprintf("%s-meta.xmp", pc.Name)
-	writer := func(w io.WriteCloser) error {
+	writer := func(w io.Writer) error {
 		if xmp, err := metadataToXMP(pc.Meta); err == nil {
 			_, writeErr := w.Write(xmp)
 			return writeErr

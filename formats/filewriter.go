@@ -27,10 +27,13 @@ type FileWriter struct {
 }
 
 // NewFileWriter is a helper function for creating a read stream for the return values of Encoders
-func NewFileWriter(filename string, fn func(w io.WriteCloser) error, errs chan<- error) FileWriter {
+func NewFileWriter(filename string, fn func(w io.Writer) error, errs chan<- error) FileWriter {
 	r, w := io.Pipe()
-	go func(fn func(w io.WriteCloser) error, w io.WriteCloser, errs chan<- error) {
+	go func(fn func(w io.Writer) error, w io.WriteCloser, errs chan<- error) {
 		if err := fn(w); err != nil {
+			errs <- err
+		}
+		if err := w.Close(); err != nil {
 			errs <- err
 		}
 	}(fn, w, errs)

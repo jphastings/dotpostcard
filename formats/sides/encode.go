@@ -16,8 +16,8 @@ const resizeMaxSize = 2048
 
 // The structure information is stored in the internal/types/postcard.go file, because Go.
 func (c codec) Encode(pc types.Postcard, opts formats.EncodeOptions, errs chan<- error) []formats.FileWriter {
-	encImg := func(side image.Image) func(io.WriteCloser) error {
-		return func(w io.WriteCloser) error {
+	encImg := func(side image.Image) func(io.Writer) error {
+		return func(w io.Writer) error {
 			var webpOpts *webp.Options
 			if opts.Archival {
 				webpOpts = &webp.Options{Lossless: true}

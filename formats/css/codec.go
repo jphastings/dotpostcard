@@ -21,12 +21,9 @@ func (c codec) Bundle(files []fs.File, _ fs.ReadDirFS) ([]formats.Bundle, []fs.F
 }
 
 func (c codec) Encode(_ types.Postcard, _ formats.EncodeOptions, errs chan<- error) []formats.FileWriter {
-	writer := func(w io.WriteCloser) error {
+	writer := func(w io.Writer) error {
 		_, err := w.Write([]byte(postcardCSS))
-		if err != nil {
-			return err
-		}
-		return w.Close()
+		return err
 	}
 
 	return []formats.FileWriter{formats.NewFileWriter("postcards.css", writer, errs)}

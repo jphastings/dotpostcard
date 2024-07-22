@@ -28,10 +28,10 @@ func TestEncode(t *testing.T) {
 	fws := css.Codec().Encode(types.Postcard{}, formats.EncodeOptions{}, errs)
 
 	assert.Len(t, fws, 1)
-	assert.Empty(t, errs)
-
 	content, err := io.ReadAll(fws[0])
 	assert.NoError(t, err)
+
+	assert.Empty(t, errs)
 
 	assert.True(t, strings.HasPrefix(string(content), "input[id^=postcard-] {"))
 }
