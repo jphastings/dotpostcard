@@ -1,9 +1,14 @@
 package testhelpers
 
 import (
+	"fmt"
 	"io/fs"
 	"testing/fstest"
 )
+
+func DataForTestFile(filename string) []byte {
+	return []byte(fmt.Sprintf("Data for %s", filename))
+}
 
 // TestFiles makes an in-memory filesystem suitable for testing Codec.Bundle.
 // The files within contain no data or context, but have the supplied names.
@@ -16,7 +21,9 @@ func TestFiles(filenames []string, alsoInDir ...string) ([]fs.File, fs.ReadDirFS
 	}
 
 	for _, filename := range filenames {
-		dir[filename] = &fstest.MapFile{}
+		dir[filename] = &fstest.MapFile{
+			Data: DataForTestFile(filename),
+		}
 
 		f, err := dir.Open(filename)
 		if err != nil {
@@ -27,4 +34,18 @@ func TestFiles(filenames []string, alsoInDir ...string) ([]fs.File, fs.ReadDirFS
 	}
 
 	return files, dir
+}
+
+func Filenames(files []fs.File) []string {
+	filenames := make([]string, len(files))
+	for i, f := range files {
+		info, err := f.Stat()
+		if err != nil {
+			panic("could not find filename of test fs.File; this shouldn't happen")
+		}
+
+		filenames[i] = info.Name()
+	}
+
+	return filenames
 }
