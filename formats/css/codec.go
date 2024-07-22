@@ -23,7 +23,10 @@ func (c codec) Bundle(files []fs.File, _ fs.ReadDirFS) ([]formats.Bundle, []fs.F
 func (c codec) Encode(_ types.Postcard, _ formats.EncodeOptions, errs chan<- error) []formats.FileWriter {
 	writer := func(w io.WriteCloser) error {
 		_, err := w.Write([]byte(postcardCSS))
-		return err
+		if err != nil {
+			return err
+		}
+		return w.Close()
 	}
 
 	return []formats.FileWriter{formats.NewFileWriter("postcards.css", writer, errs)}
