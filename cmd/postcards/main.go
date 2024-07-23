@@ -20,30 +20,30 @@ var rootCmd = &cobra.Command{
 	Short:   "A tool for converting between formats for representing images of postcards",
 	Version: postcards.Version,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		filename := "/private/tmp/postcard-test/portugal-front.png"
+		filename := "/private/tmp/postcard-test/portugal-jpg-front.jpg"
 		dir := os.DirFS(path.Dir(filename))
 		file, err := dir.Open(path.Base(filename))
 		if err != nil {
 			return err
 		}
 
-		bnds, remaining, errs := sides.Codec().Bundle([]fs.File{file}, dir)
+		bounds, remaining, errs := sides.Codec().Bundle([]fs.File{file}, dir)
 		for file, bErr := range errs {
 			err = errors.Join(err, fmt.Errorf("couldn't process %s: %w", file, bErr))
 		}
 		if err != nil {
 			return err
 		}
-		if len(bnds) != 1 {
-			return fmt.Errorf("should have 1 bundle, got %d (%d remaining)", len(bnds), len(remaining))
+		if len(bounds) != 1 {
+			return fmt.Errorf("should have 1 bundle, got %d (%d remaining)", len(bounds), len(remaining))
 		}
 
-		pc, err := bnds[0].Decode()
+		pc, err := bounds[0].Decode()
 		if err != nil {
 			return err
 		}
 
-		fws := web.Codec().Encode(pc, formats.EncodeOptions{Archival: true})
+		fws := web.Codec().Encode(pc, formats.EncodeOptions{Archival: false})
 
 		for _, fw := range fws {
 			if err := fw.WriteFile(path.Dir(filename), true); err != nil {

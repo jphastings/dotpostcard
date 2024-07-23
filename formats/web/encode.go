@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"image"
 	"io"
+	"math/big"
 
 	"github.com/chai2010/webp"
 	_ "github.com/chai2010/webp"
@@ -21,9 +22,15 @@ func (c codec) Encode(pc types.Postcard, opts formats.EncodeOptions) []formats.F
 	writer := func(w io.Writer) error {
 		frontSize, finalSize := formats.DetermineSize(opts, pc.Front, pc.Back)
 
+		pc.Meta.FrontDimensions.PxWidth = finalSize.Dx()
+		pc.Meta.FrontDimensions.PxHeight = finalSize.Dy()
+		outputImageSize := pc.Meta.FrontDimensions
+
 		combinedSize := finalSize
 		if pc.Back != nil {
 			combinedSize.Max.Y *= 2
+			outputImageSize.PxHeight *= 2
+			outputImageSize.CmHeight = (&big.Rat{}).Mul(outputImageSize.CmHeight, big.NewRat(2, 1))
 		}
 
 		combinedImg := image.NewRGBA(combinedSize)
@@ -35,10 +42,7 @@ func (c codec) Encode(pc types.Postcard, opts formats.EncodeOptions) []formats.F
 			draw.CatmullRom.Scale(combinedImg, lowerSize, backImg, backSize, draw.Src, nil)
 		}
 
-		pc.Meta.FrontDimensions.PxWidth = combinedSize.Dx()
-		pc.Meta.FrontDimensions.PxHeight = combinedSize.Dy()
-
-		xmpData, err := formats.ExtractDataFromOne(xmp.Codec().Encode(pc, formats.EncodeOptions{}))
+		xmpData, err := xmp.MetadataToXMP(pc.Meta, &outputImageSize)
 		if err != nil {
 			return fmt.Errorf("couldn't generate XMP metadata for postcard: %w", err)
 		}

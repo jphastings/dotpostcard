@@ -2,7 +2,6 @@ package formats
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -54,7 +53,7 @@ func NewFileWriter(filename string, fn func(w io.Writer) error) FileWriter {
 }
 
 func (fw FileWriter) WriteFile(dir string, overwrite bool) error {
-	flags := os.O_CREATE | os.O_WRONLY
+	flags := os.O_CREATE | os.O_WRONLY | os.O_TRUNC
 	if !overwrite {
 		flags |= os.O_EXCL
 	}
@@ -72,16 +71,4 @@ func (fw FileWriter) WriteFile(dir string, overwrite bool) error {
 func (fw FileWriter) Bytes() ([]byte, error) {
 	data, err := io.ReadAll(fw.r)
 	return data, errors.Join(fw.Err, err)
-}
-
-// A helper method for encoding from within other codecs
-func ExtractDataFromOne(fws []FileWriter) ([]byte, error) {
-	if len(fws) != 1 {
-		return nil, fmt.Errorf("no FileWriters produced")
-	}
-	if err := fws[0].Err; err != nil {
-		return nil, err
-	}
-
-	return fws[0].Bytes()
 }

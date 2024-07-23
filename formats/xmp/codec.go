@@ -43,7 +43,8 @@ func (c codec) Bundle(files []fs.File, _ fs.FS) ([]formats.Bundle, []fs.File, ma
 func (c codec) Encode(pc types.Postcard, _ formats.EncodeOptions) []formats.FileWriter {
 	filename := fmt.Sprintf("%s-meta.xmp", pc.Name)
 	writer := func(w io.Writer) error {
-		if xmp, err := metadataToXMP(pc.Meta); err == nil {
+		// Don't write pixel & physical size information to an XMP which isn't embedded
+		if xmp, err := MetadataToXMP(pc.Meta, nil); err == nil {
 			_, writeErr := w.Write(xmp)
 			return writeErr
 		} else {

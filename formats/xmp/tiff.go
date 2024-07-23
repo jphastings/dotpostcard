@@ -18,15 +18,18 @@ type xmlTiff struct {
 const tiffUnitsCentimetres = 3
 
 func addTIFFSection(sections []interface{}, dims types.Size) []interface{} {
+	// TODO: I need to extend the Px and Cm height to handle double size web format postcards
+
 	data := xmlTiff{
 		Namespace:   "http://ns.adobe.com/tiff/1.0/",
 		ImageWidth:  dims.PxWidth,
 		ImageHeight: dims.PxHeight,
 	}
-	if dims.CmWidth != nil && dims.CmHeight != nil {
+	if dims.HasPhysical() {
 		data.ResolutionUnit = tiffUnitsCentimetres
-		data.XResolution = dims.CmWidth
-		data.YResolution = dims.CmHeight
+		xRes, yRes := dims.Resolution()
+		data.XResolution = xRes
+		data.YResolution = yRes
 	}
 
 	return append(sections, data)

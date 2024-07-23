@@ -1,9 +1,12 @@
 package sides
 
 import (
+	"bytes"
 	"fmt"
 	"image"
+	"io"
 
+	"github.com/jphastings/postcards/internal/resolution"
 	"github.com/jphastings/postcards/types"
 )
 
@@ -15,36 +18,53 @@ func (b bundle) Decode() (types.Postcard, error) {
 
 	pc.Name = b.name
 
-	front, _, err := image.Decode(b.frontFile)
+	img, size, err := decodeImage(b.frontFile)
 	if err != nil {
 		return types.Postcard{}, fmt.Errorf("couldn't decode postcard's front image: %w", err)
 	}
-	pc.Front = front
 
-	// frontData, err := io.ReadAll(b.frontFile)
-	// if err != nil {
-	// 	return pc, fmt.Errorf("unable to read front image content for dimension analysis: %w", err)
-	// }
-
-	// w, h, err := resolution.Decode(frontData)
-	// if err != nil {
-	// 	return pc, fmt.Errorf("unable to extract physical dimensions from front image: %w", err)
-	// }
-
-	// pc.Meta.FrontDimensions = types.Size{
-	// 	CmWidth:  w,
-	// 	CmHeight: h,
-	// }
-
-	// TODO: Compare to back dimensions and assert similarity
+	pc.Front = img
+	pc.Meta.FrontDimensions = size
 
 	if b.backFile != nil {
-		back, _, err := image.Decode(b.backFile)
+		img, size, err := decodeImage(b.backFile)
 		if err != nil {
 			return types.Postcard{}, fmt.Errorf("couldn't decode postcard's back image: %w", err)
 		}
-		pc.Back = back
+
+		if !size.SimilarPhysical(pc.Meta.FrontDimensions, pc.Meta.Flip) {
+			return types.Postcard{}, fmt.Errorf("the front and back images are different physical sizes, are they of the same postcard?")
+		}
+
+		pc.Back = img
 	}
 
 	return pc, nil
+}
+
+func decodeImage(r io.Reader) (image.Image, types.Size, error) {
+	var dataCopy bytes.Buffer
+	t := io.TeeReader(r, &dataCopy)
+
+	img, _, err := image.Decode(t)
+	if err != nil {
+		return nil, types.Size{}, err
+	}
+	bounds := img.Bounds()
+	size := types.Size{
+		PxWidth:  bounds.Dx(),
+		PxHeight: bounds.Dy(),
+	}
+
+	xRes, yRes, err := resolution.Decode(dataCopy.Bytes())
+	if err != nil {
+		// Invalid physical dimensions just get ignored
+		return img, size, nil
+	}
+
+	if xRes.Sign() != 0 && yRes.Sign() != 0 {
+		size.SetResolution(xRes, yRes)
+	}
+
+	return img, size, nil
 }

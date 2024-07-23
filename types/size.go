@@ -21,11 +21,11 @@ func (s Size) HasPhysical() bool {
 
 // SetResolution is a helper function for setting the physical dimensions using a Dots Per Centimetre resolution
 func (s *Size) SetResolution(xRes *big.Rat, yRes *big.Rat) {
-	s.CmWidth = big.NewRat(1, 1).Quo(
+	s.CmWidth = (&big.Rat{}).Quo(
 		big.NewRat(int64(s.PxWidth), 1),
 		xRes,
 	)
-	s.CmHeight = big.NewRat(1, 1).Quo(
+	s.CmHeight = (&big.Rat{}).Quo(
 		big.NewRat(int64(s.PxHeight), 1),
 		yRes,
 	)
@@ -33,8 +33,8 @@ func (s *Size) SetResolution(xRes *big.Rat, yRes *big.Rat) {
 
 // Resolution returns the pixels per centimetre
 func (s Size) Resolution() (xRes *big.Rat, yRes *big.Rat) {
-	xRes = big.NewRat(1, 1).Quo(big.NewRat(int64(s.PxWidth), 1), s.CmWidth)
-	yRes = big.NewRat(1, 1).Quo(big.NewRat(int64(s.PxHeight), 1), s.CmHeight)
+	xRes = (&big.Rat{}).Quo(big.NewRat(int64(s.PxWidth), 1), s.CmWidth)
+	yRes = (&big.Rat{}).Quo(big.NewRat(int64(s.PxHeight), 1), s.CmHeight)
 	return
 }
 

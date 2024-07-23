@@ -5,7 +5,7 @@ import (
 	"math"
 )
 
-const DefaultMaxSide = 2048
+const DefaultMaxSide = 1536
 
 // DetermineSize will calculate the appropriate width and height for the postcard one or two sides given.
 // Aspect ratio will be maintained (including for heteroriented sides)

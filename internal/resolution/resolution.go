@@ -12,8 +12,10 @@ var readers = []struct {
 	{[]byte(pngHeader), decodePNG},
 	{[]byte("\xff\xd8"), decodeJPEG},
 	{[]byte("RIFF????WEBPVP8"), decodeWebP},
+	// TODO: tiff
 }
 
+// Decode returns the resolution (number of pixels per centimetre) an image declares it is stored with
 func Decode(data []byte) (*big.Rat, *big.Rat, error) {
 	for _, r := range readers {
 		if isMagic(data[0:len(r.magicBytes)], r.magicBytes) {
