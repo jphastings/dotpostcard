@@ -10,11 +10,11 @@ type xmpDC struct {
 }
 
 var explanation = langText{
-	Text: "Both sides of a postcard, stored in the '.postcard' format (https://dotpostcard.org)",
+	Text: "A postcard stored in the dotpostcard format (https://dotpostcard.org)",
 	Lang: "en",
 }
 
-func addDCSection(sections []interface{}, meta types.Metadata) []interface{} {
+func addDCSection(sections []interface{}, _ types.Metadata) []interface{} {
 	return append(sections, xmpDC{
 		Namespace:   "http://purl.org/dc/elements/1.1/",
 		Description: explanation,

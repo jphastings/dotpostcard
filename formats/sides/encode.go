@@ -6,8 +6,6 @@ import (
 	"io"
 
 	"github.com/chai2010/webp"
-	_ "github.com/chai2010/webp"
-
 	"github.com/jphastings/postcards/formats"
 	"github.com/jphastings/postcards/types"
 )

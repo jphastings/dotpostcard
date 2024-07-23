@@ -9,7 +9,7 @@ import (
 var (
 	// The first %s will contain the description of the front of the postcard, and the second the transcription of the back.
 	altTextFormats = map[string][]string{
-		"en": []string{
+		"en": {
 			"On the front of a postcard: %s",
 			"Both sides of a postcard. On the front: %s On the back: %s",
 		},

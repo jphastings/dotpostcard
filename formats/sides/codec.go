@@ -44,7 +44,7 @@ func findMeta(dir fs.FS, prefix string) (formats.Bundle, string, error) {
 
 	metaBundle, err := metadata.BundleFromFile(metaFile)
 	if err != nil {
-		return nil, "", fmt.Errorf("metadata file for %s couldn't be loaded: %w", err)
+		return nil, "", fmt.Errorf("metadata file for %s couldn't be loaded: %w", prefix, err)
 	}
 
 	return metaBundle, metaFilename, nil
