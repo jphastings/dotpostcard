@@ -15,7 +15,7 @@ func (c codec) Bundle(group formats.FileGroup) ([]formats.Bundle, []fs.File, err
 
 	for _, file := range group.Files {
 		// Assume the 'sides' bundler is run before this one, so all webp files can be greedily assumed to be web format postcards
-		filename, isWebp := formats.HasFileSuffix(file, ".webp")
+		filename, isWebp := formats.HasFileSuffix(file, ".postcard.webp", ".postcard", ".webp")
 		if !isWebp {
 			remaining = append(remaining, file)
 			continue

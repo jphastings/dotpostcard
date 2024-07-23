@@ -11,6 +11,7 @@ import (
 	"github.com/jphastings/postcards"
 	"github.com/jphastings/postcards/formats"
 	"github.com/jphastings/postcards/internal/cmdhelp"
+	"github.com/jphastings/postcards/internal/general"
 	"github.com/spf13/cobra"
 )
 
@@ -19,7 +20,7 @@ var rootCmd = &cobra.Command{
 	Use:     "postcards --formats=output,formats [flags] postcard-file.ext...",
 	Example: "  postcards -f web,json postcard1-front.jpg postcard2.webp directory/*\n  postcards -f components --archival --overwrite pc.webp",
 	Short:   "A tool for converting between formats for representing images of postcards",
-	Version: postcards.Version,
+	Version: general.Version,
 	RunE: func(cmd *cobra.Command, inputPaths []string) error {
 		// Grab relevant flags
 		formatList, err := cmd.Flags().GetStringSlice("formats")
