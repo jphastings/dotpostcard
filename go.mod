@@ -7,6 +7,7 @@ require (
 	github.com/dsoprea/go-exif/v3 v3.0.0-20210512043655-120bcdb2a55e
 	github.com/dsoprea/go-jpeg-image-structure v0.0.0-20221012074422-4f3f7e934102
 	github.com/dsoprea/go-png-image-structure v0.0.0-20210512210324-29b889a6093d
+	github.com/dsoprea/go-tiff-image-structure v0.0.0-20221003165014-8ecc4f52edca
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/image v0.0.0-20220902085622-e7cb96979f69

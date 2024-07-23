@@ -20,6 +20,8 @@ github.com/dsoprea/go-photoshop-info-format v0.0.0-20200609050348-3db9b63b202c h
 github.com/dsoprea/go-photoshop-info-format v0.0.0-20200609050348-3db9b63b202c/go.mod h1:pqKB+ijp27cEcrHxhXVgUUMlSDRuGJJp1E+20Lj5H0E=
 github.com/dsoprea/go-png-image-structure v0.0.0-20210512210324-29b889a6093d h1:8+qI8ant/vZkNSsbwSjIR6XJfWcDVTg/qx/3pRUUZNA=
 github.com/dsoprea/go-png-image-structure v0.0.0-20210512210324-29b889a6093d/go.mod h1:yTR3tKgyk20phAFg6IE9ulMA5NjEDD2wyx+okRFLVtw=
+github.com/dsoprea/go-tiff-image-structure v0.0.0-20221003165014-8ecc4f52edca h1:C0gA/12rFBjBZU+NipamTpthuJaAReN4Ydx63WRqphM=
+github.com/dsoprea/go-tiff-image-structure v0.0.0-20221003165014-8ecc4f52edca/go.mod h1:Lro6zqt9pr9yVPwBaM5ijpieYLc4Fy+ObmL5SKP7LrU=
 github.com/dsoprea/go-utility v0.0.0-20200711062821-fab8125e9bdf h1:/w4QxepU4AHh3AuO6/g8y/YIIHH5+aKP3Bj8sg5cqhU=
 github.com/dsoprea/go-utility v0.0.0-20200711062821-fab8125e9bdf/go.mod h1:95+K3z2L0mqsVYd6yveIv1lmtT3tcQQ3dVakPySffW8=
 github.com/dsoprea/go-utility/v2 v2.0.0-20200717064901-2fccff4aa15e h1:IxIbA7VbCNrwumIYjDoMOdf4KOSkMC6NJE4s8oRbE7E=
@@ -43,7 +45,6 @@ github.com/spf13/cobra v1.8.1 h1:e5/vxKd/rZsfSJMUX1agtjeTDf+qv1/JdBF8gg5k9ZM=
 github.com/spf13/cobra v1.8.1/go.mod h1:wHxEcudfqmLYa8iTfL+OuZPbBZkmvliBWKIezN3kD9Y=
 github.com/spf13/pflag v1.0.5 h1:iy+VFUOCP1a+8yFto/drg2CJ5u0yRoB7fZw3DKv/JXA=
 github.com/spf13/pflag v1.0.5/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An2Bg=
-github.com/stretchr/objx v0.5.2/go.mod h1:FRsXN1f5AsAjCGJKqEizvkpNtU+EGNCLh3NxZ/8L+MA=
 github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsTg=
 github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=

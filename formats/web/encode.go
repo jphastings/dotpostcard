@@ -30,7 +30,9 @@ func (c codec) Encode(pc types.Postcard, opts formats.EncodeOptions) []formats.F
 		if pc.Back != nil {
 			combinedSize.Max.Y *= 2
 			outputImageSize.PxHeight *= 2
-			outputImageSize.CmHeight = (&big.Rat{}).Mul(outputImageSize.CmHeight, big.NewRat(2, 1))
+			if outputImageSize.HasPhysical() {
+				outputImageSize.CmHeight = (&big.Rat{}).Mul(outputImageSize.CmHeight, big.NewRat(2, 1))
+			}
 		}
 
 		combinedImg := image.NewRGBA(combinedSize)

@@ -12,7 +12,8 @@ var readers = []struct {
 	{[]byte(pngHeader), decodePNG},
 	{[]byte("\xff\xd8"), decodeJPEG},
 	{[]byte("RIFF????WEBPVP8"), decodeWebP},
-	// TODO: tiff
+	{[]byte{0x4D, 0x4D, 0x00, 0x2A}, decodeTIFF},
+	{[]byte{0x49, 0x49, 0x2A, 0x00}, decodeTIFF},
 }
 
 // Decode returns the resolution (number of pixels per centimetre) an image declares it is stored with
