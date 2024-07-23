@@ -1,0 +1,108 @@
+#usda 1.0
+(
+    customLayerData = {
+        dictionary Apple = {
+            int preferredIblVersion = 2
+        }
+        string creator = "{{.Creator}}"
+    }
+    defaultPrim = "postcard"
+    metersPerUnit = 0.01
+    upAxis = "Y"
+)
+
+def Xform "postcard" (
+    assetInfo = {
+        string name = "Postcard"
+    }
+    kind = "component"
+)
+{
+    def Scope "Materials"
+    {
+        def Material "sides"
+        {
+            token outputs:surface.connect = </postcard/Materials/sides/surfaceShader.outputs:surface>
+
+            def Shader "surfaceShader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor.connect = </postcard/Materials/sides/diffuseColor_texture.outputs:rgb>
+                token outputs:surface
+            }
+
+            def Shader "diffuseColor_texture"
+            {
+                uniform token info:id = "UsdUVTexture"
+                float4 inputs:bias = (0, 0, 0, 0)
+                asset inputs:file = @{{.SidesFilename}}@
+                float4 inputs:scale = (1, 1, 1, 1)
+                float2 inputs:st.connect = </postcard/Materials/sides/texCoordReader.outputs:result>
+                float3 outputs:rgb
+            }
+
+            def Shader "texCoordReader"
+            {
+                uniform token info:id = "UsdPrimvarReader_float2"
+                token inputs:varname = "st"
+                float2 outputs:result
+            }
+        }
+
+        def Material "paper"
+        {
+            token outputs:surface.connect = </postcard/Materials/paper/surfaceShader.outputs:surface>
+
+            def Shader "surfaceShader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                token outputs:surface
+            }
+        }
+    }
+
+    def Scope "Geom"
+    {
+        def Mesh "Front"
+        {
+            uniform bool doubleSided = 0
+            float3[] extent = [(0, 0, {{.MaxZ}}), ({{.MaxX}}, {{.MaxY}}, {{.MaxZ}})]
+            int[] faceVertexCounts = [{{ len .FrontPoints }}]
+            int[] faceVertexIndices = [0, 1, 2, 3]
+            rel material:binding = </postcard/Materials/sides>
+            point3f[] points = [{{ range .FrontPoints }}({{.X}}, {{.Y}}, {{$.MaxZ}}),{{ end }}]
+            texCoord2f[] primvars:st = [(0, 1), (0, 0.5), (1, 0.5), (1, 1)] (
+                interpolation = "faceVarying"
+            )
+            int[] primvars:st:indices = [0, 1, 2, 3]
+            uniform token subdivisionScheme = "none"
+        }
+
+        def Mesh "Back"
+        {
+            uniform bool doubleSided = 0
+            float3[] extent = [(0, 0, 0), ({{.MaxX}}, {{.MaxY}}, 0)]
+            int[] faceVertexCounts = [{{ len .BackPoints }}]
+            int[] faceVertexIndices = [3, 2, 1, 0]
+            rel material:binding = </postcard/Materials/sides>
+            point3f[] points = [{{ range .BackPoints }}({{.X}}, {{.Y}}, 0),{{ end }}]
+            texCoord2f[] primvars:st = [(0, 0.5), (0, 0), (1, 0), (1, 0.5)] (
+                interpolation = "faceVarying"
+            )
+            int[] primvars:st:indices = [0, 1, 2, 3]
+            uniform token subdivisionScheme = "none"
+        }
+
+        def Mesh "Paper"
+        {
+            uniform bool doubleSided = 0
+            float3[] extent = [(0, 0, 0), (0.123046875, 0.17375, 0.0004)]
+            int[] faceVertexCounts = [4, 4, 4, 4]
+            int[] faceVertexIndices = [7, 6, 1, 0, 3, 2, 5, 4, 7, 0, 3, 4, 1, 6, 5, 2]
+            rel material:binding = </postcard/Materials/paper>
+            point3f[] points = [{{ range .FrontPoints }}({{.X}}, {{.Y}}, {{$.MaxZ}}),{{ end }}{{ range .BackPoints }}({{.X}}, {{.Y}}, 0),{{ end }}]
+            uniform token subdivisionScheme = "none"
+            uniform token subsetFamily:materialBind:familyType = "nonOverlapping"
+        }
+    }
+}

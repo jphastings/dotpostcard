@@ -18,7 +18,7 @@ var postcardHTML string
 var htmlTmpl *template.Template
 
 func init() {
-	tmpl, err := template.New("postcard").Parse(postcardHTML)
+	tmpl, err := template.New("postcard-html").Parse(postcardHTML)
 	if err != nil {
 		panic(fmt.Sprintf("Couldn't parse HTML template: %v", err))
 	}
