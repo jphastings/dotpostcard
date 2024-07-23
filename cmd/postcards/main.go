@@ -19,7 +19,19 @@ var rootCmd = &cobra.Command{
 	Use:     "postcards",
 	Short:   "A tool for converting between formats for representing images of postcards",
 	Version: postcards.Version,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, inputPaths []string) error {
+		var bundles []formats.Bundle
+		for _, inputPath := range inputPaths {
+			info, err := os.Stat(inputPath)
+			if err != nil {
+				return fmt.Errorf("input path '%s' not usable: %w", inputPath, err)
+			}
+			if info.IsDir() {
+
+			}
+		}
+		dir := os.DirFS(path.Dir(filename))
+
 		// TODO: side bundle when -meta.yaml offered
 		filename := "/private/tmp/postcard-test/portugal-meta.yaml"
 		dir := os.DirFS(path.Dir(filename))

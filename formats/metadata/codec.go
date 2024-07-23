@@ -16,6 +16,8 @@ import (
 var _ formats.Bundle = bundle{}
 
 type bundle struct {
+	referenceFilename string
+
 	ext  MetadataType
 	file fs.File
 }
@@ -38,12 +40,13 @@ func BundleFromFile(file fs.File) (formats.Bundle, error) {
 	if err != nil {
 		return nil, err
 	}
-	ext := path.Ext(info.Name())
+	filename := info.Name()
+	ext := path.Ext(filename)
 	if !slices.Contains(Extensions, ext) {
 		return nil, fmt.Errorf("unknown metadata extension '%s'", ext)
 	}
 
-	return bundle{file: file, ext: MetadataType(ext)}, nil
+	return bundle{file: file, ext: MetadataType(ext), referenceFilename: filename}, nil
 }
 
 func (c codec) Bundle(files []fs.File, _ fs.FS) ([]formats.Bundle, []fs.File, map[string]error) {
@@ -51,8 +54,8 @@ func (c codec) Bundle(files []fs.File, _ fs.FS) ([]formats.Bundle, []fs.File, ma
 	var remaining []fs.File
 
 	for _, file := range files {
-		if formats.HasFileSuffix(file, string(c.ext)) {
-			bundles = append(bundles, bundle{file: file, ext: c.ext})
+		if filename, ok := formats.HasFileSuffix(file, string(c.ext)); ok {
+			bundles = append(bundles, bundle{file: file, ext: c.ext, referenceFilename: filename})
 		} else {
 			remaining = append(remaining, file)
 		}
@@ -90,4 +93,8 @@ func (b bundle) Decode() (types.Postcard, error) {
 	default:
 		return types.Postcard{}, fmt.Errorf("unknown metadata format '%s'", b.ext)
 	}
+}
+
+func (b bundle) ReferenceFilename() string {
+	return b.referenceFilename
 }

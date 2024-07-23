@@ -45,7 +45,7 @@ func TestEncode(t *testing.T) {
 }
 
 func TestDecode(t *testing.T) {
-	bnd := bundle{bytes.NewReader(sampleXMP)}
+	bnd := bundle{r: bytes.NewReader(sampleXMP)}
 
 	pc, err := bnd.Decode()
 	_ = pc

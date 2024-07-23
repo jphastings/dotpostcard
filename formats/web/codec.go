@@ -14,6 +14,8 @@ import (
 var _ formats.Bundle = bundle{}
 
 type bundle struct {
+	referenceFilename string
+
 	io.Reader
 	postcard types.Postcard
 }

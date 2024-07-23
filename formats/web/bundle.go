@@ -18,15 +18,11 @@ func (c codec) Bundle(files []fs.File, dir fs.FS) ([]formats.Bundle, []fs.File, 
 	errs := make(map[string]error)
 
 	for _, file := range files {
-		if !formats.HasFileSuffix(file, ".webp") {
+		filename, isWebp := formats.HasFileSuffix(file, ".webp")
+		if !isWebp {
 			remaining = append(remaining, file)
-		}
-		info, err := file.Stat()
-		if err != nil {
 			continue
 		}
-
-		filename := info.Name()
 
 		data, err := io.ReadAll(file)
 		if err != nil {
@@ -48,10 +44,14 @@ func (c codec) Bundle(files []fs.File, dir fs.FS) ([]formats.Bundle, []fs.File, 
 
 		pc.Name = strings.TrimSuffix(filename, path.Ext(filename))
 
-		bnd := bundle{Reader: file, postcard: pc}
+		bnd := bundle{Reader: file, postcard: pc, referenceFilename: filename}
 
 		bundles = append(bundles, bnd)
 	}
 
 	return bundles, remaining, errs
+}
+
+func (b bundle) ReferenceFilename() string {
+	return b.referenceFilename
 }

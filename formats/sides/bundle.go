@@ -35,7 +35,8 @@ func (c codec) Bundle(files []fs.File, dir fs.FS) ([]formats.Bundle, []fs.File, 
 		}
 
 		b := bundle{
-			name: match[1],
+			referenceFilename: filename,
+			name:              match[1],
 		}
 		skipBack := false
 
@@ -80,4 +81,8 @@ func (c codec) Bundle(files []fs.File, dir fs.FS) ([]formats.Bundle, []fs.File, 
 	}
 
 	return bundles, remaining, errs
+}
+
+func (b bundle) ReferenceFilename() string {
+	return b.referenceFilename
 }

@@ -22,6 +22,8 @@ var (
 var _ formats.Bundle = bundle{}
 
 type bundle struct {
+	referenceFilename string
+
 	name       string
 	frontFile  fs.File
 	backFile   fs.File
