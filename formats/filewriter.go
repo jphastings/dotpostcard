@@ -1,6 +1,8 @@
 package formats
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -20,30 +22,34 @@ type Codec interface {
 	Bundle([]fs.File, fs.FS) ([]Bundle, []fs.File, map[string]error)
 
 	// Encode must produce any files needed to represent postcards in this format.
-	Encode(types.Postcard, EncodeOptions, chan<- error) []FileWriter
+	Encode(types.Postcard, EncodeOptions) []FileWriter
 }
 
 type FileWriter struct {
-	io.ReadCloser
+	r        io.ReadCloser
 	filename string
+	Err      error
 }
 
 // NewFileWriter is a helper function for creating a read stream for the return values of Encoders
-func NewFileWriter(filename string, fn func(w io.Writer) error, errs chan<- error) FileWriter {
+func NewFileWriter(filename string, fn func(w io.Writer) error) FileWriter {
 	r, w := io.Pipe()
-	go func(fn func(w io.Writer) error, w io.WriteCloser, errs chan<- error) {
+
+	fw := FileWriter{
+		filename: filename,
+		r:        r,
+	}
+
+	go func(fn func(w io.Writer) error, w io.WriteCloser) {
 		if err := fn(w); err != nil {
-			errs <- err
+			fw.Err = errors.Join(fw.Err, err)
 		}
 		if err := w.Close(); err != nil {
-			errs <- err
+			fw.Err = errors.Join(fw.Err, err)
 		}
-	}(fn, w, errs)
+	}(fn, w)
 
-	return FileWriter{
-		filename:   filename,
-		ReadCloser: r,
-	}
+	return fw
 }
 
 func (fw FileWriter) WriteFile(dir string) error {
@@ -53,10 +59,23 @@ func (fw FileWriter) WriteFile(dir string) error {
 	}
 	defer f.Close()
 
-	_, err = io.Copy(f, fw)
-	return err
+	_, err = io.Copy(f, fw.r)
+	return errors.Join(fw.Err, err)
 }
 
 func (fw FileWriter) Bytes() ([]byte, error) {
-	return io.ReadAll(fw.ReadCloser)
+	data, err := io.ReadAll(fw.r)
+	return data, errors.Join(fw.Err, err)
+}
+
+// A helper method for encoding from within other codecs
+func ExtractDataFromOne(fws []FileWriter) ([]byte, error) {
+	if len(fws) != 1 {
+		return nil, fmt.Errorf("no FileWriters produced")
+	}
+	if err := fws[0].Err; err != nil {
+		return nil, err
+	}
+
+	return fws[0].Bytes()
 }

@@ -1,7 +1,6 @@
 package html_test
 
 import (
-	"io"
 	"testing"
 
 	"github.com/jphastings/postcards/formats"
@@ -22,15 +21,12 @@ func TestBundle(t *testing.T) {
 }
 
 func TestEncode(t *testing.T) {
-	errs := make(chan error, 100)
-	fws := html.Codec().Encode(testhelpers.SamplePostcard, formats.EncodeOptions{}, errs)
+	fws := html.Codec().Encode(testhelpers.SamplePostcard, formats.EncodeOptions{})
 
 	assert.Len(t, fws, 1)
 
-	content, err := io.ReadAll(fws[0])
+	content, err := fws[0].Bytes()
 	assert.NoError(t, err)
-
-	assert.Empty(t, errs)
 
 	assert.Equal(t, `<input type="checkbox" id="postcard-some-postcard">
 <label for="postcard-some-postcard">

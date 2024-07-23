@@ -1,7 +1,6 @@
 package css_test
 
 import (
-	"io"
 	"strings"
 	"testing"
 
@@ -24,14 +23,12 @@ func TestBundle(t *testing.T) {
 }
 
 func TestEncode(t *testing.T) {
-	errs := make(chan error, 100)
-	fws := css.Codec().Encode(types.Postcard{}, formats.EncodeOptions{}, errs)
+	fws := css.Codec().Encode(types.Postcard{}, formats.EncodeOptions{})
 
 	assert.Len(t, fws, 1)
-	content, err := io.ReadAll(fws[0])
-	assert.NoError(t, err)
 
-	assert.Empty(t, errs)
+	content, err := fws[0].Bytes()
+	assert.NoError(t, err)
 
 	assert.True(t, strings.HasPrefix(string(content), "input[id^=postcard-] {"))
 }

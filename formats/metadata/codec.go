@@ -62,7 +62,7 @@ func (c codec) Bundle(files []fs.File, _ fs.FS) ([]formats.Bundle, []fs.File, ma
 }
 
 // The structure information is stored in the internal/types/postcard.go file, because Go.
-func (c codec) Encode(pc types.Postcard, _ formats.EncodeOptions, errs chan<- error) []formats.FileWriter {
+func (c codec) Encode(pc types.Postcard, _ formats.EncodeOptions) []formats.FileWriter {
 	name := fmt.Sprintf("%s-meta%s", pc.Name, c.ext)
 	writer := func(w io.Writer) error {
 		switch c.ext {
@@ -75,7 +75,7 @@ func (c codec) Encode(pc types.Postcard, _ formats.EncodeOptions, errs chan<- er
 		}
 	}
 
-	return []formats.FileWriter{formats.NewFileWriter(name, writer, errs)}
+	return []formats.FileWriter{formats.NewFileWriter(name, writer)}
 }
 
 func (b bundle) Decode() (types.Postcard, error) {

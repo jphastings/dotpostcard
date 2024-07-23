@@ -43,15 +43,7 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 
-		errc := make(chan error)
-		fws := web.Codec().Encode(pc, formats.EncodeOptions{Archival: true}, errc)
-
-		var encErrs error
-		go func() {
-			for {
-				encErrs = errors.Join(encErrs, <-errc)
-			}
-		}()
+		fws := web.Codec().Encode(pc, formats.EncodeOptions{Archival: true})
 
 		for _, fw := range fws {
 			if err := fw.WriteFile(path.Dir(filename)); err != nil {
@@ -59,7 +51,7 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
-		return encErrs
+		return nil
 	},
 }
 

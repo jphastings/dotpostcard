@@ -40,7 +40,7 @@ func (c codec) Bundle(files []fs.File, _ fs.FS) ([]formats.Bundle, []fs.File, ma
 	return bundles, remaining, make(map[string]error)
 }
 
-func (c codec) Encode(pc types.Postcard, _ formats.EncodeOptions, errs chan<- error) []formats.FileWriter {
+func (c codec) Encode(pc types.Postcard, _ formats.EncodeOptions) []formats.FileWriter {
 	filename := fmt.Sprintf("%s-meta.xmp", pc.Name)
 	writer := func(w io.Writer) error {
 		if xmp, err := MetadataToXMP(pc.Meta); err == nil {
@@ -50,7 +50,7 @@ func (c codec) Encode(pc types.Postcard, _ formats.EncodeOptions, errs chan<- er
 			return err
 		}
 	}
-	fw := formats.NewFileWriter(filename, writer, errs)
+	fw := formats.NewFileWriter(filename, writer)
 
 	return []formats.FileWriter{fw}
 }

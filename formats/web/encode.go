@@ -15,7 +15,7 @@ import (
 	"github.com/jphastings/postcards/types"
 )
 
-func (c codec) Encode(pc types.Postcard, opts formats.EncodeOptions, errs chan<- error) []formats.FileWriter {
+func (c codec) Encode(pc types.Postcard, opts formats.EncodeOptions) []formats.FileWriter {
 	name := fmt.Sprintf("%s.webp", pc.Name)
 
 	writer := func(w io.Writer) error {
@@ -35,11 +35,9 @@ func (c codec) Encode(pc types.Postcard, opts formats.EncodeOptions, errs chan<-
 			draw.CatmullRom.Scale(combinedImg, lowerSize, backImg, backSize, draw.Src, nil)
 		}
 
-		xmp.Codec().Encode(pc, nil)
-
-		xmpData, err := xmp.MetadataToXMP(pc.Meta)
+		xmpData, err := formats.ExtractDataFromOne(xmp.Codec().Encode(pc, formats.EncodeOptions{}))
 		if err != nil {
-			return err
+			return fmt.Errorf("couldn't generate XMP metadata for postcard: %w", err)
 		}
 
 		var webpOpts *webp.Options
@@ -63,7 +61,7 @@ func (c codec) Encode(pc types.Postcard, opts formats.EncodeOptions, errs chan<-
 		return err
 	}
 
-	return []formats.FileWriter{formats.NewFileWriter(name, writer, errs)}
+	return []formats.FileWriter{formats.NewFileWriter(name, writer)}
 }
 
 func rotateForWeb(img image.Image, flip types.Flip) (image.Image, image.Rectangle) {

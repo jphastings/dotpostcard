@@ -33,7 +33,7 @@ func (c codec) Bundle(files []fs.File, _ fs.FS) ([]formats.Bundle, []fs.File, ma
 	return nil, files, make(map[string]error)
 }
 
-func (c codec) Encode(pc types.Postcard, _ formats.EncodeOptions, errs chan<- error) []formats.FileWriter {
+func (c codec) Encode(pc types.Postcard, _ formats.EncodeOptions) []formats.FileWriter {
 	name := fmt.Sprintf("%s.html", pc.Name)
 	writer := func(w io.Writer) error {
 		pc.Meta.Name = pc.Name
@@ -41,6 +41,6 @@ func (c codec) Encode(pc types.Postcard, _ formats.EncodeOptions, errs chan<- er
 	}
 
 	return []formats.FileWriter{
-		formats.NewFileWriter(name, writer, errs),
+		formats.NewFileWriter(name, writer),
 	}
 }
