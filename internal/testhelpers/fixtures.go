@@ -58,3 +58,6 @@ var SamplePostcard = types.Postcard{
 	Front: testImages["front-landscape.png"],
 	Back:  testImages["back-landscape.png"],
 }
+
+//go:embed samplexmp.xml
+var SampleXMP []byte

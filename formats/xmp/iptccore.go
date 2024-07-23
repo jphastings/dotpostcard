@@ -1,7 +1,6 @@
 package xmp
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/jphastings/postcards/formats"
@@ -23,7 +22,7 @@ func addIPTCCoreSection(sections []interface{}, meta types.Metadata) []interface
 	return append(sections, xmpIptc4xmpCoreXML{
 		Namespace: "http://iptc.org/std/Iptc4xmpCore/1.0/xmlns/",
 		Alt: langText{
-			Text: fmt.Sprintf(text, meta.Front.Description, meta.Back.Transcription),
+			Text: text,
 			Lang: lang,
 		},
 	})
