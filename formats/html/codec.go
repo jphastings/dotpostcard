@@ -27,10 +27,12 @@ func init() {
 
 func Codec() formats.Codec { return codec{} }
 
+func (c codec) Name() string { return "HTML" }
+
 type codec struct{}
 
-func (c codec) Bundle(files []fs.File, _ fs.FS) ([]formats.Bundle, []fs.File, map[string]error) {
-	return nil, files, make(map[string]error)
+func (c codec) Bundle(group formats.FileGroup) ([]formats.Bundle, []fs.File, error) {
+	return nil, group.Files, nil
 }
 
 func (c codec) Encode(pc types.Postcard, _ formats.EncodeOptions) []formats.FileWriter {

@@ -1,7 +1,9 @@
-package sides
+package raw
 
 import (
+	"errors"
 	"io/fs"
+	"path"
 	"regexp"
 	"slices"
 
@@ -12,13 +14,13 @@ import (
 var usableExtensions = []string{".webp", ".png", ".jpg", ".jpeg", ".tif", ".tiff"}
 var bundleRE = regexp.MustCompile(`^(.+)-(?:(front|back|only)\.(?:webp|png|jpe?g|tiff?)|meta\.(?:yaml|json))$`)
 
-func (c codec) Bundle(files []fs.File, dir fs.FS) ([]formats.Bundle, []fs.File, map[string]error) {
+func (c codec) Bundle(group formats.FileGroup) ([]formats.Bundle, []fs.File, error) {
 	var bundles []formats.Bundle
 	var remaining []fs.File
-	errs := make(map[string]error)
+	var finalErr error
 
 	var skip []string
-	for _, file := range files {
+	for _, file := range group.Files {
 		info, err := file.Stat()
 		if err != nil {
 			continue
@@ -35,8 +37,8 @@ func (c codec) Bundle(files []fs.File, dir fs.FS) ([]formats.Bundle, []fs.File, 
 		}
 
 		b := bundle{
-			referenceFilename: filename,
-			name:              match[1],
+			refPath: path.Join(group.DirPath, filename),
+			name:    match[1],
 		}
 		skipBack := false
 
@@ -49,9 +51,9 @@ func (c codec) Bundle(files []fs.File, dir fs.FS) ([]formats.Bundle, []fs.File, 
 		case "back":
 			b.backFile = file
 		case "": // This is a metadata file
-			mf, err := metadata.BundleFromFile(file)
+			mf, err := metadata.BundleFromFile(file, group.DirPath)
 			if err != nil {
-				errs[filename] = err
+				finalErr = errors.Join(finalErr, formats.NewFileError(filename, err))
 				continue
 			}
 			b.metaBundle = mf
@@ -59,19 +61,19 @@ func (c codec) Bundle(files []fs.File, dir fs.FS) ([]formats.Bundle, []fs.File, 
 
 		if b.frontFile == nil {
 			var toSkip string
-			b.frontFile, toSkip = findFile(dir, b.name+"-front", usableExtensions)
+			b.frontFile, toSkip = findFile(group.Dir, b.name+"-front", usableExtensions)
 			skip = append(skip, toSkip)
 		}
 		if b.backFile == nil && !skipBack {
 			var toSkip string
-			b.backFile, toSkip = findFile(dir, b.name+"-back", usableExtensions)
+			b.backFile, toSkip = findFile(group.Dir, b.name+"-back", usableExtensions)
 			skip = append(skip, toSkip)
 		}
 		if b.metaBundle == nil {
 			var toSkip string
-			b.metaBundle, toSkip, err = findMeta(dir, b.name)
+			b.metaBundle, toSkip, err = findMeta(group.Dir, b.name, group.DirPath)
 			if err != nil {
-				errs[filename] = err
+				finalErr = errors.Join(finalErr, formats.NewFileError(filename, err))
 				continue
 			}
 			skip = append(skip, toSkip)
@@ -80,9 +82,9 @@ func (c codec) Bundle(files []fs.File, dir fs.FS) ([]formats.Bundle, []fs.File, 
 		bundles = append(bundles, b)
 	}
 
-	return bundles, remaining, errs
+	return bundles, remaining, finalErr
 }
 
-func (b bundle) ReferenceFilename() string {
-	return b.referenceFilename
+func (b bundle) RefPath() string {
+	return b.refPath
 }

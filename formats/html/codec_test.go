@@ -11,12 +11,12 @@ import (
 
 func TestBundle(t *testing.T) {
 	anyOldFilenames := []string{"any.jpg", "other.json", "files-meta.yaml"}
-	files, dir := testhelpers.TestFiles(anyOldFilenames)
+	group := testhelpers.TestFiles(anyOldFilenames)
 
-	bundle, remaining, errs := html.Codec().Bundle(files, dir)
+	bundle, remaining, errs := html.Codec().Bundle(group)
 
 	assert.Nil(t, bundle)
-	assert.Equal(t, files, remaining)
+	assert.Equal(t, group.Files, remaining)
 	assert.Empty(t, errs)
 }
 

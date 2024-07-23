@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io/fs"
 	"testing/fstest"
+
+	"github.com/jphastings/postcards/formats"
 )
 
 func DataForTestFile(filename string) []byte {
@@ -12,7 +14,7 @@ func DataForTestFile(filename string) []byte {
 
 // TestFiles makes an in-memory filesystem suitable for testing Codec.Bundle.
 // The files within contain no data or context, but have the supplied names.
-func TestFiles(filenames []string, alsoInDir ...string) ([]fs.File, fs.ReadDirFS) {
+func TestFiles(filenames []string, alsoInDir ...string) formats.FileGroup {
 	var files []fs.File
 	dir := make(fstest.MapFS)
 
@@ -33,7 +35,10 @@ func TestFiles(filenames []string, alsoInDir ...string) ([]fs.File, fs.ReadDirFS
 		files = append(files, f)
 	}
 
-	return files, dir
+	return formats.FileGroup{
+		Files: files,
+		Dir:   dir,
+	}
 }
 
 func Filenames(files []fs.File) []string {

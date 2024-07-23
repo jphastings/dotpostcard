@@ -15,14 +15,25 @@ type EncodeOptions struct {
 	Archival bool
 }
 
+// FileGroup represents a subset of files within a single directory
+type FileGroup struct {
+	Files []fs.File
+	Dir   fs.FS
+	// The path on the filesystem of the directory, if a filesystem was the source
+	DirPath string
+}
+
 // Codec structs hold mechanisms for storing and reading postcard information in a specific format
 type Codec interface {
 	// Bundle must extract any single/set of postcard file(s) that can be decoded by this codec
 	// from the given input files (which will all be in the same directory), including any directly associated
-	Bundle([]fs.File, fs.FS) ([]Bundle, []fs.File, map[string]error)
+	Bundle(FileGroup) ([]Bundle, []fs.File, error)
 
 	// Encode must produce any files needed to represent postcards in this format.
 	Encode(types.Postcard, EncodeOptions) []FileWriter
+
+	// Name is the human usable name of the codec
+	Name() string
 }
 
 type FileWriter struct {
@@ -52,7 +63,7 @@ func NewFileWriter(filename string, fn func(w io.Writer) error) FileWriter {
 	return fw
 }
 
-func (fw FileWriter) WriteFile(dir string, overwrite bool) error {
+func (fw FileWriter) WriteFile(dir string, overwrite bool) (string, error) {
 	flags := os.O_CREATE | os.O_WRONLY | os.O_TRUNC
 	if !overwrite {
 		flags |= os.O_EXCL
@@ -60,12 +71,12 @@ func (fw FileWriter) WriteFile(dir string, overwrite bool) error {
 
 	f, err := os.OpenFile(path.Join(dir, fw.filename), flags, 0644)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer f.Close()
 
 	_, err = io.Copy(f, fw.r)
-	return errors.Join(fw.Err, err)
+	return fw.filename, errors.Join(fw.Err, err)
 }
 
 func (fw FileWriter) Bytes() ([]byte, error) {

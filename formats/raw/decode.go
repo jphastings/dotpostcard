@@ -1,4 +1,4 @@
-package sides
+package raw
 
 import (
 	"bytes"

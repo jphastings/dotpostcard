@@ -1,4 +1,4 @@
-package sides
+package raw
 
 import (
 	"errors"
@@ -22,9 +22,8 @@ var (
 var _ formats.Bundle = bundle{}
 
 type bundle struct {
-	referenceFilename string
-
 	name       string
+	refPath    string
 	frontFile  fs.File
 	backFile   fs.File
 	metaBundle formats.Bundle
@@ -36,13 +35,15 @@ type codec struct{}
 
 func Codec() formats.Codec { return codec{} }
 
-func findMeta(dir fs.FS, name string) (formats.Bundle, string, error) {
+func (c codec) Name() string { return "Raw" }
+
+func findMeta(dir fs.FS, name string, dirPath string) (formats.Bundle, string, error) {
 	metaFile, metaFilename := findFile(dir, name+"-meta", metadata.Extensions)
 	if metaFile == nil {
 		return nil, "", ErrIsMissingMetadata
 	}
 
-	metaBundle, err := metadata.BundleFromFile(metaFile)
+	metaBundle, err := metadata.BundleFromFile(metaFile, dirPath)
 	if err != nil {
 		return nil, "", fmt.Errorf("metadata file for %s couldn't be loaded: %w", name, err)
 	}

@@ -13,9 +13,9 @@ import (
 func TestBundle(t *testing.T) {
 	xmpFilenames := []string{"sample.xmp"}
 	anyOldFilenames := []string{"any.jpg", "other.json", "files-meta.yaml"}
-	files, dir := testhelpers.TestFiles(append(anyOldFilenames, xmpFilenames...))
+	group := testhelpers.TestFiles(append(anyOldFilenames, xmpFilenames...))
 
-	bnd, remaining, errs := Codec().Bundle(files, dir)
+	bnd, remaining, errs := Codec().Bundle(group)
 	assert.Empty(t, errs)
 
 	assert.Len(t, bnd, 1)

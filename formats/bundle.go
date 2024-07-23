@@ -29,6 +29,6 @@ func HasFileSuffix(file fs.File, suffixes ...string) (string, bool) {
 type Bundle interface {
 	// Decode must select the first single/set of postcard file(s) in 'input'
 	Decode() (pc types.Postcard, err error)
-	// ReferenceFilename is at least one filename from the bundle, usable in feedback to the user
-	ReferenceFilename() string
+	// RefPath is the source path of one of the files in the bundle (for output and reference)
+	RefPath() string
 }

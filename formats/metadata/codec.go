@@ -16,10 +16,9 @@ import (
 var _ formats.Bundle = bundle{}
 
 type bundle struct {
-	referenceFilename string
-
-	ext  MetadataType
-	file fs.File
+	ext     MetadataType
+	file    fs.File
+	refPath string
 }
 
 var _ formats.Codec = codec{}
@@ -35,7 +34,9 @@ var Extensions = []string{".json", ".yaml", ".yml"}
 
 func Codec(ext MetadataType) formats.Codec { return codec{ext: ext} }
 
-func BundleFromFile(file fs.File) (formats.Bundle, error) {
+func (c codec) Name() string { return "Metadata" }
+
+func BundleFromFile(file fs.File, dirPath string) (formats.Bundle, error) {
 	info, err := file.Stat()
 	if err != nil {
 		return nil, err
@@ -46,22 +47,22 @@ func BundleFromFile(file fs.File) (formats.Bundle, error) {
 		return nil, fmt.Errorf("unknown metadata extension '%s'", ext)
 	}
 
-	return bundle{file: file, ext: MetadataType(ext), referenceFilename: filename}, nil
+	return bundle{file: file, ext: MetadataType(ext), refPath: path.Join(dirPath, filename)}, nil
 }
 
-func (c codec) Bundle(files []fs.File, _ fs.FS) ([]formats.Bundle, []fs.File, map[string]error) {
+func (c codec) Bundle(group formats.FileGroup) ([]formats.Bundle, []fs.File, error) {
 	var bundles []formats.Bundle
 	var remaining []fs.File
 
-	for _, file := range files {
+	for _, file := range group.Files {
 		if filename, ok := formats.HasFileSuffix(file, string(c.ext)); ok {
-			bundles = append(bundles, bundle{file: file, ext: c.ext, referenceFilename: filename})
+			bundles = append(bundles, bundle{file: file, ext: c.ext, refPath: path.Join(group.DirPath, filename)})
 		} else {
 			remaining = append(remaining, file)
 		}
 	}
 
-	return bundles, remaining, make(map[string]error)
+	return bundles, remaining, nil
 }
 
 // The structure information is stored in the internal/types/postcard.go file, because Go.
@@ -70,9 +71,9 @@ func (c codec) Encode(pc types.Postcard, _ formats.EncodeOptions) []formats.File
 	writer := func(w io.Writer) error {
 		switch c.ext {
 		case AsJSON:
-			return json.NewEncoder(w).Encode(pc)
+			return json.NewEncoder(w).Encode(pc.Meta)
 		case AsYAML:
-			return yaml.NewEncoder(w).Encode(pc)
+			return yaml.NewEncoder(w).Encode(pc.Meta)
 		default:
 			return fmt.Errorf("unknown metadata format '%s'", c.ext)
 		}
@@ -95,6 +96,6 @@ func (b bundle) Decode() (types.Postcard, error) {
 	}
 }
 
-func (b bundle) ReferenceFilename() string {
-	return b.referenceFilename
+func (b bundle) RefPath() string {
+	return b.refPath
 }

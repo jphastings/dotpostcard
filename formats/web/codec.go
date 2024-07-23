@@ -8,16 +8,14 @@ import (
 	_ "golang.org/x/image/tiff"
 
 	"github.com/jphastings/postcards/formats"
-	"github.com/jphastings/postcards/types"
 )
 
 var _ formats.Bundle = bundle{}
 
 type bundle struct {
-	referenceFilename string
-
 	io.Reader
-	postcard types.Postcard
+	name    string
+	refPath string
 }
 
 var _ formats.Codec = codec{}
@@ -25,3 +23,5 @@ var _ formats.Codec = codec{}
 type codec struct{}
 
 func Codec() formats.Codec { return codec{} }
+
+func (c codec) Name() string { return "Web" }

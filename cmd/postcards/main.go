@@ -1,16 +1,15 @@
 package main
 
 import (
-	"errors"
 	"fmt"
-	"io/fs"
+	"io"
 	"os"
 	"path"
+	"sync"
 
 	"github.com/jphastings/postcards"
 	"github.com/jphastings/postcards/formats"
-	"github.com/jphastings/postcards/formats/sides"
-	"github.com/jphastings/postcards/formats/web"
+	"github.com/jphastings/postcards/internal/cmdhelp"
 	"github.com/spf13/cobra"
 )
 
@@ -20,59 +19,91 @@ var rootCmd = &cobra.Command{
 	Short:   "A tool for converting between formats for representing images of postcards",
 	Version: postcards.Version,
 	RunE: func(cmd *cobra.Command, inputPaths []string) error {
-		var bundles []formats.Bundle
-		for _, inputPath := range inputPaths {
-			info, err := os.Stat(inputPath)
+		// Grab relevant flags
+		formatList, err := cmd.Flags().GetStringSlice("output")
+		if err != nil {
+			panic("Output flag doesn't seem to be a string slice")
+		}
+		archival, err := cmd.Flags().GetBool("archival")
+		if err != nil {
+			panic("Archival flag doesn't seem to be boolean")
+		}
+		overwrite, err := cmd.Flags().GetBool("overwrite")
+		if err != nil {
+			panic("Overwrite flag doesn't seem to be boolean")
+		}
+
+		codecs, err := postcards.CodecsByFormat(formatList)
+		if err != nil {
+			return err
+		}
+
+		encOpts := formats.EncodeOptions{
+			Archival: archival,
+		}
+
+		bundles, err := postcards.MakeBundles(inputPaths)
+		if err != nil {
+			return err
+		}
+
+		fmt.Fprintf(os.Stdout, "⚙︎ Converting %s into %s…\n", count(len(bundles), "postcard"), count(len(codecs), "different format"))
+
+		sso := &safeWrite{w: os.Stdout}
+		var wg sync.WaitGroup
+
+		for _, bundle := range bundles {
+			targetDir, err := cmdhelp.Outdir(cmd, path.Dir(bundle.RefPath()))
 			if err != nil {
-				return fmt.Errorf("input path '%s' not usable: %w", inputPath, err)
-			}
-			if info.IsDir() {
-
-			}
-		}
-		dir := os.DirFS(path.Dir(filename))
-
-		// TODO: side bundle when -meta.yaml offered
-		filename := "/private/tmp/postcard-test/portugal-meta.yaml"
-		dir := os.DirFS(path.Dir(filename))
-		file, err := dir.Open(path.Base(filename))
-		if err != nil {
-			return err
-		}
-
-		bounds, remaining, errs := sides.Codec().Bundle([]fs.File{file}, dir)
-		for file, bErr := range errs {
-			err = errors.Join(err, fmt.Errorf("couldn't process %s: %w", file, bErr))
-		}
-		if err != nil {
-			return err
-		}
-		if len(bounds) != 1 {
-			return fmt.Errorf("should have 1 bundle, got %d (%d remaining)", len(bounds), len(remaining))
-		}
-
-		pc, err := bounds[0].Decode()
-		if err != nil {
-			return err
-		}
-
-		fws := web.Codec().Encode(pc, formats.EncodeOptions{Archival: false})
-
-		for _, fw := range fws {
-			if err := fw.WriteFile(path.Dir(filename), true); err != nil {
 				return err
 			}
+			filename := path.Base(bundle.RefPath())
+
+			pc, err := bundle.Decode()
+			if err != nil {
+				return err
+			}
+
+			for _, codec := range codecs {
+				for _, fw := range codec.Encode(pc, encOpts) {
+					wg.Add(1)
+					go func(filename string, fw formats.FileWriter) {
+						defer wg.Done()
+
+						dst, err := fw.WriteFile(targetDir, overwrite)
+						if err != nil {
+							fmt.Fprintf(sso, "⚠︎ %s: %v", filename, err)
+							return
+						}
+
+						fmt.Fprintf(sso, "%s → %s\n", filename, dst)
+					}(filename, fw)
+				}
+			}
 		}
+
+		wg.Wait()
 
 		return nil
 	},
 }
 
-func checkErr(err error) {
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+type safeWrite struct {
+	w  io.Writer
+	mu sync.Mutex
+}
+
+func (s *safeWrite) Write(b []byte) (n int, err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.w.Write(b)
+}
+
+func count(n int, singular string) string {
+	if n == 1 {
+		return fmt.Sprintf("%d %s", n, singular)
 	}
+	return fmt.Sprintf("%d %ss", n, singular)
 }
 
 func main() {
@@ -85,5 +116,9 @@ func main() {
 	rootCmd.Flags().Bool("archival", false, "Turn off resizing of images and use lossy compression")
 	rootCmd.Flags().Bool("overwrite", false, "Overwrite output files")
 
-	checkErr(rootCmd.Execute())
+	err := rootCmd.Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		os.Exit(1)
+	}
 }

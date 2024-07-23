@@ -20,6 +20,7 @@ func (c codec) Encode(pc types.Postcard, opts formats.EncodeOptions) []formats.F
 	name := fmt.Sprintf("%s.webp", pc.Name)
 
 	writer := func(w io.Writer) error {
+		_ = pc
 		frontSize, finalSize := formats.DetermineSize(opts, pc.Front, pc.Back)
 
 		pc.Meta.FrontDimensions.PxWidth = finalSize.Dx()

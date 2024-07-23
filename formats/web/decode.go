@@ -9,7 +9,28 @@ import (
 )
 
 func (b bundle) Decode() (types.Postcard, error) {
-	pc := b.postcard
+	pc := types.Postcard{}
+	// TODO: decode XMP
+
+	// xmpData, err := webp.GetMetadata(data, "xmp")
+	// if err != nil {
+	// 	finalErr = errors.Join(finalErr, formats.NewFileError(
+	// 		filename,
+	// 		fmt.Errorf("couldn't read file to determine if it is a postcard image: %w", err),
+	// 	))
+	// 	continue
+	// }
+
+	// // May as well keep/use the pre-decoded metadata as the basis for the postcard later (rather than re-reading/processing)
+	// pc, err := xmp.BundleFromBytes(xmpData).Decode()
+	// if err != nil {
+	// 	//
+	// 	// finalErr = errors.Join(finalErr, formats.NewFileError(
+	// 	// 	filename,
+	// 	// 	fmt.Errorf("didn't contain postcard metadata: %w", err),
+	// 	// ))
+	// 	continue
+	// }
 
 	img, _, err := image.Decode(b)
 	if err != nil {
