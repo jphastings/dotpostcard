@@ -13,7 +13,7 @@ const DefaultMaxSide = 2048
 // Non-archival: A maximum of DefaultMaxSide will be used, with the shorter side scaled accordingly
 func DetermineSize(opts EncodeOptions, front image.Image, back image.Image) (frontSize, finalSize image.Rectangle) {
 	frontSize = front.Bounds()
-	frontLandscape := finalSize.Max.X > finalSize.Max.Y
+	frontLandscape := frontSize.Max.X > frontSize.Max.Y
 
 	finalSize = frontSize
 	var backSize image.Rectangle

@@ -35,6 +35,9 @@ func (c codec) Encode(pc types.Postcard, opts formats.EncodeOptions) []formats.F
 			draw.CatmullRom.Scale(combinedImg, lowerSize, backImg, backSize, draw.Src, nil)
 		}
 
+		pc.Meta.FrontDimensions.PxWidth = combinedSize.Dx()
+		pc.Meta.FrontDimensions.PxHeight = combinedSize.Dy()
+
 		xmpData, err := formats.ExtractDataFromOne(xmp.Codec().Encode(pc, formats.EncodeOptions{}))
 		if err != nil {
 			return fmt.Errorf("couldn't generate XMP metadata for postcard: %w", err)

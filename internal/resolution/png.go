@@ -12,7 +12,7 @@ const (
 	pngHeader = "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A"
 )
 
-func decodePng(data []byte) (*big.Rat, *big.Rat, error) {
+func decodePNG(data []byte) (*big.Rat, *big.Rat, error) {
 	pmp := pngstructure.NewPngMediaParser()
 
 	intfc, err := pmp.ParseBytes(data)

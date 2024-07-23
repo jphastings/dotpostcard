@@ -9,7 +9,7 @@ import (
 	"github.com/jphastings/postcards/types"
 )
 
-func MetadataToXMP(meta types.Metadata) ([]byte, error) {
+func metadataToXMP(meta types.Metadata) ([]byte, error) {
 	dims := types.Size{
 		CmWidth:  meta.FrontDimensions.CmWidth,
 		CmHeight: meta.FrontDimensions.CmHeight,

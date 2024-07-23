@@ -9,9 +9,9 @@ var readers = []struct {
 	magicBytes []byte
 	fn         func([]byte) (*big.Rat, *big.Rat, error)
 }{
-	{[]byte(pngHeader), decodePng},          // PNG
-	{[]byte("\xff\xd8"), decodeExif},        // JPEG
-	{[]byte("RIFF????WEBPVP8"), decodeExif}, // WebP
+	{[]byte(pngHeader), decodePNG},
+	{[]byte("\xff\xd8"), decodeJPEG},
+	{[]byte("RIFF????WEBPVP8"), decodeWebP},
 }
 
 func Decode(data []byte) (*big.Rat, *big.Rat, error) {

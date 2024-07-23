@@ -8,11 +8,11 @@ import (
 
 type xmlTiff struct {
 	Namespace      string   `xml:"xmlns:tiff,attr"`
-	ImageWidth     int      `xml:"tiff:ImageWidth"`
-	ImageHeight    int      `xml:"tiff:ImageLength"`
-	ResolutionUnit uint     `xml:"tiff:ResolutionUnit"`
-	XResolution    *big.Rat `xml:"tiff:XResolution"`
-	YResolution    *big.Rat `xml:"tiff:YResolution"`
+	ImageWidth     int      `xml:"tiff:ImageWidth,omitempty"`
+	ImageHeight    int      `xml:"tiff:ImageLength,omitempty"`
+	ResolutionUnit uint     `xml:"tiff:ResolutionUnit,omitempty"`
+	XResolution    *big.Rat `xml:"tiff:XResolution,omitempty"`
+	YResolution    *big.Rat `xml:"tiff:YResolution,omitempty"`
 }
 
 const tiffUnitsCentimetres = 3

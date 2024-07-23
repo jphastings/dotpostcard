@@ -46,7 +46,7 @@ var rootCmd = &cobra.Command{
 		fws := web.Codec().Encode(pc, formats.EncodeOptions{Archival: true})
 
 		for _, fw := range fws {
-			if err := fw.WriteFile(path.Dir(filename)); err != nil {
+			if err := fw.WriteFile(path.Dir(filename), true); err != nil {
 				return err
 			}
 		}
@@ -70,6 +70,7 @@ func main() {
 
 	rootCmd.Flags().StringSlice("output", []string{}, "Formats to convert to")
 	rootCmd.Flags().Bool("archival", false, "Turn off resizing of images and use lossy compression")
+	rootCmd.Flags().Bool("overwrite", false, "Overwrite output files")
 
 	checkErr(rootCmd.Execute())
 }

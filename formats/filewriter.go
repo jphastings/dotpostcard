@@ -12,6 +12,7 @@ import (
 )
 
 type EncodeOptions struct {
+	// Creates archival quality postcard files; this may require some *upsampling*, depending on the requested format
 	Archival bool
 }
 
@@ -52,8 +53,13 @@ func NewFileWriter(filename string, fn func(w io.Writer) error) FileWriter {
 	return fw
 }
 
-func (fw FileWriter) WriteFile(dir string) error {
-	f, err := os.OpenFile(path.Join(dir, fw.filename), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
+func (fw FileWriter) WriteFile(dir string, overwrite bool) error {
+	flags := os.O_CREATE | os.O_WRONLY
+	if !overwrite {
+		flags |= os.O_EXCL
+	}
+
+	f, err := os.OpenFile(path.Join(dir, fw.filename), flags, 0644)
 	if err != nil {
 		return err
 	}
