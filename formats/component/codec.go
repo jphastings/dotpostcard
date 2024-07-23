@@ -1,4 +1,4 @@
-package raw
+package component
 
 import (
 	"errors"
@@ -12,6 +12,8 @@ import (
 	"github.com/jphastings/postcards/formats"
 	"github.com/jphastings/postcards/formats/metadata"
 )
+
+const codecName = "Component files"
 
 var (
 	ErrIsMissingMetadata = errors.New("is missing its metadata file")
@@ -35,7 +37,7 @@ type codec struct{}
 
 func Codec() formats.Codec { return codec{} }
 
-func (c codec) Name() string { return "Raw" }
+func (c codec) Name() string { return codecName }
 
 func findMeta(dir fs.FS, name string, dirPath string) (formats.Bundle, string, error) {
 	metaFile, metaFilename := findFile(dir, name+"-meta", metadata.Extensions)

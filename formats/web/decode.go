@@ -1,40 +1,34 @@
 package web
 
 import (
+	"bytes"
 	"fmt"
 	"image"
 	"image/draw"
+	"io"
 
+	"github.com/chai2010/webp"
+	"github.com/jphastings/postcards/formats/xmp"
 	"github.com/jphastings/postcards/types"
 )
 
 func (b bundle) Decode() (types.Postcard, error) {
-	pc := types.Postcard{}
-	// TODO: decode XMP
+	var dataCopy bytes.Buffer
+	t := io.TeeReader(b, &dataCopy)
 
-	// xmpData, err := webp.GetMetadata(data, "xmp")
-	// if err != nil {
-	// 	finalErr = errors.Join(finalErr, formats.NewFileError(
-	// 		filename,
-	// 		fmt.Errorf("couldn't read file to determine if it is a postcard image: %w", err),
-	// 	))
-	// 	continue
-	// }
-
-	// // May as well keep/use the pre-decoded metadata as the basis for the postcard later (rather than re-reading/processing)
-	// pc, err := xmp.BundleFromBytes(xmpData).Decode()
-	// if err != nil {
-	// 	//
-	// 	// finalErr = errors.Join(finalErr, formats.NewFileError(
-	// 	// 	filename,
-	// 	// 	fmt.Errorf("didn't contain postcard metadata: %w", err),
-	// 	// ))
-	// 	continue
-	// }
-
-	img, _, err := image.Decode(b)
+	img, _, err := image.Decode(t)
 	if err != nil {
-		return pc, fmt.Errorf("unable to decode image: %w", err)
+		return types.Postcard{}, fmt.Errorf("unable to decode image: %w", err)
+	}
+
+	xmpData, err := webp.GetMetadata(dataCopy.Bytes(), "xmp")
+	if err != nil {
+		return types.Postcard{}, fmt.Errorf("couldn't extract XMP metadata: %w", err)
+	}
+
+	pc, err := xmp.BundleFromBytes(xmpData, b.refPath).Decode()
+	if err != nil {
+		return types.Postcard{}, fmt.Errorf("didn't contain postcard metadata: %w", err)
 	}
 
 	if pc.Meta.Flip == types.FlipNone {

@@ -19,15 +19,16 @@ func MakeBundles(filesAndDirPaths []string) ([]formats.Bundle, error) {
 
 	var bundles []formats.Bundle
 	for _, group := range groups {
-		files := group.Files
-		for _, format := range Formats {
-			newBundles, remaining, err := format.Bundle(group)
+		for _, codecID := range codecOrder {
+			codec := codecs[codecID]
+			newBundles, remaining, err := codec.Bundle(group)
 			if err != nil {
 				return bundles, err
 			}
+
 			bundles = append(bundles, newBundles...)
 			group.Files = remaining
-			if len(files) == 0 {
+			if len(group.Files) == 0 {
 				break
 			}
 		}
@@ -36,66 +37,68 @@ func MakeBundles(filesAndDirPaths []string) ([]formats.Bundle, error) {
 	return bundles, nil
 }
 
-func groupFiles(inputPaths []string) (map[string]formats.FileGroup, error) {
-	groups := make(map[string]formats.FileGroup)
+func groupFiles(inputPaths []string) ([]formats.FileGroup, error) {
+	dirset := make(map[string]map[string]struct{})
+
+	addToFiles := func(filepath string) {
+		dir := path.Dir(filepath)
+		base := path.Base(filepath)
+
+		fileset, ok := dirset[dir]
+		if !ok {
+			fileset = make(map[string]struct{})
+		}
+
+		fileset[base] = struct{}{}
+		dirset[dir] = fileset
+	}
 
 	for _, inputPath := range inputPaths {
 		info, err := os.Stat(inputPath)
 		if err != nil {
 			return nil, fmt.Errorf("input path '%s' not usable: %w", inputPath, err)
 		}
-		if info.IsDir() {
-			dir := os.DirFS(inputPath)
-			files, err := allfileGroup(dir)
-			if err != nil {
-				return nil, err
-			}
-
-			groups[inputPath] = formats.FileGroup{
-				Dir:     dir,
-				Files:   files,
-				DirPath: inputPath,
-			}
-		} else {
-			dirPath := path.Dir(inputPath)
-			dir := os.DirFS(dirPath)
-			file, err := dir.Open(path.Base(inputPath))
-			if err != nil {
-				return nil, err
-			}
-
-			if group, ok := groups[dirPath]; !ok {
-				groups[inputPath] = formats.FileGroup{
-					Dir:     dir,
-					Files:   []fs.File{file},
-					DirPath: dirPath,
-				}
-			} else {
-				group.Files = append(groups[dirPath].Files, file)
-				groups[dirPath] = group
-			}
+		if !info.IsDir() {
+			addToFiles(inputPath)
 		}
+	}
+
+	var groups []formats.FileGroup
+
+	for dir, fileset := range dirset {
+		dirFS := os.DirFS(dir)
+		var fileFSs []fs.File
+		for base, _ := range fileset {
+			f, err := dirFS.Open(base)
+			if err != nil {
+				return nil, fmt.Errorf("file path '%s' not usable: %w", path.Join(dir, base), err)
+			}
+			fileFSs = append(fileFSs, f)
+		}
+
+		groups = append(groups, formats.FileGroup{
+			Dir:     dirFS,
+			Files:   fileFSs,
+			DirPath: dir,
+		})
 	}
 
 	return groups, nil
 }
 
-func allfileGroup(dir fs.FS) ([]fs.File, error) {
-	var files []fs.File
-	err := fs.WalkDir(dir, ".", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			return fs.SkipDir
-		}
+func allFilesInDir(dir string) ([]string, error) {
+	var files []string
 
-		f, err := dir.Open(path)
-		if err != nil {
-			return fmt.Errorf("unable to open %s: %w", err)
+	des, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, de := range des {
+		if !de.IsDir() {
+			files = append(files, path.Join(dir, de.Name()))
 		}
-		files = append(files, f)
-		return nil
-	})
+	}
+
 	return files, err
 }

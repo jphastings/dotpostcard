@@ -32,7 +32,7 @@ Example uses:
 
 ```bash
 $ postcards --help
-Usage: postcards [--output list,of,formats] [flags] input-files/ [or-dirs or-lots/*]
+Usage: postcards [--output list,of,formats] [flags] postcard1-front.jpg [postcard2.yaml]
 
 $ tree
 .

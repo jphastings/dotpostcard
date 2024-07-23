@@ -10,6 +10,8 @@ import (
 	"github.com/jphastings/postcards/formats"
 )
 
+const codecName = "Web"
+
 var _ formats.Bundle = bundle{}
 
 type bundle struct {
@@ -24,4 +26,4 @@ type codec struct{}
 
 func Codec() formats.Codec { return codec{} }
 
-func (c codec) Name() string { return "Web" }
+func (c codec) Name() string { return codecName }

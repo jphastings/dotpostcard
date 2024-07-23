@@ -13,6 +13,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const codecName = "Metadata"
+
 var _ formats.Bundle = bundle{}
 
 type bundle struct {
@@ -34,7 +36,7 @@ var Extensions = []string{".json", ".yaml", ".yml"}
 
 func Codec(ext MetadataType) formats.Codec { return codec{ext: ext} }
 
-func (c codec) Name() string { return "Metadata" }
+func (c codec) Name() string { return codecName }
 
 func BundleFromFile(file fs.File, dirPath string) (formats.Bundle, error) {
 	info, err := file.Stat()
@@ -98,4 +100,8 @@ func (b bundle) Decode() (types.Postcard, error) {
 
 func (b bundle) RefPath() string {
 	return b.refPath
+}
+
+func (b bundle) Name() string {
+	return codecName
 }

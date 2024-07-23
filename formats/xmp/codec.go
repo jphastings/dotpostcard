@@ -11,6 +11,8 @@ import (
 	"github.com/jphastings/postcards/types"
 )
 
+const codecName = "XMP Metadata"
+
 var _ formats.Bundle = bundle{}
 
 type bundle struct {
@@ -24,11 +26,11 @@ type codec struct{}
 
 func Codec() formats.Codec { return codec{} }
 
-func (c codec) Name() string { return "XMP Metadata" }
+func (c codec) Name() string { return codecName }
 
 // BundleFromBytes allows decoding of an XMP data block stored within another file format
-func BundleFromBytes(data []byte) formats.Bundle {
-	return bundle{r: bytes.NewReader(data)}
+func BundleFromBytes(data []byte, refPath string) formats.Bundle {
+	return bundle{r: bytes.NewReader(data), refPath: refPath}
 }
 
 func (c codec) Bundle(group formats.FileGroup) ([]formats.Bundle, []fs.File, error) {
@@ -68,4 +70,8 @@ func (b bundle) Decode() (types.Postcard, error) {
 
 func (b bundle) RefPath() string {
 	return b.refPath
+}
+
+func (b bundle) Name() string {
+	return codecName
 }

@@ -36,3 +36,7 @@ func (c codec) Bundle(group formats.FileGroup) ([]formats.Bundle, []fs.File, err
 func (b bundle) RefPath() string {
 	return b.refPath
 }
+
+func (b bundle) Name() string {
+	return codecName
+}

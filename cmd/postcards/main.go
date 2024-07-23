@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"sync"
+	"time"
 
 	"github.com/jphastings/postcards"
 	"github.com/jphastings/postcards/formats"
@@ -70,13 +71,15 @@ var rootCmd = &cobra.Command{
 					go func(filename string, fw formats.FileWriter) {
 						defer wg.Done()
 
+						fileStartT := time.Now()
 						dst, err := fw.WriteFile(targetDir, overwrite)
 						if err != nil {
 							fmt.Fprintf(sso, "⚠︎ %s: %v", filename, err)
 							return
 						}
 
-						fmt.Fprintf(sso, "%s → %s\n", filename, dst)
+						fileDur := time.Now().Sub(fileStartT)
+						fmt.Fprintf(sso, "%s (%s) → %s (%s)\n", filename, bundle.Name(), dst, fileDur)
 					}(filename, fw)
 				}
 			}

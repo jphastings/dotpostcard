@@ -60,3 +60,7 @@ var _ json.Marshaler = (*Polygon)(nil)
 var _ yaml.Marshaler = (*Polygon)(nil)
 var _ json.Unmarshaler = (*Polygon)(nil)
 var _ yaml.Unmarshaler = (*Polygon)(nil)
+
+func (pc Postcard) String() string {
+	return fmt.Sprintf("<Postcard: %s>", pc.Name)
+}
