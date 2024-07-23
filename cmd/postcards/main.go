@@ -16,14 +16,15 @@ import (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:     "postcards",
+	Use:     "postcards --formats=output,formats [flags] postcard-file.ext...",
+	Example: "  postcards -f web,json postcard1-front.jpg postcard2.webp directory/*\n  postcards -f components --archival --overwrite pc.webp",
 	Short:   "A tool for converting between formats for representing images of postcards",
 	Version: postcards.Version,
 	RunE: func(cmd *cobra.Command, inputPaths []string) error {
 		// Grab relevant flags
-		formatList, err := cmd.Flags().GetStringSlice("output")
+		formatList, err := cmd.Flags().GetStringSlice("formats")
 		if err != nil {
-			panic("Output flag doesn't seem to be a string slice")
+			panic("Formats flag doesn't seem to be a string slice")
 		}
 		archival, err := cmd.Flags().GetBool("archival")
 		if err != nil {
@@ -46,6 +47,10 @@ var rootCmd = &cobra.Command{
 		bundles, err := postcards.MakeBundles(inputPaths)
 		if err != nil {
 			return err
+		}
+
+		if len(bundles) == 0 {
+			return cmd.Usage()
 		}
 
 		fmt.Fprintf(os.Stdout, "⚙︎ Converting %s into %s…\n", count(len(bundles), "postcard"), count(len(codecs), "different format"))
@@ -110,13 +115,13 @@ func count(n int, singular string) string {
 }
 
 func main() {
-	rootCmd.Flags().Bool("here", false, "Output files in the current working directory")
-	rootCmd.Flags().Bool("there", true, "Output files in the same directory as the source data")
-	rootCmd.Flags().String("outdir", "", "Output files to the given directory")
-	rootCmd.MarkFlagsMutuallyExclusive("here", "there", "outdir")
+	rootCmd.Flags().Bool("out-here", false, "Output files in the current working directory")
+	rootCmd.Flags().Bool("out-there", true, "Output files in the same directory as the source data")
+	rootCmd.Flags().String("out-dir", "", "Output files to the given directory")
+	rootCmd.MarkFlagsMutuallyExclusive("out-here", "out-there", "out-dir")
 
-	rootCmd.Flags().StringSlice("output", []string{}, "Formats to convert to")
-	rootCmd.Flags().Bool("archival", false, "Turn off resizing of images and use lossy compression")
+	rootCmd.Flags().StringSliceP("formats", "f", []string{}, "Formats to convert to")
+	rootCmd.Flags().BoolP("archival", "A", false, "Turn off image resizing, use lossless compression")
 	rootCmd.Flags().Bool("overwrite", false, "Overwrite output files")
 
 	err := rootCmd.Execute()

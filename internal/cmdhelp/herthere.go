@@ -9,7 +9,7 @@ import (
 )
 
 func Outdir(cmd *cobra.Command, therePath string) (string, error) {
-	outdir, err := cmd.Flags().GetString("outdir")
+	outdir, err := cmd.Flags().GetString("out-dir")
 	if err != nil {
 		return "", err
 	}
@@ -24,7 +24,7 @@ func Outdir(cmd *cobra.Command, therePath string) (string, error) {
 		}
 		return outdir, os.MkdirAll(outdir, 0700)
 	}
-	heredir, err := cmd.Flags().GetBool("here")
+	heredir, err := cmd.Flags().GetBool("out-here")
 	if err != nil {
 		return "", err
 	}
