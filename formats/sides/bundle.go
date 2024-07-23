@@ -2,12 +2,15 @@ package sides
 
 import (
 	"io/fs"
-	"path"
+	"regexp"
 	"slices"
-	"strings"
 
 	"github.com/jphastings/postcards/formats"
+	"github.com/jphastings/postcards/formats/metadata"
 )
+
+var usableExtensions = []string{".webp", ".png", ".jpg", ".jpeg", ".tif", ".tiff"}
+var bundleRE = regexp.MustCompile(`^(.+)-(?:(front|back|only)\.(?:webp|png|jpe?g|tiff?)|meta\.(?:yaml|json))$`)
 
 func (c codec) Bundle(files []fs.File, dir fs.FS) ([]formats.Bundle, []fs.File, map[string]error) {
 	var bundles []formats.Bundle
@@ -25,66 +28,55 @@ func (c codec) Bundle(files []fs.File, dir fs.FS) ([]formats.Bundle, []fs.File, 
 			continue
 		}
 
-		ext := path.Ext(filename)
-		if !slices.Contains(usableExtensions, ext) {
+		match := bundleRE.FindStringSubmatch(filename)
+		if len(match) == 0 {
 			remaining = append(remaining, file)
 			continue
 		}
 
-		parts := strings.Split(strings.TrimSuffix(filename, ext), "-")
-		splitN := len(parts) - 1
-		prefix := strings.Join(parts[:splitN], "-")
-		suffix := parts[splitN]
-		if splitN == 0 {
-			remaining = append(remaining, file)
-			continue
+		b := bundle{
+			name: match[1],
 		}
-		if !slices.Contains([]string{"front", "back", "only"}, suffix) {
-			remaining = append(remaining, file)
-			continue
-		}
+		skipBack := false
 
-		metaBundle, metaFilename, err := findMeta(dir, prefix)
-		if err != nil {
-			errs[filename] = err
-			continue
-		}
-		skip = append(skip, metaFilename)
-
-		switch suffix {
+		switch match[2] {
 		case "only":
-			bundles = append(bundles, bundle{
-				name:       prefix,
-				frontFile:  file,
-				metaBundle: metaBundle,
-			})
-
+			b.frontFile = file
+			skipBack = true
 		case "front":
-			backFile, _ := findFile(dir, prefix+"-back", usableExtensions)
-			if backFile == nil {
-				errs[filename] = ErrIsMissingBack
-				continue
-			}
-			bundles = append(bundles, bundle{
-				name:       prefix,
-				frontFile:  file,
-				backFile:   backFile,
-				metaBundle: metaBundle,
-			})
-
+			b.frontFile = file
 		case "back":
-			frontFile, _ := findFile(dir, prefix+"-front", usableExtensions)
-			if frontFile == nil {
-				errs[filename] = ErrIsMissingFront
+			b.backFile = file
+		case "": // This is a metadata file
+			mf, err := metadata.BundleFromFile(file)
+			if err != nil {
+				errs[filename] = err
 				continue
 			}
-			bundles = append(bundles, bundle{
-				name:       prefix,
-				frontFile:  frontFile,
-				backFile:   file,
-				metaBundle: metaBundle,
-			})
+			b.metaBundle = mf
 		}
+
+		if b.frontFile == nil {
+			var toSkip string
+			b.frontFile, toSkip = findFile(dir, b.name+"-front", usableExtensions)
+			skip = append(skip, toSkip)
+		}
+		if b.backFile == nil && !skipBack {
+			var toSkip string
+			b.backFile, toSkip = findFile(dir, b.name+"-back", usableExtensions)
+			skip = append(skip, toSkip)
+		}
+		if b.metaBundle == nil {
+			var toSkip string
+			b.metaBundle, toSkip, err = findMeta(dir, b.name)
+			if err != nil {
+				errs[filename] = err
+				continue
+			}
+			skip = append(skip, toSkip)
+		}
+
+		bundles = append(bundles, b)
 	}
 
 	return bundles, remaining, errs

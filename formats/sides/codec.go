@@ -32,19 +32,17 @@ var _ formats.Codec = codec{}
 
 type codec struct{}
 
-var usableExtensions = []string{".webp", ".png", ".jpg", ".jpeg", ".tif", ".tiff"}
-
 func Codec() formats.Codec { return codec{} }
 
-func findMeta(dir fs.FS, prefix string) (formats.Bundle, string, error) {
-	metaFile, metaFilename := findFile(dir, prefix+"-meta", metadata.Extensions)
+func findMeta(dir fs.FS, name string) (formats.Bundle, string, error) {
+	metaFile, metaFilename := findFile(dir, name+"-meta", metadata.Extensions)
 	if metaFile == nil {
 		return nil, "", ErrIsMissingMetadata
 	}
 
 	metaBundle, err := metadata.BundleFromFile(metaFile)
 	if err != nil {
-		return nil, "", fmt.Errorf("metadata file for %s couldn't be loaded: %w", prefix, err)
+		return nil, "", fmt.Errorf("metadata file for %s couldn't be loaded: %w", name, err)
 	}
 
 	return metaBundle, metaFilename, nil

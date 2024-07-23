@@ -20,7 +20,8 @@ var rootCmd = &cobra.Command{
 	Short:   "A tool for converting between formats for representing images of postcards",
 	Version: postcards.Version,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		filename := "/private/tmp/postcard-test/portugal-jpg-front.jpg"
+		// TODO: side bundle when -meta.yaml offered
+		filename := "/private/tmp/postcard-test/portugal-meta.yaml"
 		dir := os.DirFS(path.Dir(filename))
 		file, err := dir.Open(path.Base(filename))
 		if err != nil {
