@@ -9,7 +9,7 @@ import (
 	"github.com/jphastings/postcards/types"
 )
 
-func metadataToXMP(meta types.Metadata) ([]byte, error) {
+func MetadataToXMP(meta types.Metadata) ([]byte, error) {
 	dims := types.Size{
 		CmWidth:  meta.FrontDimensions.CmWidth,
 		CmHeight: meta.FrontDimensions.CmHeight,
@@ -19,8 +19,11 @@ func metadataToXMP(meta types.Metadata) ([]byte, error) {
 	// If this XMP represents an image that has both sides of the postcard, then its pixel
 	// and physical height will be twice its front height.
 	if meta.Flip != types.FlipNone {
-		dims.CmHeight = meta.FrontDimensions.CmHeight.Mul(dims.CmHeight, big.NewRat(2, 1))
 		dims.PxHeight *= 2
+
+		if dims.CmHeight != nil {
+			dims.CmHeight = meta.FrontDimensions.CmHeight.Mul(dims.CmHeight, big.NewRat(2, 1))
+		}
 	}
 
 	var sections []interface{}

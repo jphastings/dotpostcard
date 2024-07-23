@@ -29,7 +29,7 @@ func Codec() formats.Codec { return codec{} }
 
 type codec struct{}
 
-func (c codec) Bundle(files []fs.File, _ fs.ReadDirFS) ([]formats.Bundle, []fs.File, map[string]error) {
+func (c codec) Bundle(files []fs.File, _ fs.FS) ([]formats.Bundle, []fs.File, map[string]error) {
 	return nil, files, make(map[string]error)
 }
 

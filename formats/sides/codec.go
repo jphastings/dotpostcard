@@ -36,7 +36,7 @@ var usableExtensions = []string{".webp", ".png", ".jpg", ".jpeg", ".tif", ".tiff
 
 func Codec() formats.Codec { return codec{} }
 
-func findMeta(dir fs.ReadDirFS, prefix string) (formats.Bundle, string, error) {
+func findMeta(dir fs.FS, prefix string) (formats.Bundle, string, error) {
 	metaFile, metaFilename := findFile(dir, prefix+"-meta", metadata.Extensions)
 	if metaFile == nil {
 		return nil, "", ErrIsMissingMetadata
@@ -50,10 +50,10 @@ func findMeta(dir fs.ReadDirFS, prefix string) (formats.Bundle, string, error) {
 	return metaBundle, metaFilename, nil
 }
 
-func findFile(dir fs.ReadDirFS, prefix string, exts []string) (fs.File, string) {
-	for _, possExt := range usableExtensions {
+func findFile(dir fs.FS, prefix string, exts []string) (fs.File, string) {
+	for _, possExt := range exts {
 		foundFilename := prefix + possExt
-		if f, err := dir.Open(foundFilename); err != nil {
+		if f, err := dir.Open(foundFilename); err == nil {
 			return f, foundFilename
 		}
 	}

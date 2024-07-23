@@ -18,12 +18,16 @@ type xmlTiff struct {
 const tiffUnitsCentimetres = 3
 
 func addTIFFSection(sections []interface{}, dims types.Size) []interface{} {
-	return append(sections, xmlTiff{
-		Namespace:      "http://ns.adobe.com/tiff/1.0/",
-		ImageWidth:     dims.PxWidth,
-		ImageHeight:    dims.PxHeight,
-		ResolutionUnit: tiffUnitsCentimetres,
-		XResolution:    dims.CmWidth,
-		YResolution:    dims.CmHeight,
-	})
+	data := xmlTiff{
+		Namespace:   "http://ns.adobe.com/tiff/1.0/",
+		ImageWidth:  dims.PxWidth,
+		ImageHeight: dims.PxHeight,
+	}
+	if dims.CmWidth != nil && dims.CmHeight != nil {
+		data.ResolutionUnit = tiffUnitsCentimetres
+		data.XResolution = dims.CmWidth
+		data.YResolution = dims.CmHeight
+	}
+
+	return append(sections, data)
 }

@@ -25,7 +25,7 @@ func BundleFromBytes(data []byte) formats.Bundle {
 	return bundle{bytes.NewReader(data)}
 }
 
-func (c codec) Bundle(files []fs.File, _ fs.ReadDirFS) ([]formats.Bundle, []fs.File, map[string]error) {
+func (c codec) Bundle(files []fs.File, _ fs.FS) ([]formats.Bundle, []fs.File, map[string]error) {
 	var bundles []formats.Bundle
 	var remaining []fs.File
 
@@ -43,7 +43,7 @@ func (c codec) Bundle(files []fs.File, _ fs.ReadDirFS) ([]formats.Bundle, []fs.F
 func (c codec) Encode(pc types.Postcard, _ formats.EncodeOptions, errs chan<- error) []formats.FileWriter {
 	filename := fmt.Sprintf("%s-meta.xmp", pc.Name)
 	writer := func(w io.Writer) error {
-		if xmp, err := metadataToXMP(pc.Meta); err == nil {
+		if xmp, err := MetadataToXMP(pc.Meta); err == nil {
 			_, writeErr := w.Write(xmp)
 			return writeErr
 		} else {

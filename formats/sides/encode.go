@@ -12,8 +12,6 @@ import (
 	"github.com/jphastings/postcards/types"
 )
 
-const resizeMaxSize = 2048
-
 // The structure information is stored in the internal/types/postcard.go file, because Go.
 func (c codec) Encode(pc types.Postcard, opts formats.EncodeOptions, errs chan<- error) []formats.FileWriter {
 	encImg := func(side image.Image) func(io.Writer) error {

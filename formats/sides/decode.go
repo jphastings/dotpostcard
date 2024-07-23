@@ -21,13 +21,30 @@ func (b bundle) Decode() (types.Postcard, error) {
 	}
 	pc.Front = front
 
-	back, _, err := image.Decode(b.backFile)
-	if err != nil {
-		return types.Postcard{}, fmt.Errorf("couldn't decode postcard's back image: %w", err)
-	}
-	pc.Back = back
+	// frontData, err := io.ReadAll(b.frontFile)
+	// if err != nil {
+	// 	return pc, fmt.Errorf("unable to read front image content for dimension analysis: %w", err)
+	// }
 
-	// TODO: Check physical sizes & set FrontSize of metadata
+	// w, h, err := resolution.Decode(frontData)
+	// if err != nil {
+	// 	return pc, fmt.Errorf("unable to extract physical dimensions from front image: %w", err)
+	// }
+
+	// pc.Meta.FrontDimensions = types.Size{
+	// 	CmWidth:  w,
+	// 	CmHeight: h,
+	// }
+
+	// TODO: Compare to back dimensions and assert similarity
+
+	if b.backFile != nil {
+		back, _, err := image.Decode(b.backFile)
+		if err != nil {
+			return types.Postcard{}, fmt.Errorf("couldn't decode postcard's back image: %w", err)
+		}
+		pc.Back = back
+	}
 
 	return pc, nil
 }

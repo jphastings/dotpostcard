@@ -9,7 +9,7 @@ import (
 	"github.com/jphastings/postcards/formats"
 )
 
-func (c codec) Bundle(files []fs.File, dir fs.ReadDirFS) ([]formats.Bundle, []fs.File, map[string]error) {
+func (c codec) Bundle(files []fs.File, dir fs.FS) ([]formats.Bundle, []fs.File, map[string]error) {
 	var bundles []formats.Bundle
 	var remaining []fs.File
 	errs := make(map[string]error)

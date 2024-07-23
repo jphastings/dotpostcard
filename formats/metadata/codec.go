@@ -29,7 +29,7 @@ type MetadataType string
 var AsJSON MetadataType = ".json"
 var AsYAML MetadataType = ".yaml"
 
-var Extensions = []string{string(AsJSON), string(AsYAML)}
+var Extensions = []string{".json", ".yaml", ".yml"}
 
 func Codec(ext MetadataType) formats.Codec { return codec{ext: ext} }
 
@@ -46,7 +46,7 @@ func BundleFromFile(file fs.File) (formats.Bundle, error) {
 	return bundle{file: file, ext: MetadataType(ext)}, nil
 }
 
-func (c codec) Bundle(files []fs.File, _ fs.ReadDirFS) ([]formats.Bundle, []fs.File, map[string]error) {
+func (c codec) Bundle(files []fs.File, _ fs.FS) ([]formats.Bundle, []fs.File, map[string]error) {
 	var bundles []formats.Bundle
 	var remaining []fs.File
 
@@ -82,10 +82,10 @@ func (b bundle) Decode() (types.Postcard, error) {
 	var pc types.Postcard
 	switch b.ext {
 	case AsJSON:
-		err := json.NewDecoder(b.file).Decode(&pc)
+		err := json.NewDecoder(b.file).Decode(&pc.Meta)
 		return pc, err
 	case AsYAML:
-		err := yaml.NewDecoder(b.file).Decode(&pc)
+		err := yaml.NewDecoder(b.file).Decode(&pc.Meta)
 		return pc, err
 	default:
 		return types.Postcard{}, fmt.Errorf("unknown metadata format '%s'", b.ext)
