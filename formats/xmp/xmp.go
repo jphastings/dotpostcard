@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 
+	"github.com/jphastings/postcards/internal/general"
 	"github.com/jphastings/postcards/types"
 )
 
@@ -21,7 +22,7 @@ func MetadataToXMP(meta types.Metadata, dims *types.Size) ([]byte, error) {
 
 	x := xmpXML{
 		NamespaceX:     "adobe:ns:meta/",
-		NamespaceXMPTK: "postcards/v0.1",
+		NamespaceXMPTK: fmt.Sprintf("postcards/v%s", general.Version),
 		RDF: rdfXML{
 			Namespace: "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
 			Sections:  sections,
