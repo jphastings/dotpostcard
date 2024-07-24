@@ -129,6 +129,12 @@ func outOfBounds(d float64) bool {
 	return d < 0.0 || d > 1.0
 }
 
+func (s Size) MarshalYAML() (interface{}, error) {
+	w, _ := s.CmWidth.Float64()
+	h, _ := s.CmHeight.Float64()
+	return fmt.Sprintf("%.2fcm x %.2fcm", w, h), nil
+}
+
 func (s *Size) UnmarshalYAML(y *yaml.Node) error {
 	if y.ShortTag() != "!!str" {
 		return fmt.Errorf("invalid front_size, expected a string")
@@ -151,3 +157,5 @@ func (s *Size) UnmarshalYAML(y *yaml.Node) error {
 
 var _ yaml.Marshaler = (*Polygon)(nil)
 var _ yaml.Unmarshaler = (*Polygon)(nil)
+var _ yaml.Marshaler = (*Size)(nil)
+var _ yaml.Unmarshaler = (*Size)(nil)
