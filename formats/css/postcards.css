@@ -100,14 +100,14 @@ input[id^=postcard-] {
     aspect-ratio: 1/1;
   }
 
-  &.book::after,&.book .shadow {
+  &.flip-book::after,&.flip-book .shadow {
     transform: var(--p) var(--offset) rotateY(var(--flip));
     background-image: linear-gradient(to right,
         rgb(var(--v1), var(--v1), var(--v1)),
         rgb(var(--v2), var(--v2), var(--v2))
       ), var(--postcard);
   }
-  &.book::before {
+  &.flip-book::before {
     transform: var(--p) rotateY(calc(var(--flip) + 180deg));
     background-image: linear-gradient(to right,
         rgb(var(--v1), var(--v1), var(--v1)),
@@ -115,14 +115,14 @@ input[id^=postcard-] {
       ), var(--postcard);
   }
 
-  &.calendar::after,&.calendar .shadow {
+  &.flip-calendar::after,&.flip-calendar .shadow {
     transform: var(--p) var(--offset) rotateX(var(--flip));
     background-image: linear-gradient(to top,
         rgb(var(--v1), var(--v1), var(--v1)),
         rgb(var(--v2), var(--v2), var(--v2))
       ), var(--postcard);
   }
-  &.calendar::before {
+  &.flip-calendar::before {
     transform: var(--p) rotateX(calc(var(--flip) + 180deg));
     background-image: linear-gradient(to top,
         rgb(var(--v1), var(--v1), var(--v1)),
@@ -130,14 +130,14 @@ input[id^=postcard-] {
       ), var(--postcard);
   }
   
-  &.right-hand::after,&.right-hand .shadow {
+  &.flip-right-hand::after,&.flip-right-hand .shadow {
     transform: var(--p) var(--offset) rotate3d(1,1,0,var(--flip));
     background-image: linear-gradient(to top right,
         rgb(var(--v1), var(--v1), var(--v1)),
         rgb(var(--v2), var(--v2), var(--v2))
       ), var(--postcard);
   }
-  &.right-hand::before {
+  &.flip-right-hand::before {
     transform: var(--p) rotate3d(1,1,0,calc(var(--flip) + 180deg)) rotate(-90deg);
     background-image: linear-gradient(to bottom right,
         rgb(var(--v1), var(--v1), var(--v1)),
@@ -145,14 +145,14 @@ input[id^=postcard-] {
       ), var(--postcard);
   }
   
-  &.left-hand::after,&.left-hand .shadow {
+  &.flip-left-hand::after,&.flip-left-hand .shadow {
     transform: var(--p) var(--offset) rotate3d(-1,1,0,var(--flip));
     background-image: linear-gradient(to bottom right,
         rgb(var(--v1), var(--v1), var(--v1)),
         rgb(var(--v2), var(--v2), var(--v2))
       ), var(--postcard);
   }
-  &.left-hand::before {
+  &.flip-left-hand::before {
     transform: var(--p) rotate3d(-1,1,0,calc(var(--flip) + 180deg)) rotate(90deg);
     background-image: linear-gradient(to top right,
         rgb(var(--v1), var(--v1), var(--v1)),

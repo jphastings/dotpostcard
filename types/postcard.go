@@ -77,7 +77,7 @@ type Metadata struct {
 	SentOn    Date     `json:"sentOn,omitempty" yaml:"sent_on,omitempty"`
 	Sender    Person   `json:"sender,omitempty" yaml:"sender,omitempty"`
 	Recipient Person   `json:"recipient,omitempty" yaml:"recipient,omitempty"`
-	Front     Side     `json:"front,omitempty", yaml:"front,omitempty"`
+	Front     Side     `json:"front,omitempty" yaml:"front,omitempty"`
 	Back      Side     `json:"back,omitempty" yaml:"back,omitempty"`
 	Context   Context  `json:"context,omitempty" yaml:"context,omitempty"`
 	Physical  Physical `json:"physical,omitempty" yaml:"physical,omitempty"`
