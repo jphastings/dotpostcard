@@ -71,7 +71,7 @@ def Xform "postcard" (
             int[] faceVertexIndices = [0, 1, 2, 3]
             rel material:binding = </postcard/Materials/sides>
             point3f[] points = [{{ range .FrontPoints }}({{.X}}, {{.Y}}, {{$.MaxZ}}),{{ end }}]
-            texCoord2f[] primvars:st = [(0, 1), (0, 0.5), (1, 0.5), (1, 1)] (
+            texCoord2f[] primvars:st = [{{ range .FrontPrimVars }}({{.X}}, {{.Y}}),{{ end }}] (
                 interpolation = "faceVarying"
             )
             int[] primvars:st:indices = [0, 1, 2, 3]
@@ -86,7 +86,7 @@ def Xform "postcard" (
             int[] faceVertexIndices = [3, 2, 1, 0]
             rel material:binding = </postcard/Materials/sides>
             point3f[] points = [{{ range .BackPoints }}({{.X}}, {{.Y}}, 0),{{ end }}]
-            texCoord2f[] primvars:st = [(0, 0.5), (0, 0), (1, 0), (1, 0.5)] (
+            texCoord2f[] primvars:st = [{{ range .BackPrimVars }}({{.X}}, {{.Y}}),{{ end }}] (
                 interpolation = "faceVarying"
             )
             int[] primvars:st:indices = [0, 1, 2, 3]

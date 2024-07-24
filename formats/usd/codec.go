@@ -50,8 +50,10 @@ type usdParams struct {
 	MaxY float64
 	MaxZ float64
 
-	FrontPoints []usdPoint
-	BackPoints  []usdPoint
+	FrontPoints   []usdPoint
+	FrontPrimVars []usdPoint
+	BackPoints    []usdPoint
+	BackPrimVars  []usdPoint
 
 	SidesFilename string
 }
@@ -76,10 +78,28 @@ func (c codec) Encode(pc types.Postcard, opts formats.EncodeOptions) []formats.F
 		maxY, _ := pc.Meta.FrontDimensions.CmHeight.Float64()
 
 		frontPoints := make([]usdPoint, len(clockwise))
+		backPoints := make([]usdPoint, len(clockwise))
+		frontPrimVars := make([]usdPoint, len(clockwise))
+		backPrimVars := make([]usdPoint, len(clockwise))
+
 		for i, mul := range clockwise {
-			frontPoints[i] = usdPoint{
-				X: mul.X * maxX,
-				Y: mul.Y * maxY,
+			frontPoints[i] = usdPoint{X: mul.X * maxX, Y: mul.Y * maxY}
+
+			switch pc.Meta.Flip {
+			case types.FlipNone:
+				backPoints[i] = usdPoint{X: mul.X * maxX, Y: mul.Y * maxY}
+				frontPrimVars[i] = usdPoint{X: mul.X, Y: mul.Y}
+				backPrimVars[i] = frontPrimVars[i]
+			case types.FlipCalendar:
+				backPoints[(i+2)%4] = usdPoint{X: mul.X * maxX, Y: mul.Y * maxY}
+				// Scale & transform Y values to take top and bottom of texture, respectively
+				frontPrimVars[i] = usdPoint{X: mul.X, Y: mul.Y*0.5 + 0.5}
+				backPrimVars[i] = usdPoint{X: mul.X, Y: mul.Y * 0.5}
+			default:
+				backPoints[i] = usdPoint{X: mul.X * maxX, Y: mul.Y * maxY}
+				// Scale & transform Y values to take top and bottom of texture, respectively
+				frontPrimVars[i] = usdPoint{X: mul.X, Y: mul.Y*0.5 + 0.5}
+				backPrimVars[i] = usdPoint{X: mul.X, Y: mul.Y * 0.5}
 			}
 		}
 
@@ -90,12 +110,12 @@ func (c codec) Encode(pc types.Postcard, opts formats.EncodeOptions) []formats.F
 			MaxY: maxY,
 			MaxZ: pcThickCm,
 
-			FrontPoints: frontPoints,
-			BackPoints:  frontPoints,
+			FrontPoints:   frontPoints,
+			BackPoints:    backPoints,
+			FrontPrimVars: frontPrimVars,
+			BackPrimVars:  backPrimVars,
 
 			SidesFilename: sideFilename,
-			// TODO: Calendar Flip orientation
-			// TODO: Single sided postcards
 		}
 
 		return usdTmpl.Execute(w, params)
