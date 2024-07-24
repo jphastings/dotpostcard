@@ -14,7 +14,7 @@ import (
 	"github.com/jphastings/postcards/types"
 )
 
-const codecName = "USDZ 3D model"
+const codecName = "USD 3D model"
 
 //go:embed postcard.usda.tmpl
 var usdTmplData string

@@ -36,7 +36,16 @@ var Extensions = []string{".json", ".yaml", ".yml"}
 
 func Codec(ext MetadataType) formats.Codec { return codec{ext: ext} }
 
-func (c codec) Name() string { return codecName }
+func (c codec) Name() string {
+	switch c.ext {
+	case AsJSON:
+		return "JSON " + codecName
+	case AsYAML:
+		return "YAML " + codecName
+	default:
+		return codecName
+	}
+}
 
 func BundleFromFile(file fs.File, dirPath string) (formats.Bundle, error) {
 	info, err := file.Stat()
