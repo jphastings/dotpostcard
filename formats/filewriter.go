@@ -83,3 +83,8 @@ func (fw FileWriter) Bytes() ([]byte, error) {
 	data, err := io.ReadAll(fw.r)
 	return data, errors.Join(fw.Err, err)
 }
+
+func (fw FileWriter) WriteTo(w io.Writer) error {
+	_, err := io.Copy(w, fw.r)
+	return err
+}

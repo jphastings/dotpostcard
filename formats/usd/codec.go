@@ -1,7 +1,6 @@
-package usdz
+package usd
 
 import (
-	"archive/zip"
 	_ "embed"
 
 	"fmt"
@@ -10,13 +9,14 @@ import (
 	"text/template"
 
 	"github.com/jphastings/postcards/formats"
+	"github.com/jphastings/postcards/formats/web"
 	"github.com/jphastings/postcards/internal/general"
 	"github.com/jphastings/postcards/types"
 )
 
 const codecName = "USDZ 3D model"
 
-//go:embed postcard.usd.tmpl
+//go:embed postcard.usda.tmpl
 var usdTmplData string
 var usdTmpl *template.Template
 
@@ -56,7 +56,7 @@ type usdParams struct {
 	SidesFilename string
 }
 
-const pcThickCm = 0.4
+const pcThickCm = 0.04
 
 var clockwise = []usdPoint{
 	{0, 1},
@@ -65,16 +65,13 @@ var clockwise = []usdPoint{
 	{1, 1},
 }
 
-func (c codec) Encode(pc types.Postcard, _ formats.EncodeOptions) []formats.FileWriter {
-	name := pc.Name + ".usdz"
+func (c codec) Encode(pc types.Postcard, opts formats.EncodeOptions) []formats.FileWriter {
+	// Note: USDZ files must contain a *binary encoded* USD layer, so we can't create a USDZ here
+	// without using the USD C++ API. (Which… perhaps on a rainy Sunday)
+	usdFilename := pc.Name + ".usd"
+	sideFilename := pc.Name + "-texture.png"
 
-	writer := func(w io.Writer) error {
-		zw := zip.NewWriter(w)
-		usdW, err := zw.Create(pc.Name + ".usd")
-		if err != nil {
-			return err
-		}
-
+	writeUSD := func(w io.Writer) error {
 		maxX, _ := pc.Meta.FrontDimensions.CmWidth.Float64()
 		maxY, _ := pc.Meta.FrontDimensions.CmHeight.Float64()
 
@@ -96,17 +93,24 @@ func (c codec) Encode(pc types.Postcard, _ formats.EncodeOptions) []formats.File
 			FrontPoints: frontPoints,
 			BackPoints:  frontPoints,
 
-			SidesFilename: pc.Name + ".png",
+			SidesFilename: sideFilename,
 			// TODO: Calendar Flip orientation
 			// TODO: Single sided postcards
 		}
 
-		if err := usdTmpl.Execute(usdW, params); err != nil {
-			return err
-		}
-
-		return zw.Close()
+		return usdTmpl.Execute(w, params)
 	}
 
-	return []formats.FileWriter{formats.NewFileWriter(name, writer)}
+	writePNG := func(w io.Writer) error {
+		fws := web.Codec("png").Encode(pc, opts)
+		if len(fws) != 1 {
+			return fmt.Errorf("couldn't encode postcard textures into PNG")
+		}
+		return fws[0].WriteTo(w)
+	}
+
+	return []formats.FileWriter{
+		formats.NewFileWriter(usdFilename, writeUSD),
+		formats.NewFileWriter(sideFilename, writePNG),
+	}
 }

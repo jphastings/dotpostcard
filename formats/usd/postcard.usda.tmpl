@@ -98,7 +98,7 @@ def Xform "postcard" (
             uniform bool doubleSided = 0
             float3[] extent = [(0, 0, 0), (0.123046875, 0.17375, 0.0004)]
             int[] faceVertexCounts = [4, 4, 4, 4]
-            int[] faceVertexIndices = [7, 6, 1, 0, 3, 2, 5, 4, 7, 0, 3, 4, 1, 6, 5, 2]
+            int[] faceVertexIndices = [6, 7, 3, 2, 7, 4, 0, 3, 4, 5, 1, 0, 5, 6, 2, 1]
             rel material:binding = </postcard/Materials/paper>
             point3f[] points = [{{ range .FrontPoints }}({{.X}}, {{.Y}}, {{$.MaxZ}}),{{ end }}{{ range .BackPoints }}({{.X}}, {{.Y}}, 0),{{ end }}]
             uniform token subdivisionScheme = "none"

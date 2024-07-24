@@ -22,8 +22,10 @@ type bundle struct {
 
 var _ formats.Codec = codec{}
 
-type codec struct{}
+type codec struct {
+	format string
+}
 
-func Codec() formats.Codec { return codec{} }
+func Codec(format string) formats.Codec { return codec{format: format} }
 
 func (c codec) Name() string { return codecName }

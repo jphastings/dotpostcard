@@ -8,15 +8,15 @@ import (
 	"github.com/jphastings/postcards/formats/css"
 	"github.com/jphastings/postcards/formats/html"
 	"github.com/jphastings/postcards/formats/metadata"
-	"github.com/jphastings/postcards/formats/usdz"
+	"github.com/jphastings/postcards/formats/usd"
 	"github.com/jphastings/postcards/formats/web"
 	"github.com/jphastings/postcards/formats/xmp"
 )
 
 var codecs = map[string]formats.Codec{
 	"component": component.Codec(),
-	"web":       web.Codec(),
-	"usdz":      usdz.Codec(),
+	"web":       web.Codec("webp"),
+	"usd":       usd.Codec(),
 	"json":      metadata.Codec(metadata.AsJSON),
 	"yaml":      metadata.Codec(metadata.AsYAML),
 	"css":       css.Codec(),
@@ -24,7 +24,7 @@ var codecs = map[string]formats.Codec{
 	"xmp":       xmp.Codec(),
 }
 
-var codecOrder = []string{"component", "web", "usdz", "json", "yaml", "css", "html", "xmp"}
+var codecOrder = []string{"component", "web", "usd", "json", "yaml", "css", "html", "xmp"}
 
 func init() {
 	if len(codecOrder) != len(codecs) {

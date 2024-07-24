@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"image"
+	"image/png"
 	"io"
 	"math/big"
 
@@ -49,28 +50,46 @@ func (c codec) Encode(pc types.Postcard, opts formats.EncodeOptions) []formats.F
 			return fmt.Errorf("couldn't generate XMP metadata for postcard: %w", err)
 		}
 
-		var webpOpts *webp.Options
-		if opts.Archival {
-			webpOpts = &webp.Options{Lossless: true}
-		} else {
-			webpOpts = &webp.Options{Lossless: false, Quality: 75}
+		switch c.format {
+		case "webp":
+			err = writeWebP(w, combinedImg, xmpData, opts.Archival)
+		case "png":
+			err = writePNG(w, combinedImg, xmpData, opts.Archival)
+		default:
+			err = fmt.Errorf("unsupported output image format: %s", c.format)
 		}
 
-		data := new(bytes.Buffer)
-		if err := webp.Encode(data, combinedImg, webpOpts); err != nil {
-			return err
-		}
-
-		dataBytes, err := webp.SetMetadata(data.Bytes(), xmpData, "XMP")
-		if err != nil {
-			return err
-		}
-
-		_, err = w.Write(dataBytes)
 		return err
 	}
 
 	return []formats.FileWriter{formats.NewFileWriter(name, writer)}
+}
+
+func writeWebP(w io.Writer, combinedImg image.Image, xmpData []byte, archival bool) error {
+	var webpOpts *webp.Options
+	if archival {
+		webpOpts = &webp.Options{Lossless: true}
+	} else {
+		webpOpts = &webp.Options{Lossless: false, Quality: 75}
+	}
+
+	data := new(bytes.Buffer)
+	if err := webp.Encode(data, combinedImg, webpOpts); err != nil {
+		return err
+	}
+
+	dataBytes, err := webp.SetMetadata(data.Bytes(), xmpData, "XMP")
+	if err != nil {
+		return err
+	}
+
+	_, err = w.Write(dataBytes)
+	return err
+}
+
+func writePNG(w io.Writer, combinedImg image.Image, xmpData []byte, archival bool) error {
+	// TODO: Include xmpData
+	return png.Encode(w, combinedImg)
 }
 
 func rotateForWeb(img image.Image, flip types.Flip) (image.Image, image.Rectangle) {
