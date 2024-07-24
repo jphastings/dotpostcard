@@ -25,8 +25,9 @@ func AltText(meta types.Metadata, lang string) (string, string) {
 	}
 
 	var alt string
+	// TODO: Pull locale from AnnotatedText
 
-	if meta.Back.Transcription == "" {
+	if meta.Back.Transcription.Text == "" {
 		alt = fmt.Sprintf(alts[0], meta.Front.Description)
 	} else {
 		alt = fmt.Sprintf(alts[1], meta.Front.Description, meta.Back.Transcription)

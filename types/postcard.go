@@ -39,10 +39,30 @@ type Polygon struct {
 }
 
 type Side struct {
-	Description   string    `json:"description,omitempty"`
-	Transcription string    `json:"transcription,omitempty"`
-	Secrets       []Polygon `json:"secrets,omitempty"`
+	Description   string        `json:"description,omitempty" yaml:"description,omitempty"`
+	Transcription AnnotatedText `json:"transcription,omitempty" yaml:"transcription,omitempty"`
+	Secrets       []Polygon     `json:"secrets,omitempty" yaml:"secrets,omitempty"`
 }
+
+type AnnotatedText struct {
+	Text        string       `json:"text,omitempty" yaml:"text,omitempty"`
+	Annotations []Annotation `json:"annotations,omitempty" yaml:"annotations,omitempty"`
+}
+
+type Annotation struct {
+	Type  AnnotationType `json:"type"`
+	Value string         `json:"value"`
+	Start uint           `json:"start"`
+	End   uint           `json:"end"`
+}
+
+type AnnotationType string
+
+const (
+	ATLocale   AnnotationType = "locale"
+	ATEmphasis AnnotationType = "em"
+	ATStrong   AnnotationType = "strong"
+)
 
 type Context struct {
 	Author      Person `json:"author"`
@@ -50,17 +70,17 @@ type Context struct {
 }
 
 type Metadata struct {
-	Name      string   `json:"-"`
+	Name      string   `json:"-" yaml:"-"`
 	Locale    string   `json:"locale"`
-	Location  Location `json:"location,omitempty"`
+	Location  Location `json:"location,omitempty" yaml:"location,omitempty"`
 	Flip      Flip     `json:"flip" yaml:"flip"`
-	SentOn    Date     `json:"sentOn,omitempty" yaml:"sent_on"`
-	Sender    Person   `json:"sender,omitempty"`
-	Recipient Person   `json:"recipient,omitempty"`
-	Front     Side     `json:"front,omitempty"`
-	Back      Side     `json:"back,omitempty"`
-	Context   Context  `json:"context,omitempty"`
-	Physical  Physical `json:"physical,omitempty"`
+	SentOn    Date     `json:"sentOn,omitempty" yaml:"sent_on,omitempty"`
+	Sender    Person   `json:"sender,omitempty" yaml:"sender,omitempty"`
+	Recipient Person   `json:"recipient,omitempty" yaml:"recipient,omitempty"`
+	Front     Side     `json:"front,omitempty", yaml:"front,omitempty"`
+	Back      Side     `json:"back,omitempty" yaml:"back,omitempty"`
+	Context   Context  `json:"context,omitempty" yaml:"context,omitempty"`
+	Physical  Physical `json:"physical,omitempty" yaml:"physical,omitempty"`
 }
 
 type Physical struct {

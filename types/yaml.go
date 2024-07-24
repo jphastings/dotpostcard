@@ -16,6 +16,39 @@ func (f *Flip) UnmarshalYAML(y *yaml.Node) error {
 	return nil
 }
 
+// Go doesn't allow falling back on the default, so we have to reimplement the type here 🤦‍♂️
+type fakeAnnotatedText struct {
+	Text        string
+	Annotations []Annotation
+}
+
+func (at *AnnotatedText) UnmarshalYAML(y *yaml.Node) error {
+	if y.ShortTag() == "!!str" {
+		at.Text = y.Value
+		return nil
+	}
+
+	var fake fakeAnnotatedText
+	if err := y.Decode(&fake); err != nil {
+		return err
+	}
+
+	at.Text = fake.Text
+	at.Annotations = fake.Annotations
+	return nil
+}
+
+func (at AnnotatedText) MarshalYAML() (interface{}, error) {
+	if at.Text == "" || len(at.Annotations) == 0 {
+		return at.Text, nil
+	}
+
+	return fakeAnnotatedText{
+		Text:        at.Text,
+		Annotations: at.Annotations,
+	}, nil
+}
+
 type SecretType struct {
 	Type string `yaml:"type"`
 }
@@ -46,7 +79,22 @@ func (poly Polygon) MarshalYAML() (interface{}, error) {
 }
 
 func (p Point) MarshalYAML() (interface{}, error) {
-	return []float64{p.X, p.Y}, nil
+	node := yaml.Node{
+		Kind:    yaml.SequenceNode,
+		Style:   yaml.FlowStyle,
+		Content: make([]*yaml.Node, 2),
+	}
+
+	vals := []string{fmt.Sprintf("%f", p.X), fmt.Sprintf("%f", p.Y)}
+
+	for i, val := range vals {
+		node.Content[i] = &yaml.Node{
+			Kind:  yaml.ScalarNode,
+			Value: val,
+		}
+	}
+
+	return &node, nil
 }
 
 func (p *Point) UnmarshalYAML(y *yaml.Node) error {
@@ -155,7 +203,10 @@ func (s *Size) UnmarshalYAML(y *yaml.Node) error {
 	return err
 }
 
+var _ yaml.Unmarshaler = (*Flip)(nil)
 var _ yaml.Marshaler = (*Polygon)(nil)
 var _ yaml.Unmarshaler = (*Polygon)(nil)
 var _ yaml.Marshaler = (*Size)(nil)
 var _ yaml.Unmarshaler = (*Size)(nil)
+var _ yaml.Marshaler = (*AnnotatedText)(nil)
+var _ yaml.Unmarshaler = (*AnnotatedText)(nil)

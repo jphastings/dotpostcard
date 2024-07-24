@@ -39,7 +39,7 @@ type iptcRegionVertex struct {
 
 func addIPTCExtSection(sections []interface{}, meta types.Metadata) []interface{} {
 	hasSecrets := len(meta.Front.Secrets)+len(meta.Back.Secrets) > 0
-	hasMessage := len(meta.Front.Transcription)+len(meta.Back.Transcription) > 0
+	hasMessage := len(meta.Front.Transcription.Text)+len(meta.Back.Transcription.Text) > 0
 
 	if !hasSecrets && !hasMessage {
 		return sections
@@ -75,10 +75,10 @@ func addIPTCExtSection(sections []interface{}, meta types.Metadata) []interface{
 		regions = append(regions, r)
 	}
 
-	message := meta.Back.Transcription
-	if meta.Front.Transcription != "" {
+	message := meta.Back.Transcription.Text
+	if meta.Front.Transcription.Text != "" {
 		message += "§"
-		message += meta.Front.Transcription
+		message += meta.Front.Transcription.Text
 	}
 
 	return append(sections, xmpIptc4xmpExt{

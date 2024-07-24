@@ -13,5 +13,6 @@
 - [ ] Auto-transparency
 - [x] Add thickness & paper colour to Metadata
 - [x] Align YAML & JSON formats
-  - [ ] YAML output for front-dimensions
+  - [x] YAML output for front-dimensions
 - [x] Force `-only` cards to be FlipNone
+- [x] Swap to Annotations for locales (to allow XMP to be HTML-free)
