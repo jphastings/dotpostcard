@@ -1,7 +1,7 @@
 <input type="checkbox" id="postcard-{{.Name}}">
 <label for="postcard-{{.Name}}">
-	<div class="postcard flip-{{ .Flip }} {{ if gt .Physical.FrontDimensions.PxHeight .Physical.FrontDimensions.PxWidth }}portrait{{ else }}landscape{{ end }}" style="--postcard: url('{{ .Name }}.postcard.webp'); --aspect-ratio: {{ .Physical.FrontDimensions.PxWidth }} / {{ .Physical.FrontDimensions.PxHeight }}">
-		<img src="{{ .Name }}.postcard.webp" loading="lazy" alt="{{ .Front.Description }}" width="500px">
+	<div class="postcard flip-{{ .Flip }} {{ if gt .Physical.FrontDimensions.PxHeight .Physical.FrontDimensions.PxWidth }}portrait{{ else }}landscape{{ end }}" style="--postcard: url('{{ .Name }}.postcard'); --aspect-ratio: {{ .Physical.FrontDimensions.PxWidth }} / {{ .Physical.FrontDimensions.PxHeight }}">
+		<img src="{{ .Name }}.postcard" loading="lazy" alt="{{ .Front.Description }}" width="500px">
 		<div class="shadow"></div>
 	</div>
 </label>
