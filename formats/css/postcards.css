@@ -18,6 +18,7 @@ input[id^=postcard-] {
   flex-direction: row;
   align-items: center;
 
+  --flip: 0deg;
   --p: perspective(1000px);
   --v1: calc(min(1, max(0,
     cos(var(--flip)),
@@ -45,7 +46,7 @@ input[id^=postcard-] {
     --offset: translate(40px, 40px);
   }
 
-  &::before,&::after {
+  &::before, &::after {
     content: '';
     width: 100%;
     aspect-ratio: var(--aspect-ratio);
@@ -70,7 +71,7 @@ input[id^=postcard-] {
       margin: 5%;
     }
 
-    &::before,&::after {
+    &::before, &::after {
       width:auto;
       height:100%;
     }
@@ -84,6 +85,10 @@ input[id^=postcard-] {
   &::before {
     background: no-repeat bottom/100%;
     mask: var(--postcard) bottom/100%;
+  }
+
+  &::before, &::after, .shadow {
+    transition: transform 1s ease-in-out;
   }
 
   /* TODO: Does this break accessibility? */
