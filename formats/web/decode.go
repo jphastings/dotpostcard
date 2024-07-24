@@ -36,8 +36,8 @@ func (b bundle) Decode() (types.Postcard, error) {
 		return pc, nil
 	}
 
-	sideW := pc.Meta.FrontDimensions.PxWidth
-	sideH := pc.Meta.FrontDimensions.PxHeight / 2
+	sideW := pc.Meta.Physical.FrontDimensions.PxWidth
+	sideH := pc.Meta.Physical.FrontDimensions.PxHeight / 2
 
 	frontBounds := image.Rectangle{
 		Min: image.Point{0, 0},

@@ -23,9 +23,9 @@ func (c codec) Encode(pc types.Postcard, opts formats.EncodeOptions) []formats.F
 	writer := func(w io.Writer) error {
 		frontSize, finalSize := formats.DetermineSize(opts, pc.Front, pc.Back)
 
-		pc.Meta.FrontDimensions.PxWidth = finalSize.Dx()
-		pc.Meta.FrontDimensions.PxHeight = finalSize.Dy()
-		outputImageSize := pc.Meta.FrontDimensions
+		pc.Meta.Physical.FrontDimensions.PxWidth = finalSize.Dx()
+		pc.Meta.Physical.FrontDimensions.PxHeight = finalSize.Dy()
+		outputImageSize := pc.Meta.Physical.FrontDimensions
 
 		combinedSize := finalSize
 		if pc.Back != nil {

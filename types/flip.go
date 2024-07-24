@@ -38,6 +38,6 @@ func (flip Flip) Description() string {
 	case FlipNone:
 		return "one sided"
 	default:
-		panic("unknown pivot axis")
+		panic("unknown flip axis")
 	}
 }

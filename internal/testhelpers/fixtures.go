@@ -42,11 +42,13 @@ var SamplePostcard = types.Postcard{
 	Name: "some-postcard",
 	Meta: types.Metadata{
 		Flip: "book",
-		FrontDimensions: types.Size{
-			PxWidth:  1480,
-			PxHeight: 1050,
-			CmWidth:  big.NewRat(148, 10),
-			CmHeight: big.NewRat(105, 10),
+		Physical: types.Physical{
+			FrontDimensions: types.Size{
+				PxWidth:  1480,
+				PxHeight: 1050,
+				CmWidth:  big.NewRat(148, 10),
+				CmHeight: big.NewRat(105, 10),
+			},
 		},
 		Front: types.Side{
 			Description: "The word 'Front' in large red letters",

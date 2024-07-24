@@ -74,8 +74,8 @@ func (c codec) Encode(pc types.Postcard, opts formats.EncodeOptions) []formats.F
 	sideFilename := pc.Name + "-texture.png"
 
 	writeUSD := func(w io.Writer) error {
-		maxX, _ := pc.Meta.FrontDimensions.CmWidth.Float64()
-		maxY, _ := pc.Meta.FrontDimensions.CmHeight.Float64()
+		maxX, _ := pc.Meta.Physical.FrontDimensions.CmWidth.Float64()
+		maxY, _ := pc.Meta.Physical.FrontDimensions.CmHeight.Float64()
 
 		frontPoints := make([]usdPoint, len(clockwise))
 		backPoints := make([]usdPoint, len(clockwise))

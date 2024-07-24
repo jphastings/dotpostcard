@@ -58,7 +58,7 @@ func addIPTCExtSection(sections []interface{}, meta types.Metadata) []interface{
 	for _, secret := range append(meta.Front.Secrets, meta.Back.Secrets...) {
 		var vertices []iptcRegionVertex
 
-		for _, point := range secret {
+		for _, point := range secret.Points {
 			vertices = append(vertices, iptcRegionVertex{ParseType: "Resource", X: point.X, Y: point.Y})
 		}
 

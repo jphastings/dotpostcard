@@ -3,6 +3,7 @@ module github.com/jphastings/postcards
 go 1.21.6
 
 require (
+	git.sr.ht/~sbinet/gg v0.5.0
 	github.com/chai2010/webp v1.1.1
 	github.com/dsoprea/go-exif/v3 v3.0.0-20210512043655-120bcdb2a55e
 	github.com/dsoprea/go-jpeg-image-structure v0.0.0-20221012074422-4f3f7e934102
@@ -10,7 +11,8 @@ require (
 	github.com/dsoprea/go-tiff-image-structure v0.0.0-20221003165014-8ecc4f52edca
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.9.0
-	golang.org/x/image v0.0.0-20220902085622-e7cb96979f69
+	golang.org/x/image v0.7.0
+	gopkg.in/yaml.v2 v2.3.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -24,10 +26,11 @@ require (
 	github.com/dsoprea/go-utility/v2 v2.0.0-20200717064901-2fccff4aa15e // indirect
 	github.com/go-errors/errors v1.1.1 // indirect
 	github.com/go-xmlfmt/xmlfmt v0.0.0-20191208150333-d5b6f63a941b // indirect
+	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/golang/geo v0.0.0-20200319012246-673a6f80352d // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	golang.org/x/net v0.0.0-20200520182314-0ba52f642ac2 // indirect
-	gopkg.in/yaml.v2 v2.3.0 // indirect
+	golang.org/x/net v0.6.0 // indirect
+	golang.org/x/text v0.9.0 // indirect
 )

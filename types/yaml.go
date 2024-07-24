@@ -21,28 +21,50 @@ type SecretType struct {
 }
 
 type SecretPolygon struct {
-	Type   string      `yaml:"type"`
-	Points [][]float64 `yaml:"points"`
+	Type      string  `yaml:"type"`
+	Prehidden bool    `yaml:"prehidden"`
+	Points    []Point `yaml:"points"`
 }
 
 type SecretBox struct {
-	Type   string  `yaml:"type"`
-	Width  float64 `yaml:"width"`
-	Height float64 `yaml:"height"`
-	Left   float64 `yaml:"left"`
-	Top    float64 `yaml:"top"`
+	Type      string  `yaml:"type"`
+	Prehidden bool    `yaml:"prehidden"`
+	Width     float64 `yaml:"width"`
+	Height    float64 `yaml:"height"`
+	Left      float64 `yaml:"left"`
+	Top       float64 `yaml:"top"`
 }
 
-func (pts Polygon) MarshalYAML() (interface{}, error) {
+func (poly Polygon) MarshalYAML() (interface{}, error) {
 	secret := SecretPolygon{
-		Type:   "polygon",
-		Points: pts.toFloats(),
+		Type:      "polygon",
+		Prehidden: poly.Prehidden,
+		Points:    poly.Points,
 	}
 
-	return yaml.Marshal(secret)
+	return secret, nil
 }
 
-func (pts *Polygon) UnmarshalYAML(y *yaml.Node) error {
+func (p Point) MarshalYAML() (interface{}, error) {
+	return []float64{p.X, p.Y}, nil
+}
+
+func (p *Point) UnmarshalYAML(y *yaml.Node) error {
+	var floats []float64
+	if err := y.Decode(&floats); err != nil {
+		return err
+	}
+	if len(floats) != 2 {
+		return fmt.Errorf("incorrect number of floats for point; wanted 2, got %d", len(floats))
+	}
+
+	p.X = floats[0]
+	p.Y = floats[1]
+
+	return nil
+}
+
+func (poly *Polygon) UnmarshalYAML(y *yaml.Node) error {
 	var typer SecretType
 	if err := y.Decode(&typer); err != nil {
 		return fmt.Errorf("invalid secret definition")
@@ -55,20 +77,22 @@ func (pts *Polygon) UnmarshalYAML(y *yaml.Node) error {
 			return fmt.Errorf("invalid box secret definition")
 		}
 
-		return box.intoPolygon(pts)
+		return box.intoPolygon(poly)
 	case "polygon":
 		var polygon SecretPolygon
 		if err := y.Decode(&polygon); err != nil {
 			return fmt.Errorf("invalid polygon secret definition")
 		}
 
-		return pts.fromFloats(polygon.Points)
+		return nil
 	default:
 		return fmt.Errorf("unknown secret type: %s", typer.Type)
 	}
 }
 
-func (box SecretBox) intoPolygon(pts *Polygon) error {
+func (box SecretBox) intoPolygon(poly *Polygon) error {
+	poly.Prehidden = box.Prehidden
+
 	if outOfBounds(box.Width) {
 		return fmt.Errorf("width of box secret is larger than 100%% of the postcard")
 	}
@@ -91,10 +115,12 @@ func (box SecretBox) intoPolygon(pts *Polygon) error {
 		return fmt.Errorf("right edge of box secret is outside the postcard")
 	}
 
-	*pts = append(*pts, Point{X: box.Left, Y: box.Top})
-	*pts = append(*pts, Point{X: right, Y: box.Top})
-	*pts = append(*pts, Point{X: right, Y: bottom})
-	*pts = append(*pts, Point{X: box.Left, Y: bottom})
+	poly.Points = []Point{
+		{X: box.Left, Y: box.Top},
+		{X: right, Y: box.Top},
+		{X: right, Y: bottom},
+		{X: box.Left, Y: bottom},
+	}
 
 	return nil
 }
@@ -122,3 +148,6 @@ func (s *Size) UnmarshalYAML(y *yaml.Node) error {
 
 	return err
 }
+
+var _ yaml.Marshaler = (*Polygon)(nil)
+var _ yaml.Unmarshaler = (*Polygon)(nil)
