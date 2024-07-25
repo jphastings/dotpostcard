@@ -44,7 +44,7 @@ func TestEncode(t *testing.T) {
 func TestDecode(t *testing.T) {
 	bnd := bundle{r: bytes.NewReader(testhelpers.SampleXMP)}
 
-	pc, err := bnd.Decode()
+	pc, err := bnd.Decode(formats.DecodeOptions{})
 	_ = pc
 	assert.Error(t, err, "decoding is not yet implemented")
 

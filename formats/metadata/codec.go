@@ -93,7 +93,7 @@ func (c codec) Encode(pc types.Postcard, _ formats.EncodeOptions) []formats.File
 	return []formats.FileWriter{formats.NewFileWriter(name, writer)}
 }
 
-func (b bundle) Decode() (types.Postcard, error) {
+func (b bundle) Decode(_ formats.DecodeOptions) (types.Postcard, error) {
 	var pc types.Postcard
 	switch b.ext {
 	case AsJSON:

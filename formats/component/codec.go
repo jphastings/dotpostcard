@@ -3,11 +3,7 @@ package component
 import (
 	"errors"
 	"fmt"
-	_ "image/jpeg"
-	_ "image/png"
 	"io/fs"
-
-	_ "golang.org/x/image/tiff"
 
 	"github.com/jphastings/postcards/formats"
 	"github.com/jphastings/postcards/formats/metadata"

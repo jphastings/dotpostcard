@@ -5,8 +5,6 @@ import (
 	_ "image/png"
 	"io"
 
-	_ "golang.org/x/image/tiff"
-
 	"github.com/jphastings/postcards/formats"
 )
 

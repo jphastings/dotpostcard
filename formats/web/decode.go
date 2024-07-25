@@ -7,10 +7,11 @@ import (
 	"image/draw"
 	"io"
 
+	"github.com/jphastings/postcards/formats"
 	"github.com/jphastings/postcards/types"
 )
 
-func (b bundle) Decode() (types.Postcard, error) {
+func (b bundle) Decode(_ formats.DecodeOptions) (types.Postcard, error) {
 	var dataCopy bytes.Buffer
 	t := io.TeeReader(b, &dataCopy)
 

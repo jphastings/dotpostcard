@@ -66,7 +66,7 @@ var rootCmd = &cobra.Command{
 			}
 			filename := path.Base(bundle.RefPath())
 
-			pc, err := bundle.Decode()
+			pc, err := bundle.Decode(formats.DecodeOptions{RemoveBackground: true})
 			if err != nil {
 				return err
 			}

@@ -64,7 +64,7 @@ func (c codec) Encode(pc types.Postcard, _ formats.EncodeOptions) []formats.File
 	return []formats.FileWriter{fw}
 }
 
-func (b bundle) Decode() (types.Postcard, error) {
+func (b bundle) Decode(_ formats.DecodeOptions) (types.Postcard, error) {
 	return types.Postcard{}, fmt.Errorf("decoding XMP files isn't implemented yet")
 }
 
