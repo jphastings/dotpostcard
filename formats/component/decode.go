@@ -255,7 +255,7 @@ func removeBorder(img image.Image) (image.Image, error) {
 	bounds := img.Bounds()
 	newImg := image.NewRGBA(bounds)
 
-	// draw.Copy(newImg, image.Point{}, img, bounds, draw.Src, nil)
+	draw.Copy(newImg, image.Point{}, img, bounds, draw.Src, nil)
 
 	for i := 0; i < 4; i++ {
 		var b image.Rectangle
@@ -295,6 +295,10 @@ func removeBorder(img image.Image) (image.Image, error) {
 
 func findTopBorderEdgePoints(img *image.Gray, i int) ([]image.Point, error) {
 	bounds := img.Bounds()
+	deviation := bounds.Dx() / 800
+	if devY := bounds.Dy() / 800; devY > deviation {
+		deviation = devY
+	}
 
 	bImg, err := edgedetection.HorizontalSobelGray(img, padding.BorderReflect)
 	if err != nil {
@@ -303,12 +307,21 @@ func findTopBorderEdgePoints(img *image.Gray, i int) ([]image.Point, error) {
 
 	isEdge := borderFinder(bImg, 8)
 
+	modeTrack := make(map[int]int)
+	modeMax := 0
+	modeY := 0
+
 	var edge []image.Point
 	for x := 0; x < bounds.Dx(); x++ {
 		for y := 0; y < bounds.Dy(); y++ {
 			c := bImg.At(x, y)
 			if isEdge(c) {
 				if y != 0 && y != bounds.Dy() {
+					modeTrack[y]++
+					if modeTrack[y] > modeMax {
+						modeMax = modeTrack[y]
+						modeY = y
+					}
 					edge = append(edge, image.Point{X: x, Y: y})
 				}
 				break
@@ -318,10 +331,29 @@ func findTopBorderEdgePoints(img *image.Gray, i int) ([]image.Point, error) {
 
 	// Peek
 	newImg := image.NewRGBA(bounds)
-	// draw.Copy(newImg, image.Point{}, bImg, bounds, draw.Src, nil)
+	draw.Copy(newImg, image.Point{}, bImg, bounds, draw.Src, nil)
 
-	for _, e := range edge {
-		newImg.Set(e.X, e.Y, color.RGBA{R: 255, A: 255})
+	for i, e := range edge {
+		if e.Y > modeY+deviation || e.Y < modeY-deviation {
+			brightestY := 0
+			brightestVal := uint32(0)
+			for y := modeY - deviation; y < modeY+deviation; y++ {
+				val, _, _, _ := bImg.At(e.X, y).RGBA()
+				if val > brightestVal {
+					brightestY = y
+					brightestVal = val
+				}
+			}
+			edge[i] = image.Point{X: e.X, Y: brightestY}
+			newImg.Set(e.X, brightestY, color.RGBA{G: 255, A: 255})
+		} else {
+			newImg.Set(e.X, e.Y, color.RGBA{R: 255, A: 255})
+		}
+	}
+
+	for x := 0; x < bounds.Dx(); x++ {
+		newImg.Set(x, modeY+deviation, color.RGBA{B: 255, A: 255})
+		newImg.Set(x, modeY-deviation, color.RGBA{B: 255, A: 255})
 	}
 
 	fname := fmt.Sprintf("rot-%d.png", i)
