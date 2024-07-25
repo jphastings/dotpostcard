@@ -14,7 +14,7 @@ import (
 	"os"
 
 	"git.sr.ht/~sbinet/gg"
-	"github.com/ernyoke/imger/blur"
+	"github.com/ernyoke/imger/edgedetection"
 	"github.com/ernyoke/imger/padding"
 	"github.com/jphastings/postcards/formats"
 	"github.com/jphastings/postcards/internal/resolution"
@@ -185,13 +185,6 @@ func modalColor(img image.Image, within image.Rectangle) color.Color {
 
 var ErrAlreadyTransparent = errors.New("this image already has transparent pixels, ")
 
-// func gray(c color.Color) (color.Gray, uint8) {
-// 	r, g, b, a := c.RGBA()
-// 	return color.Gray{
-// 		Y: uint8(0.299*float64(r)/256 + 0.587*float64(g)/256 + 0.114*float64(b)/256),
-// 	}, uint8(a / 256)
-// }
-
 func removeBackground(img image.Image) (image.Image, error) {
 	if _, _, _, a := img.At(0, 0).RGBA(); a != 65535 {
 		return nil, ErrAlreadyTransparent
@@ -215,19 +208,12 @@ func removeBackground(img image.Image) (image.Image, error) {
 }
 
 type rollingColor struct {
-	avR  float64
-	avG  float64
-	avB  float64
-	av2R float64
-	av2G float64
-	av2B float64
-
-	stdDevR float64
-	stdDevG float64
-	stdDevB float64
+	av     float64
+	av2    float64
+	stdDev float64
 }
 
-func borderFinder(img image.Image, rows int) func(color.Color) bool {
+func borderFinder(img *image.Gray, rows int) func(color.Color) bool {
 	bounds := img.Bounds()
 	var n uint32
 	var stats rollingColor
@@ -235,182 +221,118 @@ func borderFinder(img image.Image, rows int) func(color.Color) bool {
 	addToStats := func(c color.Color) {
 		n++
 
-		r, g, b, _ := c.RGBA()
-		stats.avR = stats.avR + (float64(r)-float64(stats.avR))/float64(n)
-		stats.avG = stats.avG + (float64(g)-float64(stats.avG))/float64(n)
-		stats.avB = stats.avB + (float64(b)-float64(stats.avB))/float64(n)
-
-		stats.av2R = stats.av2R + (float64(r)*float64(r)-stats.av2R)/float64(n)
-		stats.av2G = stats.av2G + (float64(g)*float64(g)-stats.av2G)/float64(n)
-		stats.av2B = stats.av2B + (float64(b)*float64(b)-stats.av2B)/float64(n)
+		gray, _, _, _ := c.RGBA()
+		stats.av = stats.av + (float64(gray)-float64(stats.av))/float64(n)
+		stats.av2 = stats.av2 + (float64(gray)*float64(gray)-stats.av2)/float64(n)
 	}
 
-	// Top & bottom
 	for y := 0; y < rows; y++ {
 		for x := 0; x < bounds.Dx(); x++ {
 			addToStats(img.At(x, y))
-			addToStats(img.At(x, bounds.Dy()-y))
-		}
-	}
-	// Left & Right
-	for x := 0; x < rows; x++ {
-		for y := rows; y < bounds.Dx()-rows; y++ {
-			addToStats(img.At(x, y))
-			addToStats(img.At(bounds.Dx()-x, y))
 		}
 	}
 
-	stats.stdDevR = math.Sqrt(stats.av2R - (stats.avR * stats.avR))
-	stats.stdDevG = math.Sqrt(stats.av2G - (stats.avG * stats.avG))
-	stats.stdDevB = math.Sqrt(stats.av2B - (stats.avB * stats.avB))
+	stats.stdDev = math.Sqrt(stats.av2 - (stats.av * stats.av))
 
-	fmt.Println(stats)
+	most := stats.av + 4*stats.stdDev
+	thresh := most + (65535-most)*2/3
 
 	return func(c color.Color) bool {
-		r, g, b, _ := c.RGBA()
+		gray, _, _, _ := c.RGBA()
 
-		nearR := math.Abs(stats.avR-float64(r)) < 2.2*stats.stdDevR
-		nearG := math.Abs(stats.avG-float64(g)) < 2.2*stats.stdDevG
-		nearB := math.Abs(stats.avB-float64(b)) < 2.2*stats.stdDevB
-
-		return nearR && nearG && nearB
+		return float64(gray) > thresh
 	}
 }
 
-type direction uint
-
-const (
-	dirDown direction = iota
-	dirLeft
-	dirUp
-	dirRight
-)
-
-type limiter struct {
-	prev      int
-	foundEdge bool
-	allowable int
-	midPoint  int
-	dir       direction
+var rotation = map[int]func(image.Rectangle, int, int) (int, int){
+	0: func(bnd image.Rectangle, x, y int) (int, int) { return x, y },
+	1: func(bnd image.Rectangle, x, y int) (int, int) { return y, bnd.Dx() - x },
+	2: func(bnd image.Rectangle, x, y int) (int, int) { return bnd.Dx() - x, bnd.Dy() - y },
+	3: func(bnd image.Rectangle, x, y int) (int, int) { return bnd.Dy() - y, x },
 }
 
 func removeBorder(img image.Image) (image.Image, error) {
 	bounds := img.Bounds()
 	newImg := image.NewRGBA(bounds)
-	draw.Copy(newImg, image.Point{}, img, bounds, draw.Src, nil)
 
-	blurRadius := 4
+	// draw.Copy(newImg, image.Point{}, img, bounds, draw.Src, nil)
 
-	blurImg, err := blur.GaussianBlurRGBA(newImg, float64(blurRadius), 4, padding.BorderReflect)
-	if err != nil {
-		return nil, err
-	}
+	for i := 0; i < 4; i++ {
+		var b image.Rectangle
+		if i%2 == 0 {
+			b = bounds
+		} else {
+			b = image.Rect(0, 0, bounds.Dy(), bounds.Dx())
+		}
+		fImg := image.NewGray(b)
 
-	isBorder := borderFinder(blurImg, 8)
-
-	var doBreak bool
-
-	limRight := limiter{allowable: 1, midPoint: bounds.Dy(), dir: dirRight}
-	limLeft := limiter{allowable: 1, midPoint: bounds.Dy(), dir: dirLeft}
-	for y := 0; y < bounds.Dy(); y++ {
-		for x := 0; x < bounds.Dx(); x++ {
-			doBreak, limRight = makeTransparent(x, y, blurRadius, img, blurImg, newImg, isBorder, limRight)
-			if doBreak {
-				break
+		for y := 0; y < b.Dy(); y++ {
+			for x := 0; x < b.Dx(); x++ {
+				fX, fY := rotation[i](b, x, y)
+				fImg.Set(x, y, img.At(fX, fY))
 			}
 		}
 
-		for x := bounds.Dx(); x > 0; x-- {
-			doBreak, limLeft = makeTransparent(x, y, blurRadius, img, blurImg, newImg, isBorder, limLeft)
-			if doBreak {
-				break
-			}
-		}
-	}
-
-	limDown := limiter{allowable: 1, midPoint: bounds.Dy(), dir: dirDown}
-	limUp := limiter{allowable: 1, midPoint: bounds.Dy(), dir: dirUp}
-	for x := 0; x < bounds.Dx(); x++ {
-		for y := 0; y < bounds.Dy(); y++ {
-			doBreak, limDown = makeTransparent(x, y, blurRadius, img, blurImg, newImg, isBorder, limDown)
-			if doBreak {
-				break
-			}
+		edge, err := findTopBorderEdgePoints(fImg, i)
+		if err != nil {
+			return nil, err
 		}
 
-		for y := bounds.Dy(); y > 0; y-- {
-			doBreak, limUp = makeTransparent(x, y, blurRadius, img, blurImg, newImg, isBorder, limUp)
-			if doBreak {
-				break
-			}
+		for _, e := range edge {
+			fX, fY := rotation[i](b, e.X, e.Y)
+			newImg.Set(fX, fY, color.RGBA{R: 255, A: 255})
 		}
 	}
+
+	// Smooth edge
+
+	// Join up edges (ie. chop of corners)
+
+	// Convert into mask
 
 	return newImg, nil
 }
 
-func makeTransparent(x, y, blurRadius int, oImg image.Image, bImg, nImg *image.RGBA, isBorder func(color.Color) bool, lim limiter) (bool, limiter) {
-	if isBorder(bImg.At(x, y)) {
-		nImg.Set(x, y, color.Transparent)
-	} else {
-		for ex := 0; ex < blurRadius; ex++ {
-			switch lim.dir {
-			case dirDown:
-				nImg.Set(x, y+ex, color.Transparent)
-			case dirLeft:
-				nImg.Set(x-ex, y, color.Transparent)
-			case dirUp:
-				nImg.Set(x, y-ex, color.Transparent)
-			case dirRight:
-				nImg.Set(x+ex, y, color.Transparent)
-			}
-		}
+func findTopBorderEdgePoints(img *image.Gray, i int) ([]image.Point, error) {
+	bounds := img.Bounds()
 
-		switch lim.dir {
-		case dirDown:
-			lim.prev = y
-			if y > lim.midPoint {
-				lim.foundEdge = true
-				fmt.Println("found edge while going down (from left)")
-			}
-		case dirLeft:
-			lim.prev = x
-			if x < lim.midPoint {
-				lim.foundEdge = true
-			}
-		case dirUp:
-			lim.prev = y
-			if y < lim.midPoint {
-				lim.foundEdge = true
-			}
-		case dirRight:
-			lim.prev = x
-			if x > lim.midPoint {
-				lim.foundEdge = true
-			}
-		}
-
-		return true, lim
+	bImg, err := edgedetection.HorizontalSobelGray(img, padding.BorderReflect)
+	if err != nil {
+		return nil, err
 	}
-	if lim.foundEdge {
-		switch lim.dir {
-		case dirDown:
-			if y > lim.prev+lim.allowable {
-				break
-			}
-		case dirLeft:
-			if x < lim.prev-lim.allowable {
-				break
-			}
-		case dirUp:
-			if y < lim.prev-lim.allowable {
-				break
-			}
-		case dirRight:
-			if x > lim.prev+lim.allowable {
+
+	isEdge := borderFinder(bImg, 8)
+
+	var edge []image.Point
+	for x := 0; x < bounds.Dx(); x++ {
+		for y := 0; y < bounds.Dy(); y++ {
+			c := bImg.At(x, y)
+			if isEdge(c) {
+				if y != 0 && y != bounds.Dy() {
+					edge = append(edge, image.Point{X: x, Y: y})
+				}
 				break
 			}
 		}
 	}
-	return false, lim
+
+	// Peek
+	newImg := image.NewRGBA(bounds)
+	// draw.Copy(newImg, image.Point{}, bImg, bounds, draw.Src, nil)
+
+	for _, e := range edge {
+		newImg.Set(e.X, e.Y, color.RGBA{R: 255, A: 255})
+	}
+
+	fname := fmt.Sprintf("rot-%d.png", i)
+	f, err := os.OpenFile(fname, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := png.Encode(f, newImg); err != nil {
+		return nil, err
+	}
+
+	return edge, nil
 }
