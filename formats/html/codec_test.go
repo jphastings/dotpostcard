@@ -30,8 +30,8 @@ func TestEncode(t *testing.T) {
 
 	assert.Equal(t, `<input type="checkbox" id="postcard-some-postcard">
 <label for="postcard-some-postcard">
-	<div class="postcard book landscape" style="--postcard: url('some-postcard.postcard.webp'); --aspect-ratio: 1480 / 1050">
-		<img src="some-postcard.postcard.webp" loading="lazy" alt="The word &#39;Front&#39; in large red letters" width="500px">
+	<div class="postcard book landscape" style="--postcard: url('some-postcard.postcard'); --aspect-ratio: 1480 / 1050">
+		<img src="some-postcard.postcard" loading="lazy" alt="The word &#39;Front&#39; in large red letters" width="500px">
 		<div class="shadow"></div>
 	</div>
 </label>`, string(content))

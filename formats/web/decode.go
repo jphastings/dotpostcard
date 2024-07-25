@@ -7,8 +7,6 @@ import (
 	"image/draw"
 	"io"
 
-	"github.com/chai2010/webp"
-	"github.com/jphastings/postcards/formats/xmp"
 	"github.com/jphastings/postcards/types"
 )
 
@@ -21,14 +19,19 @@ func (b bundle) Decode() (types.Postcard, error) {
 		return types.Postcard{}, fmt.Errorf("unable to decode image: %w", err)
 	}
 
-	xmpData, err := webp.GetMetadata(dataCopy.Bytes(), "xmp")
-	if err != nil {
-		return types.Postcard{}, fmt.Errorf("couldn't extract XMP metadata: %w", err)
-	}
-
-	pc, err := xmp.BundleFromBytes(xmpData, b.refPath).Decode()
-	if err != nil {
-		return types.Postcard{}, fmt.Errorf("didn't contain postcard metadata: %w", err)
+	// xmpData, err := webp.GetMetadata(dataCopy.Bytes(), "xmp")
+	// if err != nil {
+	// 	return types.Postcard{}, fmt.Errorf("couldn't extract XMP metadata: %w", err)
+	// }
+	//
+	// pc, err := xmp.BundleFromBytes(xmpData, b.refPath).Decode()
+	// if err != nil {
+	// 	return types.Postcard{}, fmt.Errorf("didn't contain postcard metadata: %w", err)
+	// }
+	pc := types.Postcard{
+		Meta: types.Metadata{
+			Flip: types.FlipBook,
+		},
 	}
 
 	if pc.Meta.Flip == types.FlipNone {
@@ -36,8 +39,9 @@ func (b bundle) Decode() (types.Postcard, error) {
 		return pc, nil
 	}
 
-	sideW := pc.Meta.Physical.FrontDimensions.PxWidth
-	sideH := pc.Meta.Physical.FrontDimensions.PxHeight / 2
+	bounds := img.Bounds()
+	sideW := bounds.Dx()
+	sideH := bounds.Dy() / 2
 
 	frontBounds := image.Rectangle{
 		Min: image.Point{0, 0},
