@@ -251,36 +251,83 @@ var rotation = map[int]func(image.Rectangle, int, int) (int, int){
 	3: func(bnd image.Rectangle, x, y int) (int, int) { return bnd.Dy() - y, x },
 }
 
+type borderEdge struct {
+	isHorizontal bool
+	points       []image.Point
+	mode         int
+}
+
 func removeBorder(img image.Image) (image.Image, error) {
 	bounds := img.Bounds()
 	newImg := image.NewRGBA(bounds)
 
 	draw.Copy(newImg, image.Point{}, img, bounds, draw.Src, nil)
 
-	for i := 0; i < 4; i++ {
+	var borderEdges [4]borderEdge
+
+	for side := 0; side < 4; side++ {
+		be := borderEdge{
+			isHorizontal: side%2 == 0,
+		}
 		var b image.Rectangle
-		if i%2 == 0 {
+		if be.isHorizontal {
 			b = bounds
 		} else {
 			b = image.Rect(0, 0, bounds.Dy(), bounds.Dx())
 		}
 		fImg := image.NewGray(b)
 
-		for y := 0; y < b.Dy(); y++ {
-			for x := 0; x < b.Dx(); x++ {
-				fX, fY := rotation[i](b, x, y)
-				fImg.Set(x, y, img.At(fX, fY))
+		for ry := 0; ry < b.Dy(); ry++ {
+			for rx := 0; rx < b.Dx(); rx++ {
+				x, y := rotation[side](b, rx, ry)
+				fImg.Set(rx, ry, img.At(x, y))
 			}
 		}
 
-		edge, err := findTopBorderEdgePoints(fImg, i)
+		edge, mode, err := findTopBorderEdgePoints(fImg)
 		if err != nil {
 			return nil, err
 		}
 
+		// Find the line for the border either side
+		cx, cy := rotation[side](b, 0, mode)
+		if be.isHorizontal {
+			be.mode = cy
+		} else {
+			be.mode = cx
+		}
+
 		for _, e := range edge {
-			fX, fY := rotation[i](b, e.X, e.Y)
-			newImg.Set(fX, fY, color.RGBA{R: 255, A: 255})
+			x, y := rotation[side](b, e.X, e.Y)
+
+			// Keep points ascending numerically, regardless of side
+			if side < 2 {
+				be.points = append(be.points, image.Point{X: x, Y: y})
+			} else {
+				be.points = append([]image.Point{{X: x, Y: y}}, be.points...)
+			}
+
+		}
+		borderEdges[side] = be
+	}
+
+	for side, be := range borderEdges {
+		acModeXY := borderEdges[(side+3)%4].mode
+		ccModeXY := borderEdges[(side+1)%4].mode
+		// TODO: Perhaps a better way of doing this
+		if side == 0 || side == 3 {
+			t := acModeXY
+			acModeXY = ccModeXY
+			ccModeXY = t
+		}
+
+		for _, e := range be.points {
+			isBorderHorizontal := be.isHorizontal && (e.X < acModeXY || e.X > ccModeXY)
+			isBorderVertical := !be.isHorizontal && (e.Y < acModeXY || e.Y > ccModeXY)
+			if isBorderHorizontal || isBorderVertical {
+				continue
+			}
+			newImg.Set(e.X, e.Y, color.RGBA{R: 255, A: 255})
 		}
 	}
 
@@ -293,16 +340,19 @@ func removeBorder(img image.Image) (image.Image, error) {
 	return newImg, nil
 }
 
-func findTopBorderEdgePoints(img *image.Gray, i int) ([]image.Point, error) {
+// TODO: Swap this to a stddev of the mode?
+var allowDev = 1200
+
+func findTopBorderEdgePoints(img *image.Gray) ([]image.Point, int, error) {
 	bounds := img.Bounds()
-	deviation := bounds.Dx() / 800
-	if devY := bounds.Dy() / 800; devY > deviation {
+	deviation := bounds.Dx() / allowDev
+	if devY := bounds.Dy() / allowDev; devY > deviation {
 		deviation = devY
 	}
 
 	bImg, err := edgedetection.HorizontalSobelGray(img, padding.BorderReflect)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	isEdge := borderFinder(bImg, 8)
@@ -329,9 +379,9 @@ func findTopBorderEdgePoints(img *image.Gray, i int) ([]image.Point, error) {
 		}
 	}
 
-	// Peek
-	newImg := image.NewRGBA(bounds)
-	draw.Copy(newImg, image.Point{}, bImg, bounds, draw.Src, nil)
+	// // Peek
+	// newImg := image.NewRGBA(bounds)
+	// draw.Copy(newImg, image.Point{}, bImg, bounds, draw.Src, nil)
 
 	for i, e := range edge {
 		if e.Y > modeY+deviation || e.Y < modeY-deviation {
@@ -345,26 +395,26 @@ func findTopBorderEdgePoints(img *image.Gray, i int) ([]image.Point, error) {
 				}
 			}
 			edge[i] = image.Point{X: e.X, Y: brightestY}
-			newImg.Set(e.X, brightestY, color.RGBA{G: 255, A: 255})
+			// newImg.Set(e.X, brightestY, color.RGBA{G: 255, A: 255})
 		} else {
-			newImg.Set(e.X, e.Y, color.RGBA{R: 255, A: 255})
+			// newImg.Set(e.X, e.Y, color.RGBA{R: 255, A: 255})
 		}
 	}
 
-	for x := 0; x < bounds.Dx(); x++ {
-		newImg.Set(x, modeY+deviation, color.RGBA{B: 255, A: 255})
-		newImg.Set(x, modeY-deviation, color.RGBA{B: 255, A: 255})
-	}
+	// for x := 0; x < bounds.Dx(); x++ {
+	// 	newImg.Set(x, modeY+deviation, color.RGBA{B: 255, A: 255})
+	// 	newImg.Set(x, modeY-deviation, color.RGBA{B: 255, A: 255})
+	// }
 
-	fname := fmt.Sprintf("rot-%d.png", i)
-	f, err := os.OpenFile(fname, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
-	if err != nil {
-		return nil, err
-	}
+	// fname := fmt.Sprintf("rot-%d.png", i)
+	// f, err := os.OpenFile(fname, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	// if err != nil {
+	// 	return nil, 0, err
+	// }
 
-	if err := png.Encode(f, newImg); err != nil {
-		return nil, err
-	}
+	// if err := png.Encode(f, newImg); err != nil {
+	// 	return nil, 0, err
+	// }
 
-	return edge, nil
+	return edge, modeY, nil
 }
