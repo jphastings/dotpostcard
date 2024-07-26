@@ -300,18 +300,22 @@ func removeBorder(img image.Image) (image.Image, error) {
 		for _, e := range edge {
 			x, y := rotation[side](b, e.X, e.Y)
 
-			// Keep points ascending numerically, regardless of side
-			if side < 2 {
-				be.points = append(be.points, image.Point{X: x, Y: y})
-			} else {
-				be.points = append([]image.Point{{X: x, Y: y}}, be.points...)
-			}
+			// // Keep points ascending numerically, regardless of side
+			// if side < 2 {
+			be.points = append(be.points, image.Point{X: x, Y: y})
+			// } else {
+			// 	be.points = append([]image.Point{{X: x, Y: y}}, be.points...)
+			// }
 
 		}
 		borderEdges[side] = be
 	}
 
-	for side, be := range borderEdges {
+	dc := gg.NewContext(bounds.Dx(), bounds.Dy())
+
+	for side := 3; side >= 0; side-- {
+		be := borderEdges[side]
+
 		acModeXY := borderEdges[(side+3)%4].mode
 		ccModeXY := borderEdges[(side+1)%4].mode
 		// TODO: Perhaps a better way of doing this
@@ -327,17 +331,17 @@ func removeBorder(img image.Image) (image.Image, error) {
 			if isBorderHorizontal || isBorderVertical {
 				continue
 			}
-			newImg.Set(e.X, e.Y, color.RGBA{R: 255, A: 255})
+			// newImg.Set(e.X, e.Y, color.RGBA{R: 255, A: 255})
+			dc.LineTo(float64(e.X), float64(e.Y))
 		}
 	}
+	dc.SetRGBA(0, 0, 0, 0)
+	dc.Clip()
+	dc.DrawImage(newImg, 0, 0)
 
 	// Smooth edge
 
-	// Join up edges (ie. chop of corners)
-
-	// Convert into mask
-
-	return newImg, nil
+	return dc.Image(), nil
 }
 
 // TODO: Swap this to a stddev of the mode?
@@ -367,6 +371,8 @@ func findTopBorderEdgePoints(img *image.Gray) ([]image.Point, int, error) {
 			c := bImg.At(x, y)
 			if isEdge(c) {
 				if y != 0 && y != bounds.Dy() {
+					// Go one extra pixel inwards
+					y++
 					modeTrack[y]++
 					if modeTrack[y] > modeMax {
 						modeMax = modeTrack[y]
@@ -378,10 +384,6 @@ func findTopBorderEdgePoints(img *image.Gray) ([]image.Point, int, error) {
 			}
 		}
 	}
-
-	// // Peek
-	// newImg := image.NewRGBA(bounds)
-	// draw.Copy(newImg, image.Point{}, bImg, bounds, draw.Src, nil)
 
 	for i, e := range edge {
 		if e.Y > modeY+deviation || e.Y < modeY-deviation {
@@ -395,26 +397,8 @@ func findTopBorderEdgePoints(img *image.Gray) ([]image.Point, int, error) {
 				}
 			}
 			edge[i] = image.Point{X: e.X, Y: brightestY}
-			// newImg.Set(e.X, brightestY, color.RGBA{G: 255, A: 255})
-		} else {
-			// newImg.Set(e.X, e.Y, color.RGBA{R: 255, A: 255})
 		}
 	}
-
-	// for x := 0; x < bounds.Dx(); x++ {
-	// 	newImg.Set(x, modeY+deviation, color.RGBA{B: 255, A: 255})
-	// 	newImg.Set(x, modeY-deviation, color.RGBA{B: 255, A: 255})
-	// }
-
-	// fname := fmt.Sprintf("rot-%d.png", i)
-	// f, err := os.OpenFile(fname, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
-	// if err != nil {
-	// 	return nil, 0, err
-	// }
-
-	// if err := png.Encode(f, newImg); err != nil {
-	// 	return nil, 0, err
-	// }
 
 	return edge, modeY, nil
 }
