@@ -7,13 +7,12 @@ import (
 	"image"
 	"image/color"
 	_ "image/jpeg"
-	"image/png"
 	_ "image/png"
 	"io"
 	"math"
-	"os"
 
 	"git.sr.ht/~sbinet/gg"
+	"github.com/ernyoke/imger/blur"
 	"github.com/ernyoke/imger/edgedetection"
 	"github.com/ernyoke/imger/padding"
 	"github.com/jphastings/postcards/formats"
@@ -190,21 +189,7 @@ func removeBackground(img image.Image) (image.Image, error) {
 		return nil, ErrAlreadyTransparent
 	}
 
-	newImg, err := removeBorder(img)
-	if err != nil {
-		return nil, err
-	}
-
-	f, err := os.OpenFile("sobel.png", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := png.Encode(f, newImg); err != nil {
-		return nil, err
-	}
-	os.Exit(1)
-	return img, nil
+	return removeBorder(img)
 }
 
 type rollingColor struct {
@@ -261,8 +246,6 @@ func removeBorder(img image.Image) (image.Image, error) {
 	bounds := img.Bounds()
 	newImg := image.NewRGBA(bounds)
 
-	draw.Copy(newImg, image.Point{}, img, bounds, draw.Src, nil)
-
 	var borderEdges [4]borderEdge
 
 	for side := 0; side < 4; side++ {
@@ -299,14 +282,7 @@ func removeBorder(img image.Image) (image.Image, error) {
 
 		for _, e := range edge {
 			x, y := rotation[side](b, e.X, e.Y)
-
-			// // Keep points ascending numerically, regardless of side
-			// if side < 2 {
 			be.points = append(be.points, image.Point{X: x, Y: y})
-			// } else {
-			// 	be.points = append([]image.Point{{X: x, Y: y}}, be.points...)
-			// }
-
 		}
 		borderEdges[side] = be
 	}
@@ -331,17 +307,37 @@ func removeBorder(img image.Image) (image.Image, error) {
 			if isBorderHorizontal || isBorderVertical {
 				continue
 			}
-			// newImg.Set(e.X, e.Y, color.RGBA{R: 255, A: 255})
 			dc.LineTo(float64(e.X), float64(e.Y))
 		}
 	}
-	dc.SetRGBA(0, 0, 0, 0)
-	dc.Clip()
-	dc.DrawImage(newImg, 0, 0)
+	dc.SetRGB(0, 0, 0)
+	dc.Fill()
 
-	// Smooth edge
+	gray := image.NewGray(bounds)
+	mask := dc.AsMask()
+	draw.Copy(gray, image.Point{}, mask, bounds, draw.Src, nil)
 
-	return dc.Image(), nil
+	blurred, err := blur.GaussianBlurGray(gray, 1, 1, padding.BorderReflect)
+	if err != nil {
+		return nil, err
+	}
+
+	for y := 0; y < bounds.Dy(); y++ {
+		for x := 0; x < bounds.Dx(); x++ {
+			r, g, b, _ := img.At(x, y).RGBA()
+			gray, _, _, _ := blurred.At(x, y).RGBA()
+
+			c := color.NRGBA{
+				R: uint8(r >> 8),
+				G: uint8(g >> 8),
+				B: uint8(b >> 8),
+				A: uint8(gray >> 8),
+			}
+			newImg.Set(x, y, c)
+		}
+	}
+
+	return newImg, nil
 }
 
 // TODO: Swap this to a stddev of the mode?
@@ -371,8 +367,8 @@ func findTopBorderEdgePoints(img *image.Gray) ([]image.Point, int, error) {
 			c := bImg.At(x, y)
 			if isEdge(c) {
 				if y != 0 && y != bounds.Dy() {
-					// Go one extra pixel inwards
-					y++
+					// Go two extra pixels inwards
+					y += 2
 					modeTrack[y]++
 					if modeTrack[y] > modeMax {
 						modeMax = modeTrack[y]
