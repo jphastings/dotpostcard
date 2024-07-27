@@ -12,7 +12,6 @@ import (
 	"math"
 
 	"git.sr.ht/~sbinet/gg"
-	"github.com/ernyoke/imger/blur"
 	"github.com/ernyoke/imger/edgedetection"
 	"github.com/ernyoke/imger/padding"
 	"github.com/jphastings/postcards/formats"
@@ -244,7 +243,7 @@ type borderEdge struct {
 
 func removeBorder(img image.Image) (image.Image, error) {
 	bounds := img.Bounds()
-	newImg := image.NewRGBA(bounds)
+	// newImg := image.NewRGBA(bounds)
 
 	var borderEdges [4]borderEdge
 
@@ -310,52 +309,27 @@ func removeBorder(img image.Image) (image.Image, error) {
 			dc.LineTo(float64(e.X), float64(e.Y))
 		}
 	}
-	dc.SetRGB(0, 0, 0)
-	dc.Fill()
+	dc.Clip()
+	dc.DrawImage(img, 0, 0)
 
-	gray := image.NewGray(bounds)
-	mask := dc.AsMask()
-	draw.Copy(gray, image.Point{}, mask, bounds, draw.Src, nil)
-
-	blurred, err := blur.GaussianBlurGray(gray, 1, 1, padding.BorderReflect)
-	if err != nil {
-		return nil, err
-	}
-
-	for y := 0; y < bounds.Dy(); y++ {
-		for x := 0; x < bounds.Dx(); x++ {
-			r, g, b, _ := img.At(x, y).RGBA()
-			gray, _, _, _ := blurred.At(x, y).RGBA()
-
-			c := color.NRGBA{
-				R: uint8(r >> 8),
-				G: uint8(g >> 8),
-				B: uint8(b >> 8),
-				A: uint8(gray >> 8),
-			}
-			newImg.Set(x, y, c)
-		}
-	}
-
-	return newImg, nil
+	return dc.Image(), nil
 }
 
-// TODO: Swap this to a stddev of the mode?
-var allowDev = 1200
+const (
+	pcPixelsInLine = 60
+	travelExtra    = 2 // px further after finding sobel edge
+	borderMinThick = 8
+)
 
 func findTopBorderEdgePoints(img *image.Gray) ([]image.Point, int, error) {
 	bounds := img.Bounds()
-	deviation := bounds.Dx() / allowDev
-	if devY := bounds.Dy() / allowDev; devY > deviation {
-		deviation = devY
-	}
 
 	bImg, err := edgedetection.HorizontalSobelGray(img, padding.BorderReflect)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	isEdge := borderFinder(bImg, 8)
+	isEdge := borderFinder(bImg, borderMinThick)
 
 	modeTrack := make(map[int]int)
 	modeMax := 0
@@ -366,9 +340,9 @@ func findTopBorderEdgePoints(img *image.Gray) ([]image.Point, int, error) {
 		for y := 0; y < bounds.Dy(); y++ {
 			c := bImg.At(x, y)
 			if isEdge(c) {
-				if y != 0 && y != bounds.Dy() {
+				if y < bounds.Dy()/8 {
 					// Go two extra pixels inwards
-					y += 2
+					y += travelExtra
 					modeTrack[y]++
 					if modeTrack[y] > modeMax {
 						modeMax = modeTrack[y]
@@ -381,18 +355,37 @@ func findTopBorderEdgePoints(img *image.Gray) ([]image.Point, int, error) {
 		}
 	}
 
+	devCountdown := ((bounds.Dx() * pcPixelsInLine) / 100) - modeMax
+	devPos := 1
+	devNeg := 1
+
+	for i := 1; i < 25; i++ {
+		if devCountdown <= 0 {
+			break
+		}
+		amtPos := modeTrack[modeY+devPos]
+		amtNeg := modeTrack[modeY-devNeg]
+		if amtPos > amtNeg {
+			devPos++
+			devCountdown -= amtPos
+		} else {
+			devNeg++
+			devCountdown -= amtNeg
+		}
+	}
+
 	for i, e := range edge {
-		if e.Y > modeY+deviation || e.Y < modeY-deviation {
-			brightestY := 0
+		if e.Y > modeY+devPos || e.Y < modeY-devNeg {
+			brightestY := modeY
 			brightestVal := uint32(0)
-			for y := modeY - deviation; y < modeY+deviation; y++ {
+			for y := modeY; y <= modeY+devPos; y++ {
 				val, _, _, _ := bImg.At(e.X, y).RGBA()
 				if val > brightestVal {
 					brightestY = y
 					brightestVal = val
 				}
 			}
-			edge[i] = image.Point{X: e.X, Y: brightestY}
+			edge[i] = image.Point{X: e.X, Y: brightestY + travelExtra}
 		}
 	}
 
