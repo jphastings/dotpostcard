@@ -5,7 +5,7 @@ import (
 	_ "image/png"
 	"io"
 
-	"github.com/jphastings/postcards/formats"
+	"github.com/jphastings/dotpostcard/formats"
 )
 
 const codecName = "Web"

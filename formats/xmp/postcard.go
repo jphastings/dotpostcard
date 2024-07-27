@@ -3,7 +3,7 @@ package xmp
 import (
 	"strings"
 
-	"github.com/jphastings/postcards/types"
+	"github.com/jphastings/dotpostcard/types"
 )
 
 type xmpPostcard struct {

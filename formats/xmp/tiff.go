@@ -3,7 +3,7 @@ package xmp
 import (
 	"math/big"
 
-	"github.com/jphastings/postcards/types"
+	"github.com/jphastings/dotpostcard/types"
 )
 
 type xmlTiff struct {

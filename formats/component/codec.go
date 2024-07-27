@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io/fs"
 
-	"github.com/jphastings/postcards/formats"
-	"github.com/jphastings/postcards/formats/metadata"
+	"github.com/jphastings/dotpostcard/formats"
+	"github.com/jphastings/dotpostcard/formats/metadata"
 )
 
 const codecName = "Component files"

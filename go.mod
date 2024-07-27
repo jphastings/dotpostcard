@@ -1,4 +1,4 @@
-module github.com/jphastings/postcards
+module github.com/jphastings/dotpostcard
 
 go 1.21.6
 
@@ -18,7 +18,6 @@ require (
 )
 
 require (
-	github.com/anthonynsimon/bild v0.14.0 // indirect
 	github.com/campoy/embedmd v1.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dsoprea/go-exif/v2 v2.0.0-20200604193436-ca8584a0e1c4 // indirect

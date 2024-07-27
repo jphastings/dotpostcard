@@ -3,9 +3,9 @@ package html_test
 import (
 	"testing"
 
-	"github.com/jphastings/postcards/formats"
-	"github.com/jphastings/postcards/formats/html"
-	"github.com/jphastings/postcards/internal/testhelpers"
+	"github.com/jphastings/dotpostcard/formats"
+	"github.com/jphastings/dotpostcard/formats/html"
+	"github.com/jphastings/dotpostcard/internal/testhelpers"
 	"github.com/stretchr/testify/assert"
 )
 

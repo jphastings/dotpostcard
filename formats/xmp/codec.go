@@ -7,8 +7,8 @@ import (
 	"io/fs"
 	"path"
 
-	"github.com/jphastings/postcards/formats"
-	"github.com/jphastings/postcards/types"
+	"github.com/jphastings/dotpostcard/formats"
+	"github.com/jphastings/dotpostcard/types"
 )
 
 const codecName = "XMP Metadata"

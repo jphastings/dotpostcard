@@ -7,7 +7,7 @@ import (
 	_ "image/png"
 	"math/big"
 
-	"github.com/jphastings/postcards/types"
+	"github.com/jphastings/dotpostcard/types"
 )
 
 var (

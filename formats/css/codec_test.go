@@ -4,10 +4,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jphastings/postcards/formats"
-	"github.com/jphastings/postcards/formats/css"
-	"github.com/jphastings/postcards/internal/testhelpers"
-	"github.com/jphastings/postcards/types"
+	"github.com/jphastings/dotpostcard/formats"
+	"github.com/jphastings/dotpostcard/formats/css"
+	"github.com/jphastings/dotpostcard/internal/testhelpers"
+	"github.com/jphastings/dotpostcard/types"
 	"github.com/stretchr/testify/assert"
 )
 

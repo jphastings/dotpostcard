@@ -3,8 +3,8 @@ package xmp
 import (
 	"strings"
 
-	"github.com/jphastings/postcards/formats"
-	"github.com/jphastings/postcards/types"
+	"github.com/jphastings/dotpostcard/formats"
+	"github.com/jphastings/dotpostcard/types"
 )
 
 type xmpIptc4xmpCoreXML struct {

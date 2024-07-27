@@ -6,7 +6,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/jphastings/postcards/formats"
+	"github.com/jphastings/dotpostcard/formats"
 )
 
 // MakeBundles takes paths of files and directories and will figure out the bundles of files that need to be processed together.

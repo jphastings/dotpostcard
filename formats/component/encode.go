@@ -6,8 +6,8 @@ import (
 	"io"
 
 	"github.com/chai2010/webp"
-	"github.com/jphastings/postcards/formats"
-	"github.com/jphastings/postcards/types"
+	"github.com/jphastings/dotpostcard/formats"
+	"github.com/jphastings/dotpostcard/types"
 	"golang.org/x/image/draw"
 )
 

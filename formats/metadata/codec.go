@@ -8,8 +8,8 @@ import (
 	"path"
 	"slices"
 
-	"github.com/jphastings/postcards/formats"
-	"github.com/jphastings/postcards/types"
+	"github.com/jphastings/dotpostcard/formats"
+	"github.com/jphastings/dotpostcard/types"
 	"gopkg.in/yaml.v3"
 )
 

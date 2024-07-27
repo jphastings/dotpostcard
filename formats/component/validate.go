@@ -3,7 +3,7 @@ package component
 import (
 	"fmt"
 
-	"github.com/jphastings/postcards/types"
+	"github.com/jphastings/dotpostcard/types"
 )
 
 func validateMetadata(pc types.Postcard) error {

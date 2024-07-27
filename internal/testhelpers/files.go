@@ -5,7 +5,7 @@ import (
 	"io/fs"
 	"testing/fstest"
 
-	"github.com/jphastings/postcards/formats"
+	"github.com/jphastings/dotpostcard/formats"
 )
 
 func DataForTestFile(filename string) []byte {

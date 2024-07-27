@@ -5,8 +5,8 @@ import (
 	"encoding/xml"
 	"fmt"
 
-	"github.com/jphastings/postcards/internal/general"
-	"github.com/jphastings/postcards/types"
+	"github.com/jphastings/dotpostcard/internal/general"
+	"github.com/jphastings/dotpostcard/types"
 )
 
 func MetadataToXMP(meta types.Metadata, dims *types.Size) ([]byte, error) {

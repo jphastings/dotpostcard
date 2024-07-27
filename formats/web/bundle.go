@@ -6,7 +6,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/jphastings/postcards/formats"
+	"github.com/jphastings/dotpostcard/formats"
 )
 
 func BundleFromReader(r io.Reader, refPath string) formats.Bundle {

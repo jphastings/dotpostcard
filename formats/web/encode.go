@@ -12,9 +12,9 @@ import (
 	_ "github.com/chai2010/webp"
 	"golang.org/x/image/draw"
 
-	"github.com/jphastings/postcards/formats"
-	"github.com/jphastings/postcards/formats/xmp"
-	"github.com/jphastings/postcards/types"
+	"github.com/jphastings/dotpostcard/formats"
+	"github.com/jphastings/dotpostcard/formats/xmp"
+	"github.com/jphastings/dotpostcard/types"
 )
 
 func (c codec) Encode(pc types.Postcard, opts formats.EncodeOptions) []formats.FileWriter {

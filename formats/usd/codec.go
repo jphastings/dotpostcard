@@ -8,10 +8,10 @@ import (
 	"io/fs"
 	"text/template"
 
-	"github.com/jphastings/postcards/formats"
-	"github.com/jphastings/postcards/formats/web"
-	"github.com/jphastings/postcards/internal/general"
-	"github.com/jphastings/postcards/types"
+	"github.com/jphastings/dotpostcard/formats"
+	"github.com/jphastings/dotpostcard/formats/web"
+	"github.com/jphastings/dotpostcard/internal/general"
+	"github.com/jphastings/dotpostcard/types"
 )
 
 const codecName = "USD 3D model"

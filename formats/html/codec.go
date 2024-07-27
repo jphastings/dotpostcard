@@ -7,8 +7,8 @@ import (
 	"io"
 	"io/fs"
 
-	"github.com/jphastings/postcards/formats"
-	"github.com/jphastings/postcards/types"
+	"github.com/jphastings/dotpostcard/formats"
+	"github.com/jphastings/dotpostcard/types"
 )
 
 // TODO: Can this the HTML be simpler for non-flipping postcards?

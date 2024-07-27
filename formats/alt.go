@@ -3,7 +3,7 @@ package formats
 import (
 	"fmt"
 
-	"github.com/jphastings/postcards/types"
+	"github.com/jphastings/dotpostcard/types"
 )
 
 var (
@@ -30,7 +30,7 @@ func AltText(meta types.Metadata, lang string) (string, string) {
 	if meta.Back.Transcription.Text == "" {
 		alt = fmt.Sprintf(alts[0], meta.Front.Description)
 	} else {
-		alt = fmt.Sprintf(alts[1], meta.Front.Description, meta.Back.Transcription)
+		alt = fmt.Sprintf(alts[1], meta.Front.Description, meta.Back.Transcription.Text)
 	}
 
 	return alt, lang

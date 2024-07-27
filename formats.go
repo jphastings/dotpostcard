@@ -3,14 +3,14 @@ package postcards
 import (
 	"fmt"
 
-	"github.com/jphastings/postcards/formats"
-	"github.com/jphastings/postcards/formats/component"
-	"github.com/jphastings/postcards/formats/css"
-	"github.com/jphastings/postcards/formats/html"
-	"github.com/jphastings/postcards/formats/metadata"
-	"github.com/jphastings/postcards/formats/usd"
-	"github.com/jphastings/postcards/formats/web"
-	"github.com/jphastings/postcards/formats/xmp"
+	"github.com/jphastings/dotpostcard/formats"
+	"github.com/jphastings/dotpostcard/formats/component"
+	"github.com/jphastings/dotpostcard/formats/css"
+	"github.com/jphastings/dotpostcard/formats/html"
+	"github.com/jphastings/dotpostcard/formats/metadata"
+	"github.com/jphastings/dotpostcard/formats/usd"
+	"github.com/jphastings/dotpostcard/formats/web"
+	"github.com/jphastings/dotpostcard/formats/xmp"
 )
 
 var codecs = map[string]formats.Codec{

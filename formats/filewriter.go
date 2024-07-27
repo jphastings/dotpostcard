@@ -7,7 +7,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/jphastings/postcards/types"
+	"github.com/jphastings/dotpostcard/types"
 )
 
 type EncodeOptions struct {

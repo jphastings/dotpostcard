@@ -14,9 +14,9 @@ import (
 	"git.sr.ht/~sbinet/gg"
 	"github.com/ernyoke/imger/edgedetection"
 	"github.com/ernyoke/imger/padding"
-	"github.com/jphastings/postcards/formats"
-	"github.com/jphastings/postcards/internal/resolution"
-	"github.com/jphastings/postcards/types"
+	"github.com/jphastings/dotpostcard/formats"
+	"github.com/jphastings/dotpostcard/internal/resolution"
+	"github.com/jphastings/dotpostcard/types"
 	_ "github.com/sunshineplan/tiff"
 	"golang.org/x/image/draw"
 )

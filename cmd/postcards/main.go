@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jphastings/postcards"
-	"github.com/jphastings/postcards/formats"
-	"github.com/jphastings/postcards/internal/cmdhelp"
-	"github.com/jphastings/postcards/internal/general"
+	postcards "github.com/jphastings/dotpostcard"
+	"github.com/jphastings/dotpostcard/formats"
+	"github.com/jphastings/dotpostcard/internal/cmdhelp"
+	"github.com/jphastings/dotpostcard/internal/general"
 	"github.com/spf13/cobra"
 )
 

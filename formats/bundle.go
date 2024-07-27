@@ -4,7 +4,7 @@ import (
 	"io/fs"
 	"strings"
 
-	"github.com/jphastings/postcards/types"
+	"github.com/jphastings/dotpostcard/types"
 )
 
 // HasFileSuffix returns true if the given file has any one of the provided filename
