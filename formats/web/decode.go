@@ -30,6 +30,7 @@ func (b bundle) Decode(_ *formats.DecodeOptions) (types.Postcard, error) {
 	// 	return types.Postcard{}, fmt.Errorf("didn't contain postcard metadata: %w", err)
 	// }
 	pc := types.Postcard{
+		Name: b.name,
 		Meta: types.Metadata{
 			Flip: types.FlipBook,
 		},

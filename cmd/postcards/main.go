@@ -80,7 +80,7 @@ var rootCmd = &cobra.Command{
 						fileStartT := time.Now()
 						dst, err := fw.WriteFile(targetDir, overwrite)
 						if err != nil {
-							fmt.Fprintf(sso, "⚠︎ %s: %v", filename, err)
+							fmt.Fprintf(sso, "⚠︎ %s: %v\n", filename, err)
 							return
 						}
 

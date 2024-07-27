@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 	"math/big"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -203,6 +204,36 @@ func (s *Size) UnmarshalYAML(y *yaml.Node) error {
 	return err
 }
 
+func (d *Date) UnmarshalYAML(y *yaml.Node) error {
+	switch y.ShortTag() {
+	case "!!str":
+		t, err := time.Parse(`"2006-01-02"`, y.Value)
+		if err != nil {
+			return err
+		}
+		d.Time = t
+		return nil
+	case "!!timestamp":
+		t, err := time.Parse(`2006-01-02`, y.Value)
+		if err != nil {
+			return err
+		}
+		d.Time = t
+		return nil
+	}
+
+	fmt.Println(y.Value, y.ShortTag())
+
+	return fmt.Errorf("dates need to be in the format YYYY-MM-DD")
+}
+
+func (d Date) MarshalYAML() (interface{}, error) {
+	if d.Time.IsZero() {
+		return nil, nil
+	}
+	return d.Time.Format(`"2006-01-02"`), nil
+}
+
 var _ yaml.Unmarshaler = (*Flip)(nil)
 var _ yaml.Marshaler = (*Polygon)(nil)
 var _ yaml.Unmarshaler = (*Polygon)(nil)
@@ -210,3 +241,5 @@ var _ yaml.Marshaler = (*Size)(nil)
 var _ yaml.Unmarshaler = (*Size)(nil)
 var _ yaml.Marshaler = (*AnnotatedText)(nil)
 var _ yaml.Unmarshaler = (*AnnotatedText)(nil)
+var _ yaml.Marshaler = (*Date)(nil)
+var _ yaml.Unmarshaler = (*Date)(nil)

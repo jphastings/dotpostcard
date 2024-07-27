@@ -16,16 +16,18 @@ type xmpExif struct {
 }
 
 func addExifSection(sections []interface{}, meta types.Metadata) []interface{} {
-	hasSentOn := meta.SentOn != ""
+	hasSentOn := !meta.SentOn.IsZero()
 	hasLocation := meta.Location != types.Location{}
 
 	if !hasSentOn && !hasLocation {
 		return sections
 	}
 
+	yy, mm, dd := meta.SentOn.Date()
+
 	exif := xmpExif{
 		Namespace:        "http://ns.adobe.com/exif/1.0/",
-		OriginalDateTime: string(meta.SentOn),
+		OriginalDateTime: fmt.Sprintf("%d-%02d-%02d", yy, mm, dd),
 		Placename:        meta.Location.Name,
 		Latitude:         fmtEXIFDegrees(meta.Location.Latitude, true),
 		Longitude:        fmtEXIFDegrees(meta.Location.Longitude, false),

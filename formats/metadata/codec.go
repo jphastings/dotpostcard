@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"path"
 	"slices"
+	"strings"
 
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/types"
@@ -95,16 +96,23 @@ func (c codec) Encode(pc types.Postcard, _ *formats.EncodeOptions) []formats.Fil
 
 func (b bundle) Decode(_ *formats.DecodeOptions) (types.Postcard, error) {
 	var pc types.Postcard
+	var err error
 	switch b.ext {
 	case AsJSON:
-		err := json.NewDecoder(b.file).Decode(&pc.Meta)
-		return pc, err
+		err = json.NewDecoder(b.file).Decode(&pc.Meta)
 	case AsYAML:
-		err := yaml.NewDecoder(b.file).Decode(&pc.Meta)
-		return pc, err
+		err = yaml.NewDecoder(b.file).Decode(&pc.Meta)
 	default:
 		return types.Postcard{}, fmt.Errorf("unknown metadata format '%s'", b.ext)
 	}
+
+	pc.Name = strings.TrimSuffix(path.Base(b.refPath), "-meta"+string(b.ext))
+
+	if err != nil {
+		err = fmt.Errorf("error decoding %s: %w", b.refPath, err)
+	}
+
+	return pc, err
 }
 
 func (b bundle) RefPath() string {

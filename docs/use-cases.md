@@ -104,10 +104,10 @@ postcard4: 17.7cm x 12.7cm (136 dpi)
 
 | Format    | Filename                   | Purpose                                                              | Convertible?             |
 |-----------|----------------------------|----------------------------------------------------------------------|--------------------------|
-| web       | name.postcard[^1]          | A stacked front/back webp image with embedded XMP metadata           | Yes, some metadata lost  |
+| web       | name.postcard.webp[^1]     | A stacked front/back webp image with embedded XMP metadata           | Yes, some metadata lost  |
 | json,yaml | name-meta.{json,yaml}      | A simple JSON/YAML file describing the metadata about a postcard     | Yes, needs `sides`       |
 | sides     | name-{front,back}.webp[^1] | The separate front and back images of the postcard                   | Yes, needs `json`/`yaml` |
 | usd       | name.usd, name-texture.png | A Universal Scene Description 3D model of the postcard (to scale)    | Yes, no loss             |
 | css       | postcards.css              | Outputs the (unchanging) CSS needed to display a postcard on the web | n/a                      |
 
-[^1]: These file formats are always output in the WebP format, but any of JPEG, PNG, WebP can be imported with their usual extensions, or (in the case of the 'web' output format) with the `.postcard` extension.
+[^1]: These file formats are always output in the WebP format, but any of JPEG, PNG, WebP can be imported with their usual extensions.
