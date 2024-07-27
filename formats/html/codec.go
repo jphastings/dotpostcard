@@ -35,7 +35,7 @@ func (c codec) Bundle(group formats.FileGroup) ([]formats.Bundle, []fs.File, err
 	return nil, group.Files, nil
 }
 
-func (c codec) Encode(pc types.Postcard, _ formats.EncodeOptions) []formats.FileWriter {
+func (c codec) Encode(pc types.Postcard, _ *formats.EncodeOptions) []formats.FileWriter {
 	name := fmt.Sprintf("%s.html", pc.Name)
 	writer := func(w io.Writer) error {
 		pc.Meta.Name = pc.Name
