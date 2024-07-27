@@ -17,7 +17,7 @@ import (
 	"github.com/jphastings/dotpostcard/types"
 )
 
-func (c codec) Encode(pc types.Postcard, opts formats.EncodeOptions) []formats.FileWriter {
+func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) []formats.FileWriter {
 	name := fmt.Sprintf("%s.postcard", pc.Name)
 
 	writer := func(w io.Writer) error {

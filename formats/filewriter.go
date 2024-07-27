@@ -35,7 +35,7 @@ type Codec interface {
 	Bundle(FileGroup) ([]Bundle, []fs.File, error)
 
 	// Encode must produce any files needed to represent postcards in this format.
-	Encode(types.Postcard, EncodeOptions) []FileWriter
+	Encode(types.Postcard, *EncodeOptions) []FileWriter
 
 	// Name is the human usable name of the codec
 	Name() string

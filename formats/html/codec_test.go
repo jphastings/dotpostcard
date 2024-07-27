@@ -3,7 +3,6 @@ package html_test
 import (
 	"testing"
 
-	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/formats/html"
 	"github.com/jphastings/dotpostcard/internal/testhelpers"
 	"github.com/stretchr/testify/assert"
@@ -21,7 +20,7 @@ func TestBundle(t *testing.T) {
 }
 
 func TestEncode(t *testing.T) {
-	fws := html.Codec().Encode(testhelpers.SamplePostcard, formats.EncodeOptions{})
+	fws := html.Codec().Encode(testhelpers.SamplePostcard, nil)
 
 	assert.Len(t, fws, 1)
 

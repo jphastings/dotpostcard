@@ -5,7 +5,6 @@ import (
 	"io"
 	"testing"
 
-	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/internal/testhelpers"
 	"github.com/stretchr/testify/assert"
 )
@@ -31,7 +30,7 @@ func TestBundle(t *testing.T) {
 }
 
 func TestEncode(t *testing.T) {
-	fws := Codec().Encode(testhelpers.SamplePostcard, formats.EncodeOptions{})
+	fws := Codec().Encode(testhelpers.SamplePostcard, nil)
 
 	assert.Len(t, fws, 1)
 
@@ -44,7 +43,7 @@ func TestEncode(t *testing.T) {
 func TestDecode(t *testing.T) {
 	bnd := bundle{r: bytes.NewReader(testhelpers.SampleXMP)}
 
-	pc, err := bnd.Decode(formats.DecodeOptions{})
+	pc, err := bnd.Decode(nil)
 	_ = pc
 	assert.Error(t, err, "decoding is not yet implemented")
 

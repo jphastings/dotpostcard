@@ -67,7 +67,7 @@ var clockwise = []usdPoint{
 	{1, 1},
 }
 
-func (c codec) Encode(pc types.Postcard, opts formats.EncodeOptions) []formats.FileWriter {
+func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) []formats.FileWriter {
 	// Note: USDZ files must contain a *binary encoded* USD layer, so we can't create a USDZ here
 	// without using the USD C++ API. (Which… perhaps on a rainy Sunday)
 	usdFilename := pc.Name + ".usd"

@@ -66,13 +66,13 @@ var rootCmd = &cobra.Command{
 			}
 			filename := path.Base(bundle.RefPath())
 
-			pc, err := bundle.Decode(formats.DecodeOptions{RemoveBackground: true})
+			pc, err := bundle.Decode(&formats.DecodeOptions{RemoveBackground: true})
 			if err != nil {
 				return err
 			}
 
 			for _, codec := range codecs {
-				for _, fw := range codec.Encode(pc, encOpts) {
+				for _, fw := range codec.Encode(pc, &encOpts) {
 					wg.Add(1)
 					go func(filename, codecName string, fw formats.FileWriter) {
 						defer wg.Done()

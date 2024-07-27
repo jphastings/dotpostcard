@@ -11,7 +11,7 @@ import (
 	"github.com/jphastings/dotpostcard/types"
 )
 
-func (b bundle) Decode(_ formats.DecodeOptions) (types.Postcard, error) {
+func (b bundle) Decode(_ *formats.DecodeOptions) (types.Postcard, error) {
 	var dataCopy bytes.Buffer
 	t := io.TeeReader(b, &dataCopy)
 

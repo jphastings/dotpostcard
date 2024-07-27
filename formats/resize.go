@@ -11,7 +11,7 @@ const DefaultMaxSide = 1536
 // Aspect ratio will be maintained (including for heteroriented sides)
 // Archival: the largest dimensions of the given sides will be used
 // Non-archival: A maximum of DefaultMaxSide will be used, with the shorter side scaled accordingly
-func DetermineSize(opts EncodeOptions, front image.Image, back image.Image) (frontSize, finalSize image.Rectangle) {
+func DetermineSize(opts *EncodeOptions, front image.Image, back image.Image) (frontSize, finalSize image.Rectangle) {
 	frontSize = front.Bounds()
 	frontLandscape := frontSize.Max.X > frontSize.Max.Y
 

@@ -21,7 +21,7 @@ import (
 	"golang.org/x/image/draw"
 )
 
-func (b bundle) Decode(opts formats.DecodeOptions) (types.Postcard, error) {
+func (b bundle) Decode(opts *formats.DecodeOptions) (types.Postcard, error) {
 	pc, err := b.metaBundle.Decode(opts)
 	if err != nil {
 		return types.Postcard{}, err
@@ -65,7 +65,7 @@ func (b bundle) Decode(opts formats.DecodeOptions) (types.Postcard, error) {
 	return pc, nil
 }
 
-func decodeImage(r io.Reader, decOpts formats.DecodeOptions) (image.Image, types.Size, error) {
+func decodeImage(r io.Reader, decOpts *formats.DecodeOptions) (image.Image, types.Size, error) {
 	var dataCopy bytes.Buffer
 	t := io.TeeReader(r, &dataCopy)
 

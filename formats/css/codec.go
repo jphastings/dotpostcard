@@ -22,7 +22,7 @@ func (c codec) Bundle(group formats.FileGroup) ([]formats.Bundle, []fs.File, err
 	return nil, group.Files, nil
 }
 
-func (c codec) Encode(_ types.Postcard, _ formats.EncodeOptions) []formats.FileWriter {
+func (c codec) Encode(_ types.Postcard, _ *formats.EncodeOptions) []formats.FileWriter {
 	writer := func(w io.Writer) error {
 		_, err := w.Write([]byte(postcardCSS))
 		return err

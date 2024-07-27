@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/formats/css"
 	"github.com/jphastings/dotpostcard/internal/testhelpers"
 	"github.com/jphastings/dotpostcard/types"
@@ -23,7 +22,7 @@ func TestBundle(t *testing.T) {
 }
 
 func TestEncode(t *testing.T) {
-	fws := css.Codec().Encode(types.Postcard{}, formats.EncodeOptions{})
+	fws := css.Codec().Encode(types.Postcard{}, nil)
 
 	assert.Len(t, fws, 1)
 
