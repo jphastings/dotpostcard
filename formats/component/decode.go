@@ -80,9 +80,11 @@ func decodeImage(r io.Reader, decOpts formats.DecodeOptions) (image.Image, types
 	}
 
 	if decOpts.RemoveBackground {
-		img, err = removeBackground(img)
-		if err != nil {
-			return nil, types.Size{}, err
+		if _, _, _, a := img.At(0, 0).RGBA(); a != 0 {
+			img, err = removeBorder(img)
+			if err != nil {
+				return nil, types.Size{}, err
+			}
 		}
 	}
 
@@ -182,14 +184,6 @@ func modalColor(img image.Image, within image.Rectangle) color.Color {
 }
 
 var ErrAlreadyTransparent = errors.New("this image already has transparent pixels, ")
-
-func removeBackground(img image.Image) (image.Image, error) {
-	if _, _, _, a := img.At(0, 0).RGBA(); a != 65535 {
-		return nil, ErrAlreadyTransparent
-	}
-
-	return removeBorder(img)
-}
 
 type rollingColor struct {
 	av     float64
@@ -316,7 +310,7 @@ func removeBorder(img image.Image) (image.Image, error) {
 }
 
 const (
-	pcPixelsInLine = 60
+	pcPixelsInLine = 80
 	travelExtra    = 2 // px further after finding sobel edge
 	borderMinThick = 8
 )
