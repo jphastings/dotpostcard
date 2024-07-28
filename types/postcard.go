@@ -44,26 +44,6 @@ type Side struct {
 	Secrets       []Polygon     `json:"secrets,omitempty" yaml:"secrets,omitempty"`
 }
 
-type AnnotatedText struct {
-	Text        string       `json:"text,omitempty" yaml:"text,omitempty"`
-	Annotations []Annotation `json:"annotations,omitempty" yaml:"annotations,omitempty"`
-}
-
-type Annotation struct {
-	Type  AnnotationType `json:"type"`
-	Value string         `json:"value"`
-	Start uint           `json:"start"`
-	End   uint           `json:"end"`
-}
-
-type AnnotationType string
-
-const (
-	ATLocale   AnnotationType = "locale"
-	ATEmphasis AnnotationType = "em"
-	ATStrong   AnnotationType = "strong"
-)
-
 type Context struct {
 	Author      Person `json:"author"`
 	Description string `json:"description"`

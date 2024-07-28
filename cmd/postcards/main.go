@@ -78,7 +78,7 @@ var rootCmd = &cobra.Command{
 			for _, codec := range codecs {
 				for _, fw := range codec.Encode(pc, &encOpts) {
 					wg.Add(1)
-					go func(filename, codecName string, fw formats.FileWriter) {
+					go func(filename, bundleName, codecName string, fw formats.FileWriter) {
 						defer wg.Done()
 
 						fileStartT := time.Now()
@@ -88,9 +88,9 @@ var rootCmd = &cobra.Command{
 							return
 						}
 
-						fileDur := time.Now().Sub(fileStartT)
-						fmt.Fprintf(sso, "%s (%s) → (%s) %s (%s)\n", filename, bundle.Name(), codecName, dst, fileDur)
-					}(filename, codec.Name(), fw)
+						fileDur := time.Since(fileStartT)
+						fmt.Fprintf(sso, "%s (%s) → (%s) %s (%s)\n", filename, bundleName, codecName, dst, fileDur)
+					}(filename, bundle.Name(), codec.Name(), fw)
 				}
 			}
 		}
