@@ -31,6 +31,10 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			panic("Archival flag doesn't seem to be boolean")
 		}
+		removeBorder, err := cmd.Flags().GetBool("remove-border")
+		if err != nil {
+			panic("Remove border flag doesn't seem to be boolean")
+		}
 		overwrite, err := cmd.Flags().GetBool("overwrite")
 		if err != nil {
 			panic("Overwrite flag doesn't seem to be boolean")
@@ -66,7 +70,7 @@ var rootCmd = &cobra.Command{
 			}
 			filename := path.Base(bundle.RefPath())
 
-			pc, err := bundle.Decode(&formats.DecodeOptions{RemoveBackground: true})
+			pc, err := bundle.Decode(&formats.DecodeOptions{RemoveBorder: removeBorder})
 			if err != nil {
 				return err
 			}
@@ -123,6 +127,7 @@ func main() {
 
 	rootCmd.Flags().StringSliceP("formats", "f", []string{}, "Formats to convert to")
 	rootCmd.Flags().BoolP("archival", "A", false, "Turn off image resizing, use lossless compression")
+	rootCmd.Flags().BoolP("remove-border", "B", false, "Attempts to turn the border around a postcard scan transparent")
 	rootCmd.Flags().Bool("overwrite", false, "Overwrite output files")
 
 	err := rootCmd.Execute()

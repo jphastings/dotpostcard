@@ -19,7 +19,7 @@ type EncodeOptions struct {
 
 type DecodeOptions struct {
 	// Assumes the postcard was on uniformly coloured paper when it was scanned, and attempts to convert it to transparency.
-	RemoveBackground bool
+	RemoveBorder bool
 }
 
 // FileGroup represents a subset of files within a single directory
