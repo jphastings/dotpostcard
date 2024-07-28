@@ -46,18 +46,23 @@ func (b bundle) Decode(_ *formats.DecodeOptions) (types.Postcard, error) {
 		Min: image.Point{0, 0},
 		Max: image.Point{sideW, sideH},
 	}
-	backBounds := image.Rectangle{
-		Min: image.Point{0, sideH},
-		Max: image.Point{sideW, sideH * 2},
-	}
 
 	front := image.NewRGBA(image.Rect(0, 0, sideW, sideH))
 	pc.Front = front
 	draw.Draw(front, frontBounds, img, image.Point{}, draw.Src)
 
 	back := image.NewRGBA(image.Rect(0, 0, sideW, sideH))
-	pc.Back = back
-	draw.Draw(back, backBounds, img, image.Point{}, draw.Src)
+	draw.Draw(back, frontBounds, img, image.Point{0, sideH}, draw.Src)
+
+	if pc.Meta.Flip == types.FlipLeftHand {
+		// Use the opposite flip to return to the right orientation
+		pc.Back, _ = rotateForWeb(back, types.FlipRightHand)
+	} else if pc.Meta.Flip == types.FlipRightHand {
+		// Use the opposite flip to return to the right orientation
+		pc.Back, _ = rotateForWeb(back, types.FlipLeftHand)
+	} else {
+		pc.Back = back
+	}
 
 	return pc, nil
 }
