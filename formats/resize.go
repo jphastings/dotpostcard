@@ -40,9 +40,9 @@ func DetermineSize(opts *EncodeOptions, front image.Image, back image.Image) (fr
 	finalAR := float64(finalSize.Max.X) / float64(finalSize.Max.Y)
 
 	// Downscale if not archival
-	if !opts.Archival {
+	if opts == nil || !opts.Archival {
 		maxSize := defaultMaxSide
-		if opts.MaxDimension > 0 {
+		if opts != nil && opts.MaxDimension > 0 {
 			maxSize = opts.MaxDimension
 		}
 		if frontLandscape {

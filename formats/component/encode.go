@@ -18,7 +18,7 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) []formats.
 	encImg := func(side image.Image) func(io.Writer) error {
 		return func(w io.Writer) error {
 			var webpOpts *webp.Options
-			if opts.Archival {
+			if opts != nil && opts.Archival {
 				webpOpts = &webp.Options{Lossless: true}
 			} else {
 				startSize := side.Bounds()

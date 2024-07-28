@@ -79,7 +79,7 @@ func decodeImage(r io.Reader, decOpts *formats.DecodeOptions) (image.Image, type
 		PxHeight: bounds.Dy(),
 	}
 
-	if decOpts.RemoveBackground {
+	if decOpts != nil && decOpts.RemoveBackground {
 		if _, _, _, a := img.At(0, 0).RGBA(); a != 0 {
 			img, err = removeBorder(img)
 			if err != nil {
