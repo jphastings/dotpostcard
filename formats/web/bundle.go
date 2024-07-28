@@ -12,7 +12,7 @@ import (
 func BundleFromReader(r io.Reader, refPath string) formats.Bundle {
 	return bundle{
 		Reader:  r,
-		name:    strings.TrimSuffix(path.Base(refPath), path.Ext(refPath)),
+		name:    strings.TrimSuffix(strings.TrimSuffix(path.Base(refPath), path.Ext(refPath)), ".postcard"),
 		refPath: refPath,
 	}
 }
