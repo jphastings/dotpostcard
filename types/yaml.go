@@ -231,7 +231,7 @@ func (d Date) MarshalYAML() (interface{}, error) {
 	if d.Time.IsZero() {
 		return nil, nil
 	}
-	return d.Time.Format(`"2006-01-02"`), nil
+	return d.Time.Format(`2006-01-02`), nil
 }
 
 var _ yaml.Unmarshaler = (*Flip)(nil)

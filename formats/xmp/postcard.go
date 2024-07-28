@@ -7,12 +7,16 @@ import (
 )
 
 type xmpPostcard struct {
-	Namespace     string       `xml:"xmlns:Postcard,attr"`
-	Flip          types.Flip   `xml:"Postcard:Flip"`
-	Sender        types.Person `xml:"Postcard:Sender,omitempty"`
-	Recipient     types.Person `xml:"Postcard:Recipient,omitempty"`
-	Context       langText     `xml:"Postcard:Context,omitempty"`
-	ContextAuthor types.Person `xml:"Postcard:ContextAuthor,omitempty"`
+	Namespace          string       `xml:"xmlns:Postcard,attr"`
+	Flip               types.Flip   `xml:"Postcard:Flip"`
+	Sender             types.Person `xml:"Postcard:Sender,omitempty"`
+	Recipient          types.Person `xml:"Postcard:Recipient,omitempty"`
+	Context            langText     `xml:"Postcard:Context,omitempty"`
+	ContextAuthor      types.Person `xml:"Postcard:ContextAuthor,omitempty"`
+	DescriptionFront   string       `xml:"Postcard:DescriptionFront,omitempty"`
+	DescriptionBack    string       `xml:"Postcard:DescriptionBack,omitempty"`
+	TranscriptionFront string       `xml:"Postcard:TranscriptionFront,omitempty"`
+	TranscriptionBack  string       `xml:"Postcard:TranscriptionBack,omitempty"`
 }
 
 func addPostcardSection(sections []interface{}, meta types.Metadata) []interface{} {
@@ -21,6 +25,11 @@ func addPostcardSection(sections []interface{}, meta types.Metadata) []interface
 		Flip:      meta.Flip,
 		Sender:    meta.Sender,
 		Recipient: meta.Recipient,
+
+		DescriptionFront:   meta.Front.Description,
+		DescriptionBack:    meta.Back.Description,
+		TranscriptionFront: meta.Front.Transcription.Text,
+		TranscriptionBack:  meta.Back.Transcription.Text,
 	}
 
 	if meta.Context.Description != "" {

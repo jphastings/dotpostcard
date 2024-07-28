@@ -32,7 +32,7 @@ func (c codec) Bundle(group formats.FileGroup) ([]formats.Bundle, []fs.File, err
 
 		bnd := bundle{
 			Reader:  file,
-			name:    strings.TrimSuffix(filename, path.Ext(filename)),
+			name:    strings.TrimSuffix(strings.TrimSuffix(filename, path.Ext(filename)), ".postcard"),
 			refPath: path.Join(group.DirPath, filename),
 		}
 

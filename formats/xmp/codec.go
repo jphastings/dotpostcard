@@ -65,7 +65,9 @@ func (c codec) Encode(pc types.Postcard, _ *formats.EncodeOptions) []formats.Fil
 }
 
 func (b bundle) Decode(_ *formats.DecodeOptions) (types.Postcard, error) {
-	return types.Postcard{}, fmt.Errorf("decoding XMP files isn't implemented yet")
+	meta, _, err := MetadataFromXMP(b.r)
+	// TODO: How do I get the name here?
+	return types.Postcard{Meta: meta}, err
 }
 
 func (b bundle) RefPath() string {

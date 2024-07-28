@@ -71,7 +71,7 @@ type Context struct {
 
 type Metadata struct {
 	Name      string   `json:"-" yaml:"-"`
-	Locale    string   `json:"locale"`
+	Locale    string   `json:"locale,omitempty"`
 	Location  Location `json:"location,omitempty" yaml:"location,omitempty"`
 	Flip      Flip     `json:"flip" yaml:"flip"`
 	SentOn    Date     `json:"sentOn,omitempty" yaml:"sent_on,omitempty"`

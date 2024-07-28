@@ -15,7 +15,6 @@ var (
 type xmpIptc4xmpExt struct {
 	Namespace string       `xml:"xmlns:Iptc4xmpExt,attr"`
 	Regions   []iptcRegion `xml:"Iptc4xmpExt:ImageRegion>rdf:Bag>rdf:li,omitempty"`
-	Message   langText     `xml:"Iptc4xmpExt:Transcript>rdf:Alt>rdf:li,omitempty"`
 }
 
 type iptcRegion struct {
@@ -75,18 +74,8 @@ func addIPTCExtSection(sections []interface{}, meta types.Metadata) []interface{
 		regions = append(regions, r)
 	}
 
-	message := meta.Back.Transcription.Text
-	if meta.Front.Transcription.Text != "" {
-		message += "§"
-		message += meta.Front.Transcription.Text
-	}
-
 	return append(sections, xmpIptc4xmpExt{
 		Namespace: "http://iptc.org/std/Iptc4xmpExt/2008-02-29/",
 		Regions:   regions,
-		Message: langText{
-			Text: message,
-			Lang: strings.Split(meta.Locale, "-")[0],
-		},
 	})
 }

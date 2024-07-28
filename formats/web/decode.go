@@ -7,7 +7,9 @@ import (
 	"image/draw"
 	"io"
 
+	"github.com/chai2010/webp"
 	"github.com/jphastings/dotpostcard/formats"
+	"github.com/jphastings/dotpostcard/formats/xmp"
 	"github.com/jphastings/dotpostcard/types"
 )
 
@@ -20,21 +22,16 @@ func (b bundle) Decode(_ *formats.DecodeOptions) (types.Postcard, error) {
 		return types.Postcard{}, fmt.Errorf("unable to decode image: %w", err)
 	}
 
-	// xmpData, err := webp.GetMetadata(dataCopy.Bytes(), "xmp")
-	// if err != nil {
-	// 	return types.Postcard{}, fmt.Errorf("couldn't extract XMP metadata: %w", err)
-	// }
-	//
-	// pc, err := xmp.BundleFromBytes(xmpData, b.refPath).Decode()
-	// if err != nil {
-	// 	return types.Postcard{}, fmt.Errorf("didn't contain postcard metadata: %w", err)
-	// }
-	pc := types.Postcard{
-		Name: b.name,
-		Meta: types.Metadata{
-			Flip: types.FlipBook,
-		},
+	xmpData, err := webp.GetMetadata(dataCopy.Bytes(), "xmp")
+	if err != nil {
+		return types.Postcard{}, fmt.Errorf("couldn't extract XMP metadata: %w", err)
 	}
+
+	pc, err := xmp.BundleFromBytes(xmpData, b.refPath).Decode(nil)
+	if err != nil {
+		return types.Postcard{}, fmt.Errorf("didn't contain postcard metadata: %w", err)
+	}
+	pc.Name = b.name
 
 	if pc.Meta.Flip == types.FlipNone {
 		pc.Front = img
