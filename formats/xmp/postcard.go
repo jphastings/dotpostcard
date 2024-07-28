@@ -7,16 +7,16 @@ import (
 )
 
 type xmpPostcard struct {
-	Namespace          string       `xml:"xmlns:Postcard,attr"`
-	Flip               types.Flip   `xml:"Postcard:Flip"`
-	Sender             types.Person `xml:"Postcard:Sender,omitempty"`
-	Recipient          types.Person `xml:"Postcard:Recipient,omitempty"`
-	Context            langText     `xml:"Postcard:Context,omitempty"`
-	ContextAuthor      types.Person `xml:"Postcard:ContextAuthor,omitempty"`
-	DescriptionFront   string       `xml:"Postcard:DescriptionFront,omitempty"`
-	DescriptionBack    string       `xml:"Postcard:DescriptionBack,omitempty"`
-	TranscriptionFront string       `xml:"Postcard:TranscriptionFront,omitempty"`
-	TranscriptionBack  string       `xml:"Postcard:TranscriptionBack,omitempty"`
+	Namespace          string              `xml:"xmlns:Postcard,attr"`
+	Flip               types.Flip          `xml:"Postcard:Flip"`
+	Sender             types.Person        `xml:"Postcard:Sender,omitempty"`
+	Recipient          types.Person        `xml:"Postcard:Recipient,omitempty"`
+	Context            langText            `xml:"Postcard:Context,omitempty"`
+	ContextAuthor      types.Person        `xml:"Postcard:ContextAuthor,omitempty"`
+	DescriptionFront   string              `xml:"Postcard:DescriptionFront,omitempty"`
+	DescriptionBack    string              `xml:"Postcard:DescriptionBack,omitempty"`
+	TranscriptionFront types.AnnotatedText `xml:"Postcard:TranscriptionFront,omitempty"`
+	TranscriptionBack  types.AnnotatedText `xml:"Postcard:TranscriptionBack,omitempty"`
 }
 
 func addPostcardSection(sections []interface{}, meta types.Metadata) []interface{} {
@@ -28,8 +28,8 @@ func addPostcardSection(sections []interface{}, meta types.Metadata) []interface
 
 		DescriptionFront:   meta.Front.Description,
 		DescriptionBack:    meta.Back.Description,
-		TranscriptionFront: meta.Front.Transcription.Text,
-		TranscriptionBack:  meta.Back.Transcription.Text,
+		TranscriptionFront: meta.Front.Transcription,
+		TranscriptionBack:  meta.Back.Transcription,
 	}
 
 	if meta.Context.Description != "" {

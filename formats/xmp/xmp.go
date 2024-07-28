@@ -2,6 +2,7 @@ package xmp
 
 import (
 	"bytes"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -122,14 +123,18 @@ func MetadataFromXMP(r io.Reader) (types.Metadata, types.Size, error) {
 		case "Postcard:DescriptionBack":
 			meta.Back.Description = xPath.Value
 		case "Postcard:TranscriptionFront":
-			meta.Front.Transcription.Text = xPath.Value
+			_ = json.Unmarshal([]byte(xPath.Value), &meta.Front.Transcription)
 		case "Postcard:TranscriptionBack":
-			meta.Back.Transcription.Text = xPath.Value
+			_ = json.Unmarshal([]byte(xPath.Value), &meta.Back.Transcription)
 
 		default:
 			// TODO: secret sections
 			// fmt.Printf("%s // %T: %v\n", xPath.Path, xPath.Value, xPath.Value)
 		}
+	}
+
+	if meta.Flip != types.FlipNone {
+		size.PxHeight /= 2
 	}
 
 	if resolution[0] != nil {
