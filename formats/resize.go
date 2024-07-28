@@ -5,7 +5,7 @@ import (
 	"math"
 )
 
-const DefaultMaxSide = 1536
+const defaultMaxSide = 1536
 
 // DetermineSize will calculate the appropriate width and height for the postcard one or two sides given.
 // Aspect ratio will be maintained (including for heteroriented sides)
@@ -41,15 +41,19 @@ func DetermineSize(opts *EncodeOptions, front image.Image, back image.Image) (fr
 
 	// Downscale if not archival
 	if !opts.Archival {
+		maxSize := defaultMaxSide
+		if opts.MaxDimension > 0 {
+			maxSize = opts.MaxDimension
+		}
 		if frontLandscape {
-			if finalSize.Max.X > DefaultMaxSide {
-				finalSize.Max.X = DefaultMaxSide
-				finalSize.Max.Y = int(math.Floor(float64(DefaultMaxSide) / finalAR))
+			if finalSize.Max.X > maxSize {
+				finalSize.Max.X = maxSize
+				finalSize.Max.Y = int(math.Floor(float64(maxSize) / finalAR))
 			}
 		} else {
-			if finalSize.Max.Y > DefaultMaxSide {
-				finalSize.Max.X = int(math.Floor(float64(DefaultMaxSide) * finalAR))
-				finalSize.Max.Y = DefaultMaxSide
+			if finalSize.Max.Y > maxSize {
+				finalSize.Max.X = int(math.Floor(float64(maxSize) * finalAR))
+				finalSize.Max.Y = maxSize
 			}
 		}
 	}

@@ -13,6 +13,8 @@ import (
 type EncodeOptions struct {
 	// Creates archival quality postcard files; this may require some *upsampling*, depending on the requested format
 	Archival bool
+	// Indicates the maximum width or height (in pixels) a postcard should have. Will be ignored if Archival is true
+	MaxDimension int
 }
 
 type DecodeOptions struct {
