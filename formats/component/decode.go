@@ -160,7 +160,7 @@ func stretchBounds(b *image.Rectangle, x, y int) {
 
 func modalColor(img image.Image, within image.Rectangle) color.Color {
 	counter := make(map[color.Color]uint)
-	var modal color.Color
+	modal := color.Color(color.Transparent)
 	max := uint(0)
 
 	for y := within.Min.Y; y <= within.Max.Y; y++ {
