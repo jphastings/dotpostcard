@@ -49,7 +49,7 @@ func (b bundle) Decode(opts *formats.DecodeOptions) (types.Postcard, error) {
 		}
 
 		if !size.SimilarPhysical(pc.Meta.Physical.FrontDimensions, pc.Meta.Flip) {
-			return types.Postcard{}, fmt.Errorf("the front and back images are different physical sizes, are they of the same postcard?")
+			return types.Postcard{}, fmt.Errorf("the front and back images are different physical sizes (%v, %v), are they of the same postcard?", pc.Meta.Physical.FrontDimensions, size)
 		}
 
 		pc.Back, pc.Meta.Back.Secrets, err = hideSecrets(img, pc.Meta.Back.Secrets)
@@ -94,7 +94,7 @@ func decodeImage(r io.Reader, decOpts *formats.DecodeOptions) (image.Image, type
 		return img, size, nil
 	}
 
-	if xRes.Sign() != 0 && yRes.Sign() != 0 {
+	if xRes != nil && yRes != nil && xRes.Sign() != 0 && yRes.Sign() != 0 {
 		size.SetResolution(xRes, yRes)
 	}
 

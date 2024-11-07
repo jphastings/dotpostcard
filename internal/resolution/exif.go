@@ -39,6 +39,11 @@ func decodeExif(data []byte) (*big.Rat, *big.Rat, error) {
 		}
 	}
 
+	// No ResolutionUnit implies there's no intended physical sizing
+	if toCm == nil {
+		return nil, nil, nil
+	}
+
 	xRes.Mul(xRes, toCm)
 	yRes.Mul(yRes, toCm)
 
