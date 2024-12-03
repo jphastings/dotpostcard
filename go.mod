@@ -1,9 +1,11 @@
 module github.com/jphastings/dotpostcard
 
-go 1.21.6
+go 1.22
+
+toolchain go1.23.2
 
 require (
-	git.sr.ht/~sbinet/gg v0.5.0
+	git.sr.ht/~sbinet/gg v0.6.0
 	github.com/chai2010/webp v1.1.1
 	github.com/dsoprea/go-exif/v3 v3.0.1
 	github.com/dsoprea/go-jpeg-image-structure v0.0.0-20221012074422-4f3f7e934102
@@ -14,7 +16,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/sunshineplan/tiff v0.0.0-20220128141034-29b9d69bd906
 	github.com/trimmer-io/go-xmp v1.0.0
-	golang.org/x/image v0.18.0
+	golang.org/x/image v0.22.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -28,18 +30,16 @@ require (
 	github.com/dsoprea/go-utility v0.0.0-20221003172846-a3e1774ef349 // indirect
 	github.com/dsoprea/go-utility/v2 v2.0.0-20221003172846-a3e1774ef349 // indirect
 	github.com/go-errors/errors v1.5.1 // indirect
-	github.com/go-xmlfmt/xmlfmt v1.1.2 // indirect
+	github.com/go-xmlfmt/xmlfmt v1.1.3 // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/golang/geo v0.0.0-20230421003525-6adc56603217 // indirect
-	github.com/golang/snappy v0.0.4 // indirect
 	github.com/hhrutter/lzw v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	golang.org/x/net v0.27.0 // indirect
-	golang.org/x/sys v0.22.0 // indirect
-	golang.org/x/text v0.16.0 // indirect
+	golang.org/x/net v0.31.0 // indirect
+	golang.org/x/text v0.20.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
