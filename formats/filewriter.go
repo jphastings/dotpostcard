@@ -1,7 +1,7 @@
 package formats
 
 import (
-	"errors"
+	"bytes"
 	"io"
 	"io/fs"
 	"os"
@@ -44,38 +44,19 @@ type Codec interface {
 }
 
 type FileWriter struct {
-	r        io.ReadCloser
+	fn       func(io.Writer) error
 	filename string
-	Err      error
 }
 
 // NewFileWriter is a helper function for creating a read stream for the return values of Encoders
 func NewFileWriter(filename string, fn func(w io.Writer) error) FileWriter {
-	r, w := io.Pipe()
-
-	fw := FileWriter{
+	return FileWriter{
 		filename: filename,
-		r:        r,
+		fn:       fn,
 	}
-
-	// TODO: for some reason errors within the FileWriter's function are lost (!) eg. put return <err> within writeUSDZ := func(w io.Writer) error {
-	go func(fn func(w io.Writer) error, w io.WriteCloser) {
-		if err := fn(w); err != nil {
-			fw.Err = errors.Join(fw.Err, err)
-		}
-		if err := w.Close(); err != nil {
-			fw.Err = errors.Join(fw.Err, err)
-		}
-	}(fn, w)
-
-	return fw
 }
 
 func (fw FileWriter) WriteFile(dir string, overwrite bool) (string, error) {
-	if fw.Err != nil {
-		return "", fw.Err
-	}
-
 	flags := os.O_CREATE | os.O_WRONLY | os.O_TRUNC
 	if !overwrite {
 		flags |= os.O_EXCL
@@ -87,23 +68,19 @@ func (fw FileWriter) WriteFile(dir string, overwrite bool) (string, error) {
 	}
 	defer f.Close()
 
-	return fw.filename, fw.WriteTo(f)
+	if err := fw.fn(f); err != nil {
+		return "", err
+	}
+
+	return fw.filename, nil
 }
 
 func (fw FileWriter) Bytes() ([]byte, error) {
-	if fw.Err != nil {
-		return nil, fw.Err
+	var buf bytes.Buffer
+	if err := fw.fn(&buf); err != nil {
+		return nil, err
 	}
-
-	data, err := io.ReadAll(fw.r)
-	return data, errors.Join(fw.Err, err)
+	return buf.Bytes(), nil
 }
 
-func (fw FileWriter) WriteTo(w io.Writer) error {
-	if fw.Err != nil {
-		return fw.Err
-	}
-
-	_, err := io.Copy(w, fw.r)
-	return errors.Join(fw.Err, err)
-}
+func (fw FileWriter) WriteTo(w io.Writer) error { return fw.fn(w) }
