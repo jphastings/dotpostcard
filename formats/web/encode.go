@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"image"
+	"image/jpeg"
 	"image/png"
 	"io"
 	"math/big"
@@ -55,6 +56,8 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) []formats.
 			err = writeWebP(w, combinedImg, xmpData, opts.Archival)
 		case "png":
 			err = writePNG(w, combinedImg, xmpData, opts.Archival)
+		case "jpg":
+			err = writeJPG(w, combinedImg, xmpData, opts.Archival)
 		default:
 			err = fmt.Errorf("unsupported output image format: %s", c.format)
 		}
@@ -90,6 +93,16 @@ func writeWebP(w io.Writer, combinedImg image.Image, xmpData []byte, archival bo
 func writePNG(w io.Writer, combinedImg image.Image, xmpData []byte, archival bool) error {
 	// TODO: Include xmpData
 	return png.Encode(w, combinedImg)
+}
+
+func writeJPG(w io.Writer, combinedImg image.Image, xmpData []byte, archival bool) error {
+	jpgOpts := &jpeg.Options{Quality: 100}
+	if !archival {
+		jpgOpts.Quality = 75
+	}
+
+	// TODO: Include xmpData
+	return jpeg.Encode(w, combinedImg, jpgOpts)
 }
 
 func rotateForWeb(img image.Image, flip types.Flip) (image.Image, image.Rectangle) {

@@ -58,6 +58,7 @@ func NewFileWriter(filename string, fn func(w io.Writer) error) FileWriter {
 		r:        r,
 	}
 
+	// TODO: for some reason errors within the FileWriter's function are lost (!) eg. put return <err> within writeUSDZ := func(w io.Writer) error {
 	go func(fn func(w io.Writer) error, w io.WriteCloser) {
 		if err := fn(w); err != nil {
 			fw.Err = errors.Join(fw.Err, err)
@@ -71,6 +72,10 @@ func NewFileWriter(filename string, fn func(w io.Writer) error) FileWriter {
 }
 
 func (fw FileWriter) WriteFile(dir string, overwrite bool) (string, error) {
+	if fw.Err != nil {
+		return "", fw.Err
+	}
+
 	flags := os.O_CREATE | os.O_WRONLY | os.O_TRUNC
 	if !overwrite {
 		flags |= os.O_EXCL
@@ -82,16 +87,23 @@ func (fw FileWriter) WriteFile(dir string, overwrite bool) (string, error) {
 	}
 	defer f.Close()
 
-	_, err = io.Copy(f, fw.r)
-	return fw.filename, errors.Join(fw.Err, err)
+	return fw.filename, fw.WriteTo(f)
 }
 
 func (fw FileWriter) Bytes() ([]byte, error) {
+	if fw.Err != nil {
+		return nil, fw.Err
+	}
+
 	data, err := io.ReadAll(fw.r)
 	return data, errors.Join(fw.Err, err)
 }
 
 func (fw FileWriter) WriteTo(w io.Writer) error {
+	if fw.Err != nil {
+		return fw.Err
+	}
+
 	_, err := io.Copy(w, fw.r)
-	return err
+	return errors.Join(fw.Err, err)
 }

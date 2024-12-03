@@ -20,7 +20,7 @@ func (pc Postcard) Sides() int {
 }
 
 type Location struct {
-	Name      string   `json:"name"`
+	Name      string   `json:"name,omitempty"`
 	Latitude  *float64 `json:"latitude,omitempty"`
 	Longitude *float64 `json:"longitude,omitempty"`
 }

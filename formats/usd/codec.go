@@ -34,6 +34,7 @@ type codec struct{}
 
 func (c codec) Name() string { return codecName }
 
+// USD can't be decoded yet
 func (c codec) Bundle(group formats.FileGroup) ([]formats.Bundle, []fs.File, error) {
 	return nil, group.Files, nil
 }
@@ -71,7 +72,7 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) []formats.
 	// Note: USDZ files must contain a *binary encoded* USD layer, so we can't create a USDZ here
 	// without using the USD C++ API. (Which… perhaps on a rainy Sunday)
 	usdFilename := pc.Name + ".usd"
-	sideFilename := pc.Name + "-texture.png"
+	sideFilename := pc.Name + "-texture.jpg"
 
 	writeUSD := func(w io.Writer) error {
 		maxX, _ := pc.Meta.Physical.FrontDimensions.CmWidth.Float64()
@@ -121,16 +122,16 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) []formats.
 		return usdTmpl.Execute(w, params)
 	}
 
-	writePNG := func(w io.Writer) error {
-		fws := web.Codec("png").Encode(pc, opts)
+	writeJPG := func(w io.Writer) error {
+		fws := web.Codec("jpg").Encode(pc, opts)
 		if len(fws) != 1 {
-			return fmt.Errorf("couldn't encode postcard textures into PNG")
+			return fmt.Errorf("couldn't encode postcard textures into JPG")
 		}
 		return fws[0].WriteTo(w)
 	}
 
 	return []formats.FileWriter{
 		formats.NewFileWriter(usdFilename, writeUSD),
-		formats.NewFileWriter(sideFilename, writePNG),
+		formats.NewFileWriter(sideFilename, writeJPG),
 	}
 }
