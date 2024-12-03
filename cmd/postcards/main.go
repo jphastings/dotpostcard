@@ -125,7 +125,8 @@ func main() {
 	rootCmd.Flags().String("out-dir", "", "Output files to the given directory")
 	rootCmd.MarkFlagsMutuallyExclusive("out-here", "out-there", "out-dir")
 
-	rootCmd.Flags().StringSliceP("formats", "f", []string{}, "Formats to convert to")
+	formatsExpl := fmt.Sprintf("Formats to convert to (comma separated, any of: %s)", postcards.Formats())
+	rootCmd.Flags().StringSliceP("formats", "f", []string{}, formatsExpl)
 	rootCmd.Flags().BoolP("archival", "A", false, "Turn off image resizing, use lossless compression")
 	rootCmd.Flags().BoolP("remove-border", "B", false, "Attempts to turn the border around a postcard scan transparent")
 	rootCmd.Flags().Bool("overwrite", false, "Overwrite output files")

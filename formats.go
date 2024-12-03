@@ -2,6 +2,7 @@ package postcards
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/formats/component"
@@ -26,7 +27,7 @@ var codecs = map[string]formats.Codec{
 	"xmp":       xmp.Codec(),
 }
 
-var codecOrder = []string{"component", "web", "usd", "usdz", "json", "yaml", "css", "html", "xmp"}
+var codecOrder = []string{"component", "web", "usdz", "usd", "json", "yaml", "css", "html", "xmp"}
 
 func init() {
 	if len(codecOrder) != len(codecs) {
@@ -45,11 +46,15 @@ func CodecsByFormat(names []string) ([]formats.Codec, error) {
 	for _, name := range names {
 		codec, ok := codecs[name]
 		if !ok {
-			return nil, fmt.Errorf("the format '%s' isn' registered", name)
+			return nil, fmt.Errorf("the format '%s' isn't one of those available: %s", name, Formats())
 		}
 
 		outCodecs = append(outCodecs, codec)
 	}
 
 	return outCodecs, nil
+}
+
+func Formats() string {
+	return strings.Join(codecOrder, ", ")
 }
