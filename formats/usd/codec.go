@@ -2,6 +2,8 @@ package usd
 
 import (
 	_ "embed"
+	"math"
+	"time"
 
 	"fmt"
 	"io"
@@ -20,8 +22,12 @@ const codecName = "USD 3D model"
 var usdTmplData string
 var usdTmpl *template.Template
 
+var funcs = template.FuncMap{
+	"half": func(n float64) float64 { return n / 2 },
+}
+
 func init() {
-	tmpl, err := template.New("postcard-usd").Parse(usdTmplData)
+	tmpl, err := template.New("postcard-usd").Funcs(funcs).Parse(usdTmplData)
 	if err != nil {
 		panic(fmt.Sprintf("Couldn't parse USD template: %v", err))
 	}
@@ -57,6 +63,15 @@ type usdParams struct {
 	BackPrimVars  []usdPoint
 
 	SidesFilename string
+
+	Flip *usdParamsFlip
+}
+
+type usdParamsFlip struct {
+	FrameCount uint
+	Keyframes  map[uint]float64
+	Orient     int
+	Unorient   int
 }
 
 const pcThickCm = 0.04
@@ -82,6 +97,12 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) []formats.
 		backPoints := make([]usdPoint, len(clockwise))
 		frontPrimVars := make([]usdPoint, len(clockwise))
 		backPrimVars := make([]usdPoint, len(clockwise))
+		flip := makeFlip(pc.Meta.Flip, 24, 0, []keyframe{
+			{0, 10 * time.Second},
+			{180, 1 * time.Second},
+			{180, 5 * time.Second},
+			{360, 1 * time.Second},
+		}...)
 
 		for i, mul := range clockwise {
 			frontPoints[i] = usdPoint{X: mul.X * maxX, Y: mul.Y * maxY}
@@ -117,6 +138,8 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) []formats.
 			BackPrimVars:  backPrimVars,
 
 			SidesFilename: sideFilename,
+
+			Flip: flip,
 		}
 
 		return usdTmpl.Execute(w, params)
@@ -134,4 +157,56 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) []formats.
 		formats.NewFileWriter(usdFilename, writeUSD),
 		formats.NewFileWriter(sideFilename, writeJPG),
 	}
+}
+
+type keyframe struct {
+	angle float64
+	dur   time.Duration
+}
+
+func makeFlip(f types.Flip, fps uint, startAngle float64, kfs ...keyframe) *usdParamsFlip {
+	var orient int
+	switch f {
+	case types.FlipNone:
+		return nil
+	case types.FlipBook:
+		orient = 180
+	case types.FlipLeftHand:
+		orient = 225
+	case types.FlipCalendar:
+		orient = 270
+	case types.FlipRightHand:
+		orient = 315
+	}
+	flip := &usdParamsFlip{
+		Orient:    orient,
+		Unorient:  orient * -1,
+		Keyframes: map[uint]float64{0: startAngle},
+	}
+
+	lastFrame := uint(0)
+	lastAngle := startAngle
+	for _, kf := range kfs {
+		nextFrame := lastFrame + uint(kf.dur.Seconds()*float64(fps))
+		nextAngle := kf.angle
+
+		if nextAngle == lastAngle {
+			flip.Keyframes[nextFrame] = nextAngle
+			lastFrame = nextFrame
+			continue
+		}
+
+		dt := int(nextFrame - lastFrame)
+		da := float64(nextAngle - lastAngle)
+		for i := 0; i <= dt; i++ {
+			flip.Keyframes[lastFrame+uint(i)] = lastAngle + da*(1-math.Cos(math.Pi*float64(i)/float64(dt)))/2
+		}
+
+		lastFrame = nextFrame
+		lastAngle = nextAngle
+	}
+
+	flip.FrameCount = lastFrame
+
+	return flip
 }

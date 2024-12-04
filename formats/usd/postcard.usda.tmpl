@@ -9,6 +9,10 @@
     defaultPrim = "postcard"
     metersPerUnit = 0.01
     upAxis = "Y"
+    {{ with .Flip }}
+    startTimeCode = 0
+    endTimeCode = {{ .FrameCount }}
+    {{ end }}
 )
 
 def Xform "postcard" (
@@ -105,4 +109,20 @@ def Xform "postcard" (
             uniform token subsetFamily:materialBind:familyType = "nonOverlapping"
         }
     }
+
+    double3 xformOp:translate:originAtCentre = (-{{half .MaxX}}, -{{half .MaxY}}, -{{ half .MaxZ}})
+    {{ with .Flip }}
+    float xformOp:rotateY:flip.timeSamples = {
+        {{ range $frame, $angle := .Keyframes -}}
+        {{ $frame }}: {{ $angle }},
+        {{ end }}
+    }
+
+    float xformOp:rotateZ:orient = {{ .Orient }}
+    float xformOp:rotateZ:unorient = {{ .Unorient }}
+
+    uniform token[] xformOpOrder = ["xformOp:rotateZ:unorient", "xformOp:rotateY:flip", "xformOp:rotateZ:orient", "xformOp:translate:originAtCentre"]
+    {{ else }}
+    uniform token[] xformOpOrder = ["xformOp:translate:originAtCentre"]
+    {{ end }}
 }

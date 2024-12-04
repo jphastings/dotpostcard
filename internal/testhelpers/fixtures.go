@@ -51,7 +51,7 @@ var SamplePostcard = types.Postcard{
 			},
 		},
 		Front: types.Side{
-			Description: "The word 'Front' in large red letters",
+			Description: "The word 'Front' in large blue letters",
 		},
 		Back: types.Side{
 			Description: "The word 'Back' in large red letters",
