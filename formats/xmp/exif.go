@@ -9,10 +9,10 @@ import (
 
 type xmpExif struct {
 	Namespace        string `xml:"xmlns:exif,attr"`
-	OriginalDateTime string `xml:"exif:DateTimeOriginal"`
-	Placename        string `xml:"exif:GPSAreaInformation"`
-	Latitude         string `xml:"exif:GPSLatitude"`
-	Longitude        string `xml:"exif:GPSLongitude"`
+	OriginalDateTime string `xml:"exif:DateTimeOriginal,omitempty"`
+	Placename        string `xml:"exif:GPSAreaInformation,omitempty"`
+	Latitude         string `xml:"exif:GPSLatitude,omitempty"`
+	Longitude        string `xml:"exif:GPSLongitude,omitempty"`
 }
 
 func addExifSection(sections []interface{}, meta types.Metadata) []interface{} {

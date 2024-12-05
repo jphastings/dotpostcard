@@ -15,6 +15,7 @@ import (
 
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/formats/xmp"
+	"github.com/jphastings/dotpostcard/pkg/xmpinject"
 	"github.com/jphastings/dotpostcard/types"
 )
 
@@ -120,15 +121,26 @@ func writeWebP(w io.Writer, combinedImg image.Image, xmpData []byte, archival bo
 }
 
 func writePNG(w io.Writer, combinedImg image.Image, xmpData []byte, archival bool) error {
-	// TODO: Include xmpData
-	return png.Encode(w, combinedImg)
+	pngData := new(bytes.Buffer)
+	if err := png.Encode(pngData, combinedImg); err != nil {
+		return err
+	}
+
+	return xmpinject.XMPintoPNG(w, pngData.Bytes(), xmpData)
 }
 
 func writeJPG(w io.Writer, combinedImg image.Image, xmpData []byte) error {
-	return jpegli.Encode(w, combinedImg, &jpegli.EncodingOptions{
+	jpegliOpts := &jpegli.EncodingOptions{
 		Quality:           70,
 		FancyDownsampling: true,
-	})
+	}
+
+	jpgData := new(bytes.Buffer)
+	if err := jpegli.Encode(jpgData, combinedImg, jpegliOpts); err != nil {
+		return err
+	}
+
+	return xmpinject.XMPintoJPEG(w, jpgData.Bytes(), xmpData)
 }
 
 func rotateForWeb(img image.Image, flip types.Flip) (image.Image, image.Rectangle) {

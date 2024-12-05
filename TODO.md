@@ -10,7 +10,6 @@
   - [ ] Figure out how to do multi-edge vertexes
   - NB. Currently back of card is front of card in terms of points (esp. relevant for Calendar flip); not flip of card
 - [ ] Hold file size & other info? `fs.Info{}` from `.Stat()`
-- [ ] Add XMP to web JPG & PNG output #xmp
 - [ ] Look at using [tinyUSDZ](https://github.com/lighttransport/tinyusdz) to create USDZ files directly & without all the manual fussing
   - NB. This USDZ/USDC writer seems to be incomplete at the moment
 - [ ] Get this CLI tool building automatically
@@ -27,3 +26,4 @@
 - [x] Secret areas
 - [x] Paper edge colour #usd
 - [x] Move to using JPEGli for smaller filesizes
+- [x] Add XMP to web JPG & PNG output #xmp
