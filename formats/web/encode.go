@@ -8,6 +8,7 @@ import (
 	"image/png"
 	"io"
 	"math/big"
+	"strings"
 
 	"github.com/chai2010/webp"
 	_ "github.com/chai2010/webp"
@@ -18,8 +19,38 @@ import (
 	"github.com/jphastings/dotpostcard/types"
 )
 
+func (c codec) pickFormat(meta types.Metadata, opts *formats.EncodeOptions) (string, error) {
+	needs := capabilities{
+		transparency: meta.HasTransparency,
+		lossless:     (opts != nil) && opts.Archival,
+	}
+
+	var format string
+	for _, f := range c.formats {
+		if meetsNeeds(f, needs) {
+			format = f
+			break
+		}
+	}
+	if format == "" {
+		return "", fmt.Errorf(
+			"none of the configured formats (%s) meet the needs of this postcard & options (%s)",
+			strings.Join(c.formats, ", "),
+			needs.String(),
+		)
+	}
+
+	return format, nil
+}
+
 func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) []formats.FileWriter {
-	name := fmt.Sprintf("%s.postcard.webp", pc.Name)
+	format, err := c.pickFormat(pc.Meta, opts)
+	if err != nil {
+		// TODO: I think I need to be able to return errors here
+		return nil
+	}
+
+	name := fmt.Sprintf("%s.postcard.%s", pc.Name, format)
 
 	writer := func(w io.Writer) error {
 		frontSize, finalSize := formats.DetermineSize(opts, pc.Front, pc.Back)
@@ -51,15 +82,15 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) []formats.
 			return fmt.Errorf("couldn't generate XMP metadata for postcard: %w", err)
 		}
 
-		switch c.format {
+		switch format {
 		case "webp":
 			err = writeWebP(w, combinedImg, xmpData, opts.Archival)
 		case "png":
 			err = writePNG(w, combinedImg, xmpData, opts.Archival)
 		case "jpg":
-			err = writeJPG(w, combinedImg, xmpData, opts.Archival)
+			err = writeJPG(w, combinedImg, xmpData)
 		default:
-			err = fmt.Errorf("unsupported output image format: %s", c.format)
+			err = fmt.Errorf("unsupported output image format: %s", format)
 		}
 
 		return err
@@ -95,11 +126,8 @@ func writePNG(w io.Writer, combinedImg image.Image, xmpData []byte, archival boo
 	return png.Encode(w, combinedImg)
 }
 
-func writeJPG(w io.Writer, combinedImg image.Image, xmpData []byte, archival bool) error {
-	jpgOpts := &jpeg.Options{Quality: 100}
-	if !archival {
-		jpgOpts.Quality = 75
-	}
+func writeJPG(w io.Writer, combinedImg image.Image, xmpData []byte) error {
+	jpgOpts := &jpeg.Options{Quality: 80}
 
 	// TODO: Include xmpData
 	return jpeg.Encode(w, combinedImg, jpgOpts)

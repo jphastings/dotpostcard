@@ -2,7 +2,6 @@ package usd
 
 import (
 	_ "embed"
-	"time"
 
 	"fmt"
 	"io"
@@ -147,7 +146,8 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) []formats.
 	}
 
 	writeJPG := func(w io.Writer) error {
-		fws := web.Codec("jpg").Encode(pc, opts)
+		webJPG, _ := web.Codec("jpg")
+		fws := webJPG.Encode(pc, opts)
 		if len(fws) != 1 {
 			return fmt.Errorf("couldn't encode postcard textures into JPG")
 		}
@@ -158,9 +158,4 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) []formats.
 		formats.NewFileWriter(usdFilename, writeUSD),
 		formats.NewFileWriter(sideFilename, writeJPG),
 	}
-}
-
-type keyframe struct {
-	angle float64
-	dur   time.Duration
 }

@@ -1,6 +1,7 @@
 package web
 
 import (
+	"fmt"
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
@@ -21,9 +22,61 @@ type bundle struct {
 var _ formats.Codec = codec{}
 
 type codec struct {
-	format string
+	// This holds a list of formats, the first will be tried, and if it's unsuitable, the next etc.
+	// This is particularly useful for transparency. Eg. A `web.Codec("jpg", "webp")` would save as jpg
+	// if there is no transparency, and WebP if there is transparency to encode, or if "archival" was
+	// specified (as JPEG can't encode images losslessly).
+	formats []string
 }
 
-func Codec(format string) formats.Codec { return codec{format: format} }
+type capabilities struct {
+	lossless     bool
+	transparency bool
+}
+
+func (c capabilities) String() string {
+	desc := ""
+
+	if c.lossless {
+		desc += "lossless, "
+	}
+	if c.transparency {
+		desc += "transparency, "
+	}
+
+	if desc == "" {
+		desc = "no constraints"
+	} else {
+		desc = desc[:len(desc)-2]
+	}
+
+	return desc
+}
+
+var formatCapabilities = map[string]capabilities{
+	"jpg":  {},
+	"webp": {lossless: true, transparency: true},
+	"png":  {lossless: true, transparency: true},
+}
+
+// Only returns true if the capabilities on struct owning this method meet the needs of the provided capabilities object.
+func meetsNeeds(format string, needs capabilities) bool {
+	c, ok := formatCapabilities[format]
+	return ok && (!needs.lossless || c.lossless) && (!needs.transparency || c.transparency)
+}
+
+func Codec(format string, altFormats ...string) (formats.Codec, error) {
+	fmts := append([]string{format}, altFormats...)
+
+	for _, f := range fmts {
+		if _, ok := formatCapabilities[f]; !ok {
+			return nil, fmt.Errorf("the format %s is not known", f)
+		}
+	}
+
+	return codec{formats: fmts}, nil
+}
+
+var DefaultCodec, _ = Codec("jpg", "webp")
 
 func (c codec) Name() string { return codecName }

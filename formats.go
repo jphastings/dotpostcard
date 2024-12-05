@@ -17,7 +17,7 @@ import (
 
 var codecs = map[string]formats.Codec{
 	"component": component.Codec(),
-	"web":       web.Codec("webp"),
+	"web":       web.DefaultCodec,
 	"usd":       usd.Codec(),
 	"usdz":      usdz.Codec(),
 	"json":      metadata.Codec(metadata.AsJSON),

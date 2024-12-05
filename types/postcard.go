@@ -50,7 +50,9 @@ type Context struct {
 }
 
 type Metadata struct {
-	Name      string   `json:"-" yaml:"-"`
+	Name            string `json:"-" yaml:"-"`
+	HasTransparency bool   `json:"-" yaml:"-"`
+
 	Locale    string   `json:"locale,omitempty"`
 	Location  Location `json:"location,omitempty" yaml:"location,omitempty"`
 	Flip      Flip     `json:"flip" yaml:"flip"`
