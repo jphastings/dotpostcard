@@ -13,8 +13,8 @@
 - [ ] Add XMP to web JPG & PNG output #xmp
 - [ ] Look at using [tinyUSDZ](https://github.com/lighttransport/tinyusdz) to create USDZ files directly & without all the manual fussing
   - NB. This USDZ/USDC writer seems to be incomplete at the moment
-- [ ] Creating a USD(Z) from an image that doesn't have resolution data (eg front/back portrait fixtures) seems to nil pointer fail. #bug
 - [ ] Get this CLI tool building automatically
+- [ ] Creating a USD(Z) from an image that doesn't have resolution data (eg front/back portrait fixtures) seems to nil pointer fail. #bug
 
 ## Done
 
