@@ -1,6 +1,5 @@
 # TODO
 
-- [ ] Move to using JPEGli for smaller filesizes
 - [ ] XMP decoder #xmp
 - [ ] Only one postcards.css per group/directory
 - [x] Figure out USD format
@@ -27,3 +26,4 @@
 - [x] Swap to Annotations for locales (to allow XMP to be HTML-free)
 - [x] Secret areas
 - [x] Paper edge colour #usd
+- [x] Move to using JPEGli for smaller filesizes

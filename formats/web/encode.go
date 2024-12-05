@@ -4,14 +4,13 @@ import (
 	"bytes"
 	"fmt"
 	"image"
-	"image/jpeg"
 	"image/png"
 	"io"
 	"math/big"
 	"strings"
 
 	"github.com/chai2010/webp"
-	_ "github.com/chai2010/webp"
+	"github.com/gen2brain/jpegli"
 	"golang.org/x/image/draw"
 
 	"github.com/jphastings/dotpostcard/formats"
@@ -127,10 +126,10 @@ func writePNG(w io.Writer, combinedImg image.Image, xmpData []byte, archival boo
 }
 
 func writeJPG(w io.Writer, combinedImg image.Image, xmpData []byte) error {
-	jpgOpts := &jpeg.Options{Quality: 80}
-
-	// TODO: Include xmpData
-	return jpeg.Encode(w, combinedImg, jpgOpts)
+	return jpegli.Encode(w, combinedImg, &jpegli.EncodingOptions{
+		Quality:           70,
+		FancyDownsampling: true,
+	})
 }
 
 func rotateForWeb(img image.Image, flip types.Flip) (image.Image, image.Rectangle) {
