@@ -6,16 +6,12 @@
         }
         string creator = "{{.Creator}}"
     }
-    defaultPrim = "postcard"
+    defaultPrim = "Postcard"
     metersPerUnit = 0.01
-    upAxis = "Y"
-    {{ with .Flip }}
-    startTimeCode = 0
-    endTimeCode = {{ .FrameCount }}
-    {{ end }}
+    upAxis = "Z"
 )
 
-def Xform "postcard" (
+def Xform "Postcard" (
     assetInfo = {
         string name = "Postcard"
     }
@@ -26,13 +22,17 @@ def Xform "postcard" (
     {
         def Material "sides"
         {
-            token outputs:surface.connect = </postcard/Materials/sides/surfaceShader.outputs:surface>
+            token outputs:surface.connect = </Postcard/Materials/sides/surfaceShader.outputs:surface>
 
             def Shader "surfaceShader"
             {
                 uniform token info:id = "UsdPreviewSurface"
-                color3f inputs:diffuseColor.connect = </postcard/Materials/sides/diffuseColor_texture.outputs:rgb>
+                color3f inputs:diffuseColor.connect = </Postcard/Materials/sides/diffuseColor_texture.outputs:rgb>
                 token outputs:surface
+
+                float inputs:specular = 0.1
+                float inputs:roughness = 0.8
+                float inputs:metallic = 0.0
             }
 
             def Shader "diffuseColor_texture"
@@ -41,7 +41,7 @@ def Xform "postcard" (
                 float4 inputs:bias = (0, 0, 0, 0)
                 asset inputs:file = @{{.SidesFilename}}@
                 float4 inputs:scale = (1, 1, 1, 1)
-                float2 inputs:st.connect = </postcard/Materials/sides/texCoordReader.outputs:result>
+                float2 inputs:st.connect = </Postcard/Materials/sides/texCoordReader.outputs:result>
                 float3 outputs:rgb
             }
 
@@ -55,12 +55,17 @@ def Xform "postcard" (
 
         def Material "paper"
         {
-            token outputs:surface.connect = </postcard/Materials/paper/surfaceShader.outputs:surface>
+            token outputs:surface.connect = </Postcard/Materials/paper/surfaceShader.outputs:surface>
 
             def Shader "surfaceShader"
             {
                 uniform token info:id = "UsdPreviewSurface"
                 token outputs:surface
+                color3f inputs:diffuseColor = (0.9, 0.9, 0.85)
+
+                float inputs:specular = 0.1
+                float inputs:roughness = 0.8
+                float inputs:metallic = 0.0
             }
         }
     }
@@ -70,10 +75,10 @@ def Xform "postcard" (
         def Mesh "Front"
         {
             uniform bool doubleSided = 0
-            float3[] extent = [(0, 0, {{.MaxZ}}), ({{.MaxX}}, {{.MaxY}}, {{.MaxZ}})]
+            float3[] extent = [(-{{.MaxX}}, -{{.MaxY}}, 0), ({{.MaxX}}, {{.MaxY}}, {{.MaxZ}})]
             int[] faceVertexCounts = [{{ len .FrontPoints }}]
             int[] faceVertexIndices = [0, 1, 2, 3]
-            rel material:binding = </postcard/Materials/sides>
+            rel material:binding = </Postcard/Materials/sides>
             point3f[] points = [{{ range .FrontPoints }}({{.X}}, {{.Y}}, {{$.MaxZ}}),{{ end }}]
             texCoord2f[] primvars:st = [{{ range .FrontPrimVars }}({{.X}}, {{.Y}}),{{ end }}] (
                 interpolation = "faceVarying"
@@ -88,7 +93,7 @@ def Xform "postcard" (
             float3[] extent = [(0, 0, 0), ({{.MaxX}}, {{.MaxY}}, 0)]
             int[] faceVertexCounts = [{{ len .BackPoints }}]
             int[] faceVertexIndices = [3, 2, 1, 0]
-            rel material:binding = </postcard/Materials/sides>
+            rel material:binding = </Postcard/Materials/sides>
             point3f[] points = [{{ range .BackPoints }}({{.X}}, {{.Y}}, 0),{{ end }}]
             texCoord2f[] primvars:st = [{{ range .BackPrimVars }}({{.X}}, {{.Y}}),{{ end }}] (
                 interpolation = "faceVarying"
@@ -103,26 +108,111 @@ def Xform "postcard" (
             float3[] extent = [(0, 0, 0), (0.123046875, 0.17375, 0.0004)]
             int[] faceVertexCounts = [4, 4, 4, 4]
             int[] faceVertexIndices = [6, 7, 3, 2, 7, 4, 0, 3, 4, 5, 1, 0, 5, 6, 2, 1]
-            rel material:binding = </postcard/Materials/paper>
+            rel material:binding = </Postcard/Materials/paper>
             point3f[] points = [{{ range .FrontPoints }}({{.X}}, {{.Y}}, {{$.MaxZ}}),{{ end }}{{ range .BackPoints }}({{.X}}, {{.Y}}, 0),{{ end }}]
             uniform token subdivisionScheme = "none"
             uniform token subsetFamily:materialBind:familyType = "nonOverlapping"
         }
     }
 
-    double3 xformOp:translate:originAtCentre = (-{{half .MaxX}}, -{{half .MaxY}}, -{{ half .MaxZ}})
-    {{ with .Flip }}
-    float xformOp:rotateY:flip.timeSamples = {
-        {{ range $frame, $angle := .Keyframes -}}
-        {{ $frame }}: {{ $angle }},
-        {{ end }}
+    def RealityKitComponent "Collider"
+    {
+        uint group = 1
+        uniform token info:id = "RealityKit.Collider"
+        uint mask = 4294967295
+        token type = "Default"
+
+        def RealityKitStruct "Shape"
+        {
+            float3 extent = ({{.MaxX}}, {{.MaxY}}, {{ .MaxZ}})
+            token shapeType = "Box"
+
+            def RealityKitStruct "pose"
+            {
+                float3 position = ({{half .MaxX}}, {{half .MaxY}}, {{ half .MaxZ}})
+            }
+        }
     }
 
-    float xformOp:rotateZ:orient = {{ .Orient }}
-    float xformOp:rotateZ:unorient = {{ .Unorient }}
+    def RealityKitComponent "RigidBody"
+    {
+        uniform token info:id = "RealityKit.RigidBody"
+        # Physics means the postcards just falls forever when this is "Dynamic"!
+        token motionType = "Static"
+        bool isCCDEnabled = 1
+        float angularDamping = 0.9
+        float linearDamping = 0.0008
+        
+        def RealityKitStruct "massFrame"
+        {
+            # Tried calculating some values, not certain this is right
+            float3 m_inertia = (0.00008334, 0.00018752, 0.00041667)
+            float m_mass = {{.MassKg}}
 
-    uniform token[] xformOpOrder = ["xformOp:rotateZ:unorient", "xformOp:rotateY:flip", "xformOp:rotateZ:orient", "xformOp:translate:originAtCentre"]
-    {{ else }}
-    uniform token[] xformOpOrder = ["xformOp:translate:originAtCentre"]
-    {{ end }}
+            def RealityKitStruct "m_pose"
+            {
+                float3 position = ({{half .MaxX}}, {{half .MaxY}}, {{ half .MaxZ}})
+            }
+        }
+
+        def RealityKitStruct "material"
+        {
+            double dynamicFriction = 0.2
+            double restitution = 0.1
+            double staticFriction = 0.5
+        }
+    }
+
+    def RealityKitComponent "RCP_BehaviorsContainer"
+    {
+        rel behaviors = </Postcard/OnTap>
+        uniform token info:id = "RCP.BehaviorsContainer"
+    }
+
+    def Preliminary_Behavior "OnTap"
+    {
+        rel actions = </Postcard/OnTap/Action>
+        uniform bool exclusive
+        rel triggers = </Postcard/OnTap/Trigger>
+
+        def Preliminary_Trigger "Trigger"
+        {
+            rel affectedObjects = </Postcard>
+            token info:id = "TapGesture"
+        }
+
+        def Preliminary_Action "Action"
+        {
+            rel affectedObjects = </Postcard>
+            rel animationLibraryKey = </Postcard/Flip>
+            rel animationLibraryKeyOverrideKey = </Postcard/OnTap/Trigger>
+            token info:id = "PlayTimeline"
+            int loops = 0
+            int performCount = 1
+            token type = "serial"
+        }
+    }
+
+    def RealityKitTimeline "Flip"
+    {
+        def RealityKitTrack "Track"
+        {
+            def RealityKitAction "Spin"
+            {
+                string actionKind = "spin"
+                int blendLayer = 400
+                double duration = 0.75
+                
+                float3 localAxis = ({{ range .FlipAxis }}{{ . }},{{end}})
+                float revolutions = 0.5
+                double startTime = 0
+                rel target = </Postcard>
+
+                def RealityKitStruct "timingFunction"
+                {
+                    token type = "easeOut"
+                }
+            }
+        }
+    }
 }

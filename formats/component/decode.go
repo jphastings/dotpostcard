@@ -26,6 +26,7 @@ func (b bundle) Decode(opts *formats.DecodeOptions) (types.Postcard, error) {
 	if err != nil {
 		return types.Postcard{}, err
 	}
+	forcedSize := pc.Meta.Physical.FrontDimensions
 
 	pc.Name = b.name
 
@@ -33,12 +34,12 @@ func (b bundle) Decode(opts *formats.DecodeOptions) (types.Postcard, error) {
 	if err != nil {
 		return types.Postcard{}, fmt.Errorf("couldn't decode postcard's front image: %w", err)
 	}
+	pc.Meta.Physical.FrontDimensions = size
 
 	pc.Front, pc.Meta.Front.Secrets, err = hideSecrets(img, pc.Meta.Front.Secrets)
 	if err != nil {
 		return types.Postcard{}, fmt.Errorf("couldn't hide secrets on front: %w", err)
 	}
-	pc.Meta.Physical.FrontDimensions = size
 
 	if b.backFile == nil {
 		pc.Meta.Flip = types.FlipNone
@@ -56,6 +57,11 @@ func (b bundle) Decode(opts *formats.DecodeOptions) (types.Postcard, error) {
 		if err != nil {
 			return types.Postcard{}, fmt.Errorf("couldn't hide secrets on back: %w", err)
 		}
+	}
+
+	if forcedSize.HasPhysical() {
+		pc.Meta.Physical.FrontDimensions.CmWidth = forcedSize.CmWidth
+		pc.Meta.Physical.FrontDimensions.CmHeight = forcedSize.CmHeight
 	}
 
 	if err := validateMetadata(pc); err != nil {

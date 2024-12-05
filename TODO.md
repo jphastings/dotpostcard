@@ -25,3 +25,4 @@
 - [x] Force `-only` cards to be FlipNone
 - [x] Swap to Annotations for locales (to allow XMP to be HTML-free)
 - [x] Secret areas
+- [x] Paper edge colour #usd

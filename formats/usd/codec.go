@@ -2,7 +2,6 @@ package usd
 
 import (
 	_ "embed"
-	"math"
 	"time"
 
 	"fmt"
@@ -21,6 +20,10 @@ const codecName = "USD 3D model"
 //go:embed postcard.usda.tmpl
 var usdTmplData string
 var usdTmpl *template.Template
+
+var postcardGSM float64 = 350
+
+const gsmToKgscm float64 = 0.0000001
 
 var funcs = template.FuncMap{
 	"half": func(n float64) float64 { return n / 2 },
@@ -64,14 +67,8 @@ type usdParams struct {
 
 	SidesFilename string
 
-	Flip *usdParamsFlip
-}
-
-type usdParamsFlip struct {
-	FrameCount uint
-	Keyframes  map[uint]float64
-	Orient     int
-	Unorient   int
+	MassKg   float64
+	FlipAxis []float64
 }
 
 const pcThickCm = 0.04
@@ -97,28 +94,22 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) []formats.
 		backPoints := make([]usdPoint, len(clockwise))
 		frontPrimVars := make([]usdPoint, len(clockwise))
 		backPrimVars := make([]usdPoint, len(clockwise))
-		flip := makeFlip(pc.Meta.Flip, 24, 0, []keyframe{
-			{0, 10 * time.Second},
-			{180, 1 * time.Second},
-			{180, 5 * time.Second},
-			{360, 1 * time.Second},
-		}...)
 
 		for i, mul := range clockwise {
-			frontPoints[i] = usdPoint{X: mul.X * maxX, Y: mul.Y * maxY}
+			frontPoints[i] = usdPoint{X: mul.X*maxX - maxX/2, Y: mul.Y*maxY - maxY/2}
 
 			switch pc.Meta.Flip {
 			case types.FlipNone:
-				backPoints[i] = usdPoint{X: mul.X * maxX, Y: mul.Y * maxY}
+				backPoints[i] = usdPoint{X: mul.X*maxX - maxX/2, Y: mul.Y*maxY - maxY/2}
 				frontPrimVars[i] = usdPoint{X: mul.X, Y: mul.Y}
 				backPrimVars[i] = frontPrimVars[i]
 			case types.FlipCalendar:
-				backPoints[(i+2)%4] = usdPoint{X: mul.X * maxX, Y: mul.Y * maxY}
+				backPoints[(i+2)%4] = usdPoint{X: mul.X*maxX - maxX/2, Y: mul.Y*maxY - maxY/2}
 				// Scale & transform Y values to take top and bottom of texture, respectively
 				frontPrimVars[i] = usdPoint{X: mul.X, Y: mul.Y*0.5 + 0.5}
 				backPrimVars[i] = usdPoint{X: mul.X, Y: mul.Y * 0.5}
 			default:
-				backPoints[i] = usdPoint{X: mul.X * maxX, Y: mul.Y * maxY}
+				backPoints[i] = usdPoint{X: mul.X*maxX - maxX/2, Y: mul.Y*maxY - maxY/2}
 				// Scale & transform Y values to take top and bottom of texture, respectively
 				frontPrimVars[i] = usdPoint{X: mul.X, Y: mul.Y*0.5 + 0.5}
 				backPrimVars[i] = usdPoint{X: mul.X, Y: mul.Y * 0.5}
@@ -128,9 +119,10 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) []formats.
 		params := usdParams{
 			Creator: fmt.Sprintf("postcards v%s (https://dotpostcard.org)", general.Version),
 
-			MaxX: maxX,
-			MaxY: maxY,
-			MaxZ: pcThickCm,
+			MaxX:   maxX,
+			MaxY:   maxY,
+			MaxZ:   pcThickCm,
+			MassKg: (postcardGSM * maxX * maxY) * gsmToKgscm,
 
 			FrontPoints:   frontPoints,
 			BackPoints:    backPoints,
@@ -138,8 +130,17 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) []formats.
 			BackPrimVars:  backPrimVars,
 
 			SidesFilename: sideFilename,
+		}
 
-			Flip: flip,
+		switch pc.Meta.Flip {
+		case types.FlipLeftHand:
+			params.FlipAxis = []float64{1, 1, 0}
+		case types.FlipRightHand:
+			params.FlipAxis = []float64{-1, 1, 0}
+		case types.FlipCalendar:
+			params.FlipAxis = []float64{1, 0, 0}
+		case types.FlipBook:
+			params.FlipAxis = []float64{0, 1, 0}
 		}
 
 		return usdTmpl.Execute(w, params)
@@ -162,51 +163,4 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) []formats.
 type keyframe struct {
 	angle float64
 	dur   time.Duration
-}
-
-func makeFlip(f types.Flip, fps uint, startAngle float64, kfs ...keyframe) *usdParamsFlip {
-	var orient int
-	switch f {
-	case types.FlipNone:
-		return nil
-	case types.FlipBook:
-		orient = 180
-	case types.FlipLeftHand:
-		orient = 225
-	case types.FlipCalendar:
-		orient = 270
-	case types.FlipRightHand:
-		orient = 315
-	}
-	flip := &usdParamsFlip{
-		Orient:    orient,
-		Unorient:  orient * -1,
-		Keyframes: map[uint]float64{0: startAngle},
-	}
-
-	lastFrame := uint(0)
-	lastAngle := startAngle
-	for _, kf := range kfs {
-		nextFrame := lastFrame + uint(kf.dur.Seconds()*float64(fps))
-		nextAngle := kf.angle
-
-		if nextAngle == lastAngle {
-			flip.Keyframes[nextFrame] = nextAngle
-			lastFrame = nextFrame
-			continue
-		}
-
-		dt := int(nextFrame - lastFrame)
-		da := float64(nextAngle - lastAngle)
-		for i := 0; i <= dt; i++ {
-			flip.Keyframes[lastFrame+uint(i)] = lastAngle + da*(1-math.Cos(math.Pi*float64(i)/float64(dt)))/2
-		}
-
-		lastFrame = nextFrame
-		lastAngle = nextAngle
-	}
-
-	flip.FrameCount = lastFrame
-
-	return flip
 }
