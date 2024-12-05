@@ -76,7 +76,11 @@ var rootCmd = &cobra.Command{
 			}
 
 			for _, codec := range codecs {
-				for _, fw := range codec.Encode(pc, &encOpts) {
+				fws, err := codec.Encode(pc, &encOpts)
+				if err != nil {
+					return err
+				}
+				for _, fw := range fws {
 					wg.Add(1)
 					go func(filename, bundleName, codecName string, fw formats.FileWriter) {
 						defer wg.Done()

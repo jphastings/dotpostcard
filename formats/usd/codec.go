@@ -2,6 +2,8 @@ package usd
 
 import (
 	_ "embed"
+	"path"
+	"strings"
 
 	"fmt"
 	"io"
@@ -79,11 +81,26 @@ var clockwise = []usdPoint{
 	{1, 1},
 }
 
-func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) []formats.FileWriter {
+func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats.FileWriter, error) {
 	// Note: USDZ files must contain a *binary encoded* USD layer, so we can't create a USDZ here
 	// without using the USD C++ API. (Which… perhaps on a rainy Sunday)
 	usdFilename := pc.Name + ".usd"
-	sideFilename := pc.Name + "-texture.jpg"
+
+	// Grab the filename of the texture image, as it might be JPG or PNG
+	webImg, _ := web.Codec("jpg", "png")
+	fws, err := webImg.Encode(pc, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(fws) != 1 {
+		return nil, fmt.Errorf("couldn't encode postcard textures")
+	}
+	fw := fws[0]
+
+	ext := path.Ext(fw.Filename)
+	sideFilename := strings.TrimSuffix(fw.Filename, ext) + "-texture" + ext
+	writeImage := func(w io.Writer) error { return fw.WriteTo(w) }
 
 	writeUSD := func(w io.Writer) error {
 		maxX, _ := pc.Meta.Physical.FrontDimensions.CmWidth.Float64()
@@ -145,17 +162,8 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) []formats.
 		return usdTmpl.Execute(w, params)
 	}
 
-	writeJPG := func(w io.Writer) error {
-		webJPG, _ := web.Codec("jpg")
-		fws := webJPG.Encode(pc, opts)
-		if len(fws) != 1 {
-			return fmt.Errorf("couldn't encode postcard textures into JPG")
-		}
-		return fws[0].WriteTo(w)
-	}
-
 	return []formats.FileWriter{
 		formats.NewFileWriter(usdFilename, writeUSD),
-		formats.NewFileWriter(sideFilename, writeJPG),
-	}
+		formats.NewFileWriter(sideFilename, writeImage),
+	}, nil
 }

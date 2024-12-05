@@ -22,7 +22,8 @@ func TestBundle(t *testing.T) {
 }
 
 func TestEncode(t *testing.T) {
-	fws := css.Codec().Encode(types.Postcard{}, nil)
+	fws, err := css.Codec().Encode(types.Postcard{}, nil)
+	assert.NoError(t, err)
 
 	assert.Len(t, fws, 1)
 

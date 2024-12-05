@@ -48,7 +48,7 @@ func (c codec) Bundle(group formats.FileGroup) ([]formats.Bundle, []fs.File, err
 	return bundles, remaining, nil
 }
 
-func (c codec) Encode(pc types.Postcard, _ *formats.EncodeOptions) []formats.FileWriter {
+func (c codec) Encode(pc types.Postcard, _ *formats.EncodeOptions) ([]formats.FileWriter, error) {
 	filename := fmt.Sprintf("%s-meta.xmp", pc.Name)
 	writer := func(w io.Writer) error {
 		// Don't write pixel & physical size information to an XMP which isn't embedded
@@ -61,7 +61,7 @@ func (c codec) Encode(pc types.Postcard, _ *formats.EncodeOptions) []formats.Fil
 	}
 	fw := formats.NewFileWriter(filename, writer)
 
-	return []formats.FileWriter{fw}
+	return []formats.FileWriter{fw}, nil
 }
 
 func (b bundle) Decode(_ *formats.DecodeOptions) (types.Postcard, error) {

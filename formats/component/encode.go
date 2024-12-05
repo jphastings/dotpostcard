@@ -12,7 +12,7 @@ import (
 )
 
 // The structure information is stored in the internal/types/postcard.go file, because Go.
-func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) []formats.FileWriter {
+func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats.FileWriter, error) {
 	_, finalSize := formats.DetermineSize(opts, pc.Front, pc.Back)
 
 	encImg := func(side image.Image) func(io.Writer) error {
@@ -54,5 +54,5 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) []formats.
 	backName := fmt.Sprintf("%s-back.webp", pc.Name)
 	backW := formats.NewFileWriter(backName, encImg(pc.Back))
 
-	return []formats.FileWriter{frontW, backW}
+	return []formats.FileWriter{frontW, backW}, nil
 }

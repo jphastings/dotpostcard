@@ -78,7 +78,11 @@ func (c codec) Bundle(group formats.FileGroup) ([]formats.Bundle, []fs.File, err
 }
 
 // The structure information is stored in the internal/types/postcard.go file, because Go.
-func (c codec) Encode(pc types.Postcard, _ *formats.EncodeOptions) []formats.FileWriter {
+func (c codec) Encode(pc types.Postcard, _ *formats.EncodeOptions) ([]formats.FileWriter, error) {
+	if c.ext != AsJSON && c.ext != AsYAML {
+		return nil, fmt.Errorf("unknown metadata format '%s'", c.ext)
+	}
+
 	name := fmt.Sprintf("%s-meta%s", pc.Name, c.ext)
 	writer := func(w io.Writer) error {
 		switch c.ext {
@@ -91,7 +95,7 @@ func (c codec) Encode(pc types.Postcard, _ *formats.EncodeOptions) []formats.Fil
 		}
 	}
 
-	return []formats.FileWriter{formats.NewFileWriter(name, writer)}
+	return []formats.FileWriter{formats.NewFileWriter(name, writer)}, nil
 }
 
 func (b bundle) Decode(_ *formats.DecodeOptions) (types.Postcard, error) {

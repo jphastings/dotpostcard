@@ -28,7 +28,7 @@ func (c codec) Bundle(group formats.FileGroup) ([]formats.Bundle, []fs.File, err
 	return nil, group.Files, nil
 }
 
-func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) []formats.FileWriter {
+func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats.FileWriter, error) {
 	writeUSDZ := func(w io.Writer) error {
 		usdzip, err := exec.LookPath("usdzip")
 		if err != nil {
@@ -43,7 +43,10 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) []formats.
 
 		outTmpFilename := "out.usdz"
 		args := []string{outTmpFilename}
-		fws := usd.Codec().Encode(pc, opts)
+		fws, err := usd.Codec().Encode(pc, opts)
+		if err != nil {
+			return err
+		}
 
 		for _, fw := range fws {
 			fname, err := fw.WriteFile(tempDir, true)
@@ -82,5 +85,5 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) []formats.
 	usdzFilename := pc.Name + ".usdz"
 	return []formats.FileWriter{
 		formats.NewFileWriter(usdzFilename, writeUSDZ),
-	}
+	}, nil
 }

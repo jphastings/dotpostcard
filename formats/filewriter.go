@@ -37,7 +37,7 @@ type Codec interface {
 	Bundle(FileGroup) ([]Bundle, []fs.File, error)
 
 	// Encode must produce any files needed to represent postcards in this format.
-	Encode(types.Postcard, *EncodeOptions) []FileWriter
+	Encode(types.Postcard, *EncodeOptions) ([]FileWriter, error)
 
 	// Name is the human usable name of the codec
 	Name() string
@@ -45,13 +45,13 @@ type Codec interface {
 
 type FileWriter struct {
 	fn       func(io.Writer) error
-	filename string
+	Filename string
 }
 
 // NewFileWriter is a helper function for creating a read stream for the return values of Encoders
 func NewFileWriter(filename string, fn func(w io.Writer) error) FileWriter {
 	return FileWriter{
-		filename: filename,
+		Filename: filename,
 		fn:       fn,
 	}
 }
@@ -62,7 +62,7 @@ func (fw FileWriter) WriteFile(dir string, overwrite bool) (string, error) {
 		flags |= os.O_EXCL
 	}
 
-	f, err := os.OpenFile(path.Join(dir, fw.filename), flags, 0644)
+	f, err := os.OpenFile(path.Join(dir, fw.Filename), flags, 0644)
 	if err != nil {
 		return "", err
 	}
@@ -72,7 +72,7 @@ func (fw FileWriter) WriteFile(dir string, overwrite bool) (string, error) {
 		return "", err
 	}
 
-	return fw.filename, nil
+	return fw.Filename, nil
 }
 
 func (fw FileWriter) Bytes() ([]byte, error) {

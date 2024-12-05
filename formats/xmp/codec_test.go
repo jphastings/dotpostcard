@@ -30,7 +30,8 @@ func TestBundle(t *testing.T) {
 }
 
 func TestEncode(t *testing.T) {
-	fws := Codec().Encode(testhelpers.SamplePostcard, nil)
+	fws, err := Codec().Encode(testhelpers.SamplePostcard, nil)
+	assert.NoError(t, err)
 
 	assert.Len(t, fws, 1)
 

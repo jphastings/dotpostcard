@@ -42,11 +42,10 @@ func (c codec) pickFormat(meta types.Metadata, opts *formats.EncodeOptions) (str
 	return format, nil
 }
 
-func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) []formats.FileWriter {
+func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats.FileWriter, error) {
 	format, err := c.pickFormat(pc.Meta, opts)
 	if err != nil {
-		// TODO: I think I need to be able to return errors here
-		return nil
+		return nil, err
 	}
 
 	name := fmt.Sprintf("%s.postcard.%s", pc.Name, format)
@@ -95,7 +94,7 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) []formats.
 		return err
 	}
 
-	return []formats.FileWriter{formats.NewFileWriter(name, writer)}
+	return []formats.FileWriter{formats.NewFileWriter(name, writer)}, nil
 }
 
 func writeWebP(w io.Writer, combinedImg image.Image, xmpData []byte, archival bool) error {
