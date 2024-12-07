@@ -68,7 +68,6 @@ type Metadata struct {
 type Physical struct {
 	FrontDimensions Size    `json:"frontSize" yaml:"front_size,omitempty"`
 	ThicknessMM     float64 `json:"thicknessMM,omitempty" yaml:"thickness_mm,omitempty"`
-	CardColour      string  `json:"cardColour,omitempty" yaml:"card_colour,omitempty"`
 }
 
 func (pc Postcard) String() string {
