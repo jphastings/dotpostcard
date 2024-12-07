@@ -16,7 +16,7 @@ type AnnotatedText struct {
 
 type Annotation struct {
 	Type  AnnotationType `json:"type"`
-	Value string         `json:"value"`
+	Value string         `json:"value,omitempty"`
 	// The *byte* count just before this annotation starts
 	Start uint `json:"start"`
 	// The *byte* count just after this annotation ends

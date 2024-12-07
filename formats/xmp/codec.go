@@ -2,13 +2,11 @@ package xmp
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"io/fs"
 	"path"
 
 	"github.com/jphastings/dotpostcard/formats"
-	"github.com/jphastings/dotpostcard/types"
 )
 
 const codecName = "XMP Metadata"
@@ -46,28 +44,6 @@ func (c codec) Bundle(group formats.FileGroup) ([]formats.Bundle, []fs.File, err
 	}
 
 	return bundles, remaining, nil
-}
-
-func (c codec) Encode(pc types.Postcard, _ *formats.EncodeOptions) ([]formats.FileWriter, error) {
-	filename := fmt.Sprintf("%s-meta.xmp", pc.Name)
-	writer := func(w io.Writer) error {
-		// Don't write pixel & physical size information to an XMP which isn't embedded
-		if xmp, err := MetadataToXMP(pc.Meta, nil); err == nil {
-			_, writeErr := w.Write(xmp)
-			return writeErr
-		} else {
-			return err
-		}
-	}
-	fw := formats.NewFileWriter(filename, writer)
-
-	return []formats.FileWriter{fw}, nil
-}
-
-func (b bundle) Decode(_ *formats.DecodeOptions) (types.Postcard, error) {
-	meta, _, err := MetadataFromXMP(b.r)
-	// TODO: How do I get the name here?
-	return types.Postcard{Meta: meta}, err
 }
 
 func (b bundle) RefPath() string {

@@ -1,8 +1,6 @@
 package xmp
 
 import (
-	"strings"
-
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/types"
 )
@@ -17,7 +15,7 @@ func addIPTCCoreSection(sections []interface{}, meta types.Metadata) []interface
 		return sections
 	}
 
-	text, lang := formats.AltText(meta, strings.Split(meta.Locale, "-")[0])
+	text, lang := formats.AltText(meta, meta.Locale)
 
 	return append(sections, xmpIptc4xmpCoreXML{
 		Namespace: "http://iptc.org/std/Iptc4xmpCore/1.0/xmlns/",

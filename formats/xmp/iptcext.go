@@ -1,8 +1,6 @@
 package xmp
 
 import (
-	"strings"
-
 	"github.com/jphastings/dotpostcard/types"
 )
 
@@ -44,9 +42,7 @@ func addIPTCExtSection(sections []interface{}, meta types.Metadata) []interface{
 		return sections
 	}
 
-	var regions []iptcRegion
-
-	prvExp := langText{Lang: strings.Split(meta.Locale, "-")[0]}
+	prvExp := langText{Lang: meta.Locale}
 	if text, ok := privateExplainer[prvExp.Lang]; ok {
 		prvExp.Text = text
 	} else {
@@ -54,14 +50,27 @@ func addIPTCExtSection(sections []interface{}, meta types.Metadata) []interface{
 		prvExp.Text = privateExplainer["en"]
 	}
 
-	for _, secret := range append(meta.Front.Secrets, meta.Back.Secrets...) {
+	var regions []iptcRegion
+	regions = append(regions, regionsForSide(prvExp, true, meta.Flip, meta.Front.Secrets)...)
+	regions = append(regions, regionsForSide(prvExp, false, meta.Flip, meta.Back.Secrets)...)
+
+	return append(sections, xmpIptc4xmpExt{
+		Namespace: "http://iptc.org/std/Iptc4xmpExt/2008-02-29/",
+		Regions:   regions,
+	})
+}
+
+func regionsForSide(prvExp langText, onFront bool, flip types.Flip, secrets []types.Polygon) []iptcRegion {
+	var regions []iptcRegion
+	for _, secret := range secrets {
 		var vertices []iptcRegionVertex
 
 		for _, point := range secret.Points {
-			vertices = append(vertices, iptcRegionVertex{ParseType: "Resource", X: point.X, Y: point.Y})
+			p := point.TransformToDoubleSided(onFront, flip)
+			vertices = append(vertices, iptcRegionVertex{ParseType: "Resource", X: p.X, Y: p.Y})
 		}
 
-		r := iptcRegion{
+		regions = append(regions, iptcRegion{
 			ParseType: "Resource",
 			Name:      prvExp,
 			Boundary: iptcRegionBoundary{
@@ -70,12 +79,8 @@ func addIPTCExtSection(sections []interface{}, meta types.Metadata) []interface{
 				Shape:     "polygon",
 				Vertices:  vertices,
 			},
-		}
-		regions = append(regions, r)
+		})
 	}
 
-	return append(sections, xmpIptc4xmpExt{
-		Namespace: "http://iptc.org/std/Iptc4xmpExt/2008-02-29/",
-		Regions:   regions,
-	})
+	return regions
 }
