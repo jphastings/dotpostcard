@@ -14,7 +14,7 @@ import (
 )
 
 func (b bundle) Decode(_ *formats.DecodeOptions) (types.Postcard, error) {
-	meta, _, err := MetadataFromXMP(b.r)
+	meta, err := MetadataFromXMP(b.r)
 	// TODO: How do I get the name here?
 	return types.Postcard{Meta: meta}, err
 }
@@ -62,21 +62,21 @@ type xmpJSON struct {
 	} `json:"models"`
 }
 
-func MetadataFromXMP(r io.Reader) (types.Metadata, types.Size, error) {
+func MetadataFromXMP(r io.Reader) (types.Metadata, error) {
 	d := xmp.NewDecoder(r)
 	doc := &xmp.Document{}
 	if err := d.Decode(doc); err != nil {
-		return types.Metadata{}, types.Size{}, err
+		return types.Metadata{}, err
 	}
 
 	jb, err := doc.MarshalJSON()
 	if err != nil {
-		return types.Metadata{}, types.Size{}, fmt.Errorf("unable to parse contents of XMP: %w", err)
+		return types.Metadata{}, fmt.Errorf("unable to parse contents of XMP: %w", err)
 	}
 
 	var js xmpJSON
 	if err := json.Unmarshal(jb, &js); err != nil {
-		return types.Metadata{}, types.Size{}, fmt.Errorf("unable to parse contents of JSONified XMP: %w", err)
+		return types.Metadata{}, fmt.Errorf("unable to parse contents of JSONified XMP: %w", err)
 	}
 
 	var meta types.Metadata
@@ -110,59 +110,7 @@ func MetadataFromXMP(r io.Reader) (types.Metadata, types.Size, error) {
 	meta.Front.Secrets = front
 	meta.Back.Secrets = back
 
-	xPaths, err := doc.ListPaths()
-	if err != nil {
-		return types.Metadata{}, types.Size{}, err
-	}
-
-	var size types.Size
-	// X, Y, scaling factor
-	var resolution [3]*big.Rat
-
-	for _, xPath := range xPaths {
-		switch xPath.Path {
-		case "tiff:ImageWidth":
-			size.PxWidth, _ = strconv.Atoi(xPath.Value)
-		case "tiff:ImageLength":
-			size.PxHeight, _ = strconv.Atoi(xPath.Value)
-		case "tiff:XResolution":
-			res, err := scanBigRat(xPath.Value)
-			if err == nil {
-				resolution[0] = res
-			}
-		case "tiff:YResolution":
-			res, err := scanBigRat(xPath.Value)
-			if err == nil {
-				resolution[1] = res
-			}
-		case "tiff:ResolutionUnit":
-			if xPath.Value != "3" {
-				// Assume inches
-				resolution[2] = big.NewRat(100, 254)
-			}
-		}
-	}
-
-	if meta.Flip != types.FlipNone {
-		size.PxHeight /= 2
-	}
-
-	if resolution[0] != nil {
-		// Convert units, if necessary
-		if resolution[2] != nil {
-			resolution[0].Mul(resolution[0], resolution[2])
-			resolution[1].Mul(resolution[1], resolution[2])
-		}
-
-		size.SetResolution(resolution[0], resolution[1])
-		// Postcard height is half reported dimensions if Flip isn't none (ie. this is a stacked web format postcard image)
-		if meta.Flip != types.FlipNone {
-			size.CmHeight.Quo(size.CmHeight, big.NewRat(2, 1))
-		}
-		meta.Physical.FrontDimensions = size
-	}
-
-	return meta, size, nil
+	return meta, nil
 }
 
 func scanBigRat(str string) (*big.Rat, error) {

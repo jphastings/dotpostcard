@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/jphastings/dotpostcard/internal/testhelpers"
+	"github.com/jphastings/dotpostcard/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -42,11 +43,35 @@ func TestEncode(t *testing.T) {
 }
 
 func TestDecode(t *testing.T) {
-	ex := testhelpers.SamplePostcard
+	ex := testhelpers.SamplePostcard.Meta
+
+	// Postcard XMP isn't expected to hold size data
+	ex.Physical.FrontDimensions = types.Size{}
 	bnd := bundle{r: bytes.NewReader(testhelpers.SampleXMP)}
 
 	pc, err := bnd.Decode(nil)
 	assert.NoError(t, err)
 
-	assert.Equal(t, ex.Meta, pc.Meta)
+	// Because floating points are imprecise we need to compare them manually.
+	// Here we iterate through the floats, and replace
+
+	// At 254000dpi this delta equates to one pixel — so waaay finer than needed
+	delta := 0.000001
+
+	for si, s := range pc.Meta.Front.Secrets {
+		for pi, p := range s.Points {
+			assert.InDelta(t, ex.Front.Secrets[si].Points[pi].X, p.X, delta)
+			assert.InDelta(t, ex.Front.Secrets[si].Points[pi].Y, p.Y, delta)
+			pc.Meta.Front.Secrets[si].Points[pi] = ex.Front.Secrets[si].Points[pi]
+		}
+	}
+	for si, s := range pc.Meta.Back.Secrets {
+		for pi, p := range s.Points {
+			assert.InDelta(t, ex.Back.Secrets[si].Points[pi].X, p.X, delta)
+			assert.InDelta(t, ex.Back.Secrets[si].Points[pi].Y, p.Y, delta)
+			pc.Meta.Back.Secrets[si].Points[pi] = ex.Back.Secrets[si].Points[pi]
+		}
+	}
+
+	assert.Equal(t, ex, pc.Meta)
 }

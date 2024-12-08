@@ -48,7 +48,7 @@ var SamplePostcard = types.Postcard{
 			Latitude:  &([]float64{45.28}[0]),
 			Longitude: &([]float64{7.66}[0]),
 		},
-		Flip: "book",
+		Flip: types.FlipBook,
 		SentOn: types.Date{
 			Time: time.Date(2006, time.January, 2, 0, 0, 0, 0, time.UTC),
 		},
@@ -90,8 +90,8 @@ var SamplePostcard = types.Postcard{
 				Prehidden: true,
 				Points: []types.Point{
 					{0, 0},
-					{0, 0.3},
-					{0.1, 0.3},
+					{0, 0.4},
+					{0.1, 0.4},
 					{0.1, 0},
 				},
 			}},
