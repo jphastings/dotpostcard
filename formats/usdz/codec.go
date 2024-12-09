@@ -1,6 +1,7 @@
 package usdz
 
 import (
+	"archive/zip"
 	"bytes"
 	"errors"
 	"fmt"
@@ -9,9 +10,11 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/formats/usd"
+	"github.com/jphastings/dotpostcard/formats/web"
 	"github.com/jphastings/dotpostcard/types"
 )
 
@@ -23,9 +26,55 @@ type codec struct{}
 
 func (c codec) Name() string { return codecName }
 
-// USDZ can't be decoded yet
 func (c codec) Bundle(group formats.FileGroup) ([]formats.Bundle, []fs.File, error) {
-	return nil, group.Files, nil
+	var bundles []formats.Bundle
+	var remaining []fs.File
+	var finalErr error
+
+	for _, file := range group.Files {
+		filename, ok := formats.HasFileSuffix(file, ".usdz")
+		if !ok {
+			remaining = append(remaining, file)
+			continue
+		}
+
+		tFile, err := usdzToTextureFile(file)
+		if err != nil {
+			finalErr = errors.Join(finalErr, err)
+			continue
+		}
+
+		bundles = append(bundles, web.BundleFromReader(tFile, filename))
+	}
+
+	return bundles, remaining, finalErr
+}
+
+// This is a little hacky, as it assumes there's only one texture, but it works for now
+func usdzToTextureFile(file fs.File) (fs.File, error) {
+	st, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+
+	fz, ok := file.(io.ReaderAt)
+	if !ok {
+		return nil, fmt.Errorf("unable to seek USD zip file for %s", st.Name())
+	}
+
+	zr, err := zip.NewReader(fz, st.Size())
+	if err != nil {
+		return nil, fmt.Errorf("unable to read USD zip file '%s': %w", st.Name(), err)
+	}
+
+	for _, zf := range zr.File {
+		name := path.Base(zf.Name)
+		if strings.HasSuffix(name, ".postcard-texture.jpg") || strings.HasSuffix(name, ".postcard-texture.png") {
+			return fs.FS(zr).Open(zf.Name)
+		}
+	}
+
+	return nil, fmt.Errorf("no texture postcard texture files found")
 }
 
 func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats.FileWriter, error) {
