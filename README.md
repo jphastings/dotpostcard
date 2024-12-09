@@ -5,6 +5,12 @@ A tool for creating archival and postable scans of postcards, and their metadata
 See them in use at:
 - [shutup.jp](https://shutup.jp)
 
+## Install
+
+```sh
+$ go install github.com/jphastings/dotpostcard/cmd/postcards@latest
+```
+
 ## Usage
 
 To make your first postcard file you should scan both sides of your postcard, its "comonents".
