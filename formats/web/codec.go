@@ -14,7 +14,7 @@ const codecName = "Web"
 var _ formats.Bundle = bundle{}
 
 type bundle struct {
-	io.Reader
+	io.ReadCloser
 	name    string
 	refPath string
 }

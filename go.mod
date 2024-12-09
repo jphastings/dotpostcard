@@ -7,7 +7,6 @@ toolchain go1.23.2
 require (
 	git.sr.ht/~jackmordaunt/go-libwebp v1.8.0
 	git.sr.ht/~sbinet/gg v0.6.0
-	github.com/chai2010/webp v1.1.1
 	github.com/charmbracelet/glamour v0.8.0
 	github.com/dsoprea/go-exif/v3 v3.0.1
 	github.com/dsoprea/go-jpeg-image-structure v0.0.0-20221012074422-4f3f7e934102

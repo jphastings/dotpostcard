@@ -9,11 +9,11 @@ import (
 	"github.com/jphastings/dotpostcard/formats"
 )
 
-func BundleFromReader(r io.Reader, refPath string) formats.Bundle {
+func BundleFromReader(r io.ReadCloser, refPath string) formats.Bundle {
 	return bundle{
-		Reader:  r,
-		name:    strings.TrimSuffix(strings.TrimSuffix(path.Base(refPath), path.Ext(refPath)), ".postcard"),
-		refPath: refPath,
+		ReadCloser: r,
+		name:       strings.TrimSuffix(strings.TrimSuffix(path.Base(refPath), path.Ext(refPath)), ".postcard"),
+		refPath:    refPath,
 	}
 }
 
@@ -31,9 +31,9 @@ func (c codec) Bundle(group formats.FileGroup) ([]formats.Bundle, []fs.File, err
 		}
 
 		bnd := bundle{
-			Reader:  file,
-			name:    strings.TrimSuffix(strings.TrimSuffix(filename, path.Ext(filename)), ".postcard"),
-			refPath: path.Join(group.DirPath, filename),
+			ReadCloser: file,
+			name:       strings.TrimSuffix(strings.TrimSuffix(filename, path.Ext(filename)), ".postcard"),
+			refPath:    path.Join(group.DirPath, filename),
 		}
 
 		bundles = append(bundles, bnd)

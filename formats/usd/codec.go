@@ -1,8 +1,11 @@
 package usd
 
 import (
+	"bytes"
 	_ "embed"
+	"errors"
 	"path"
+	"slices"
 	"strings"
 
 	"fmt"
@@ -22,9 +25,16 @@ const codecName = "USD 3D model"
 var usdTmplData string
 var usdTmpl *template.Template
 
-var postcardGSM float64 = 350
+const (
+	postcardGSM float64 = 350
+	gsmToKgscm  float64 = 0.0000001
+	extension           = ".postcard.usd"
+)
 
-const gsmToKgscm float64 = 0.0000001
+var (
+	beforeTextureMarker = []byte("asset inputs:file = @")
+	afterTextureMarker  = []byte("@")
+)
 
 var funcs = template.FuncMap{
 	"half": func(n float64) float64 { return n / 2 },
@@ -44,9 +54,63 @@ type codec struct{}
 
 func (c codec) Name() string { return codecName }
 
-// USD can't be decoded yet
 func (c codec) Bundle(group formats.FileGroup) ([]formats.Bundle, []fs.File, error) {
-	return nil, group.Files, nil
+	var bundles []formats.Bundle
+	var remaining []fs.File
+	var finalErr error
+	var skip []string
+
+	for _, file := range group.Files {
+		filename, ok := formats.HasFileSuffix(file, extension, ".postcard.usda", ".postcard-texture.jpg", ".postcard-texture.png")
+		if !ok {
+			remaining = append(remaining, file)
+		}
+		if slices.Contains(skip, filename) {
+			continue
+		}
+
+		if strings.HasPrefix(path.Ext(filename), ".usd") {
+			tFile, tFilename, err := usdaToTextureFile(file, group.Dir)
+			if err != nil {
+				finalErr = errors.Join(finalErr, fmt.Errorf("unable to open the texture file: %w", err))
+				continue
+			}
+			if slices.Contains(skip, tFilename) {
+				continue
+			}
+			file = tFile
+			skip = append(skip, tFilename)
+		}
+		bundles = append(bundles, web.BundleFromReader(file, filename))
+		skip = append(skip, filename)
+	}
+	return bundles, remaining, finalErr
+}
+
+func usdaToTextureFile(file fs.File, dir fs.FS) (fs.File, string, error) {
+	usda, err := io.ReadAll(file)
+	if err != nil {
+		return nil, "", fmt.Errorf("unable to read USDA file to discover texture name: %w", err)
+	}
+
+	textureStart := bytes.Index(usda, beforeTextureMarker)
+	if textureStart == -1 {
+		// Not a postcard USDA
+		return nil, "", nil
+	}
+	textureStart += len(beforeTextureMarker)
+	textureLen := bytes.Index(usda[textureStart:], afterTextureMarker)
+	if textureStart == -1 {
+		// Not a postcard USDA, probably not a valid USDA either
+		return nil, "", nil
+	}
+	texturePath := string(usda[textureStart : textureStart+textureLen])
+
+	texture, err := dir.Open(texturePath)
+	if err != nil {
+		return nil, "", fmt.Errorf("unable to open the texture file: %w", err)
+	}
+	return texture, texturePath, nil
 }
 
 type usdPoint struct {
@@ -84,7 +148,7 @@ var clockwise = []usdPoint{
 func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats.FileWriter, error) {
 	// Note: USDZ files must contain a *binary encoded* USD layer, so we can't create a USDZ here
 	// without using the USD C++ API. (Which… perhaps on a rainy Sunday)
-	usdFilename := pc.Name + ".postcard.usd"
+	usdFilename := pc.Name + extension
 
 	// Grab the filename of the texture image, as it might be JPG or PNG
 	webImg, _ := web.Codec("jpg", "png")
