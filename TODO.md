@@ -14,7 +14,8 @@
 - [ ] Get this CLI tool building automatically
 - [ ] Creating a USD(Z) from an image that doesn't have resolution data (eg front/back portrait fixtures) seems to nil pointer fail. #bug
 - [ ] Decode USD & USDZ #usd
-- [ ] Read XMP data from jpg, png `web` format
+- [ ] Read XMP data from png `web` format
+- [ ] Read XMP data from generic JPEG format (eg. with EXIF APP1 chunk before XMP APP1 chunk)
 
 ## Done
 
@@ -32,3 +33,4 @@
 - [x] Throw error on invalid flip
 - [x] Compile without CGO
 - [x] Read XMP data from WebP `web` format
+- [x] Read XMP data from JPEG `web` format

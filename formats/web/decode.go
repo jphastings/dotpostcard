@@ -26,6 +26,8 @@ func (b bundle) Decode(_ *formats.DecodeOptions) (types.Postcard, error) {
 	switch format {
 	case "webp":
 		xmpData, err = xmpinject.XMPfromWebP(dataCopy.Bytes())
+	case "jpeg":
+		xmpData, err = xmpinject.XMPfromJPEG(dataCopy.Bytes())
 	default:
 		err = fmt.Errorf("no XMP extractor for %s format", format)
 	}
