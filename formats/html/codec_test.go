@@ -28,10 +28,13 @@ func TestEncode(t *testing.T) {
 	content, err := fws[0].Bytes()
 	assert.NoError(t, err)
 
-	assert.Equal(t, `<input type="checkbox" id="postcard-some-postcard">
+	assert.Equal(t, `<link rel="stylesheet" type="text/css" href="postcards.css">
+<div style="max-width:50vw;margin: auto;">
+
+<input type="checkbox" id="postcard-some-postcard">
 <label for="postcard-some-postcard">
-	<div class="postcard flip-book landscape" style="--postcard: url('some-postcard.postcard'); --aspect-ratio: 1480 / 1050">
-		<img src="some-postcard.postcard" loading="lazy" alt="The word &#39;Front&#39; in large blue letters" width="500px">
+	<div class="postcard flip-book landscape" style="--postcard: url('some-postcard.postcard.jpg'); --aspect-ratio: 1480 / 1050">
+		<img src="some-postcard.postcard.jpg" loading="lazy" alt="The word &#39;Front&#39; in large blue letters" width="500px">
 		<div class="shadow"></div>
 	</div>
 </label>`, string(content))
