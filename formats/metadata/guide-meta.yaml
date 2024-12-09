@@ -51,7 +51,7 @@ front:
 
 # Details about the 'back' of the postcard, the one which is seen when it's flipped over (usually the message/address side, but can be either — whichever is named name-back.jpg. )
 back:
-  # Recommended. A description of the back of the postcard. See front.description for more info.
+  # A description of the back of the postcard — may be empty if there isn't anything interesting on the back except the message. See front.description for more info.
   description:
   
   # Recommended. Any content message written on this side of the card — often this will be the postcard's actual message.
