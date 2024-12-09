@@ -18,6 +18,14 @@ Alongside the 3D model data the zip file that is the produced USDZ holds the [we
 
 USDZ creation requires that the `usdzip` tool is installed on yours system (see [OpenUSD](https://openusd.org/) for information). If you don't have access to that tool, you can still export in the `usd` format, which produces both the unzipped (and text-formatted) version of USD and the necessary texture file.
 
+Converting _from_ USDZ to any other format is possible even without `usdzip` installed:
+
+```sh
+$ postcards -f web pyramids.postcard.usdz
+⚙︎ Converting 1 postcard into 1 different format…
+pyramids.postcard.usdz (USDZ 3D model) → (Web) pyramids.postcard.jpg
+```
+
 ## Example
 
 ```sh
