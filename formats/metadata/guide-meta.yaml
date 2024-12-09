@@ -1,0 +1,101 @@
+## This is an example postcard metadata YAML file
+#
+# Naming this pyramids-giza-meta.yaml, and putting it next to pyramids-giza-front.jpg
+# and pyramids-giza-back.jpg is the basis of creating a postcard file from scratch:
+#   postcards -f web,usdz pyramids-giza-meta.yaml
+# This command would grab your metadata file, the associated -front and -back image files
+# and combine them, as needed, into pyramids-giza.postcard.jpg (web format) and pyramids-giza.postcard.usdz (3D format)
+
+# The language you're writing any text below in. en-GB for British, en-US for American English. Any BCP-47 code works (https://datatracker.ietf.org/doc/html/rfc5646)
+locale: en-GB
+
+# Required. How the postcard flips over. One of:
+#  none — you're making a single sided postcard
+#  book - holding on the bottom edge to flip makes the other side the right way up
+#  calendar - holding on the side edge to flip makes the other side the right way up
+#  left-hand - holding on the bottom left corner (with your left hand) makes the other side the right way up
+#  right-hand - holding on the bottom right corner (with your right hand) makes the other side the right way up
+flip: right-hand
+
+# Where the postcard was sent from
+location:
+  # A name that is useful in describing where's from — can be fine grained (Stan's diner), or broad (Ohio, USA)
+  name: A placename
+  # The latitude (North/South) of where the postcard was sent from
+  latitude: 51.492
+  # The latitude (East/West) of where the postcard was sent from
+  longitude: -0.0106
+
+# The date the postcard was sent.
+sent_on: 2000-02-28
+
+# Who sent the postcard (if known)
+sender:
+  # Their name/identifier (any text)
+  name: Anon Ymous
+  # Any URI that identifies this sender
+  link: https://example.com
+
+# Who the postcard was sent to (if known)
+recipient:
+  # Their name/identifier (any text)
+  name: A. N. Other
+  # Any URI that identifies this recipient
+  link: mailto:someone@example.org
+
+# Required. Details about the 'front' of the postcard, the one shown by default (usually the photo/image side, but can be either — whichever is named name-front.jpg, or name-only.jpg if making a single sided postcard)
+front:
+  # Recommended. A description of the front of the postcard, used for creating a search index of your postcards, for use as alt-text in formats that support it (eg. for blind accessibility).
+  description:
+  # A transcription and/or secrets can be present here, but these are often only useful on the *back* of a postcard.
+
+# Details about the 'back' of the postcard, the one which is seen when it's flipped over (usually the message/address side, but can be either — whichever is named name-back.jpg. )
+back:
+  # Recommended. A description of the back of the postcard. See front.description for more info.
+  description:
+  
+  # Recommended. Any content message written on this side of the card — often this will be the postcard's actual message.
+  transcription:
+    # Required: The *plain* transcription text. Note that YAML allows blocks of text by indenting after a | symbol.
+    text: |
+      Dear Mario,
+      Please come to the castle. I've baked a cake for you.
+      Yours truly--
+      Princess Toadstool (Peach)
+    # The separate annotations field can be used to add markup to this text, but it's complex to get right (it uses *byte* offset count for positioning, not character offset)
+    # so it's recommended to other tooling to generate the transcription if needed.
+  
+  # To intelligently blank out part(s) of a postcard as secret (eg. your address) you can define one or more regions here. They'll be replaced with a suitable colour, and marked as secret to explain the absence.
+  # All numbers are distances relative to the width/height of the postcard (whichever is appropriate). Eg. `left: 0.5` on a 1000px pixel *wide* image would mean a point with y = 500px.
+  secrets:
+    # The 'box' type defines a rectangular region
+    - type: box
+      # How wide is the region (as a fraction of the width of the image)
+      width: 0.3
+      # How tall is the region (as a fraction of the height of the image)
+      height: 0.2
+      # How far the left edge of the box is from the left edge of the image (as a fraction of the width of the image)
+      left: 0.7
+      # How far the top edge of the box is from the top edge of the image (as a fraction of the height of the image)
+      top: 0.354
+
+# Any additional context about this postcard. Where it came from, why you're digitising it, what it means to you.
+context:
+  # Recommended: Who the person (or entity) writing the context is.
+  author:
+    # Their name
+    name: Wikipedia
+    # A URI representing them or their contribution
+    link: https://en.wikipedia.org/wiki/History_of_postcards_in_the_United_States
+  # The context being offered.
+  description: |
+    The U.S. Congress passed an act on May 19, 1898, which allowed private printers and publishers to officially produce postcards, and for them to be posted at the same rate as government-produced postals (one-cent, previously two).
+
+# Information about the physical attributes of the postcard. This section can usually be omitted, as details can be grabbed from image scans.
+physical:
+  # The width & height of the postcard in cm. If you've used a scanner to create your postcard images these will be extracted from the images themselves, so this can be omitted.
+  # Format is always Wcm x Hcm
+  front_size: 12.33cm x 7.89cm
+
+  # How thick the postcard is in mm. This defaults to 0.4mm, which is the thickness of most postcards, so can usually be omitted.
+  thickness_mm: 0.4

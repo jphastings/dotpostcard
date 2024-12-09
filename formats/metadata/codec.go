@@ -1,6 +1,7 @@
 package metadata
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,6 +16,9 @@ import (
 )
 
 const codecName = "Metadata"
+
+//go:embed guide-meta.yaml
+var GuideYAML string
 
 var _ formats.Bundle = bundle{}
 

@@ -31,5 +31,10 @@ func Outdir(cmd *cobra.Command, therePath string) (string, error) {
 	if heredir {
 		return ".", nil
 	}
+
+	if therePath == "" {
+		return ".", nil
+	}
+
 	return therePath, nil
 }
