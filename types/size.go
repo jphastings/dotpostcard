@@ -15,6 +15,28 @@ type Size struct {
 	PxHeight int      `json:"pxH"`
 }
 
+// The fallback surface area of a postcard, if no physical size is provided, but one is needed
+var assumedSurfaceArea = 10.5 * 14.8
+
+// Returns the actual physical dimensions (in cm), or guesses at a physical size
+// based on the assumption that most postcards are 6x4 inches.
+func (s Size) MustPhysical() (float64, float64) {
+	if s.HasPhysical() {
+		w, _ := s.CmWidth.Float64()
+		h, _ := s.CmHeight.Float64()
+		return w, h
+	}
+
+	pxA := float64(s.PxWidth * s.PxHeight)
+	ar := float64(s.PxWidth) / float64(s.PxHeight)
+	res := assumedSurfaceArea / float64(pxA)
+
+	cmH := math.Sqrt(res * pxA / ar)
+	cmW := ar * cmH
+
+	return cmW, cmH
+}
+
 func (s Size) HasPhysical() bool {
 	return s.CmWidth != nil && s.CmHeight != nil
 }

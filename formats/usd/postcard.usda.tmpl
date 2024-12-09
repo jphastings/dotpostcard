@@ -28,11 +28,10 @@ def Xform "Postcard" (
             {
                 uniform token info:id = "UsdPreviewSurface"
                 color3f inputs:diffuseColor.connect = </Postcard/Materials/sides/diffuseColor_texture.outputs:rgb>
-                token outputs:surface
-
-                float inputs:specular = 0.1
+                float inputs:metallic = 0
                 float inputs:roughness = 0.8
-                float inputs:metallic = 0.0
+                float inputs:specular = 0.1
+                token outputs:surface
             }
 
             def Shader "diffuseColor_texture"
@@ -60,12 +59,11 @@ def Xform "Postcard" (
             def Shader "surfaceShader"
             {
                 uniform token info:id = "UsdPreviewSurface"
-                token outputs:surface
                 color3f inputs:diffuseColor = (0.9, 0.9, 0.85)
-
-                float inputs:specular = 0.1
+                float inputs:metallic = 0
                 float inputs:roughness = 0.8
-                float inputs:metallic = 0.0
+                float inputs:specular = 0.1
+                token outputs:surface
             }
         }
     }
@@ -136,12 +134,12 @@ def Xform "Postcard" (
 
     def RealityKitComponent "RigidBody"
     {
+        float angularDamping = 0.9
         uniform token info:id = "RealityKit.RigidBody"
+        bool isCCDEnabled = 1
+        float linearDamping = 0.0008
         # Physics means the postcards just falls forever when this is "Dynamic"!
         token motionType = "Static"
-        bool isCCDEnabled = 1
-        float angularDamping = 0.9
-        float linearDamping = 0.0008
         
         def RealityKitStruct "massFrame"
         {
@@ -202,8 +200,7 @@ def Xform "Postcard" (
                 string actionKind = "spin"
                 int blendLayer = 400
                 double duration = 0.75
-                
-                float3 localAxis = ({{ range .FlipAxis }}{{ . }},{{end}})
+                float3 localAxis = ({{ range .FlipAxis }}{{ . }}, {{end}})
                 float revolutions = 0.5
                 double startTime = 0
                 rel target = </Postcard>

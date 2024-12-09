@@ -167,8 +167,7 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 	writeImage := func(w io.Writer) error { return fw.WriteTo(w) }
 
 	writeUSD := func(w io.Writer) error {
-		maxX, _ := pc.Meta.Physical.FrontDimensions.CmWidth.Float64()
-		maxY, _ := pc.Meta.Physical.FrontDimensions.CmHeight.Float64()
+		maxX, maxY := pc.Meta.Physical.FrontDimensions.MustPhysical()
 
 		frontPoints := make([]usdPoint, len(clockwise))
 		backPoints := make([]usdPoint, len(clockwise))

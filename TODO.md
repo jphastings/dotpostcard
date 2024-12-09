@@ -12,10 +12,11 @@
 - [ ] Look at using [tinyUSDZ](https://github.com/lighttransport/tinyusdz) to create USDZ files directly & without all the manual fussing
   - NB. This USDZ/USDC writer seems to be incomplete at the moment
 - [ ] Get this CLI tool building automatically
-- [ ] Creating a USD(Z) from an image that doesn't have resolution data (eg front/back portrait fixtures) seems to nil pointer fail. #bug
-- [ ] Decode USD & USDZ #usd
 - [ ] Read XMP data from png `web` format
 - [ ] Read XMP data from generic JPEG format (eg. with EXIF APP1 chunk before XMP APP1 chunk)
+- [ ] Don't re-encode same-same format. (eg. USDZ to Web(no alpha, lossy); Web to Web)
+- [ ] Show warning when using fallback size to generate USDZ
+- [ ] Show warning when losing information on conversion (are there any of these cases now?)
 
 ## Done
 
@@ -34,3 +35,5 @@
 - [x] Compile without CGO
 - [x] Read XMP data from WebP `web` format
 - [x] Read XMP data from JPEG `web` format
+- [x] Decode USD & USDZ #usd
+- [x] Creating a USD(Z) from an image that doesn't have resolution data (eg front/back portrait fixtures) seems to nil pointer fail. #bug
