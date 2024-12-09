@@ -2,7 +2,11 @@
 
 Postcard metadata can be stored in [XMP format](https://en.wikipedia.org/wiki/Extensible_Metadata_Platform). Usually this is stored inside the images produced with the [web](web.md) output format.
 
-Some features of metadata (particularly the location of secrets) assumes that the image being described is laid out like a Web format postcard — the front above the back, and the back rotated as in the Web format. When output directly with `-f xmp` a file `{name}-meta.xmp` will be produced — you may need to rename it to match the name of the postcard file (`{name}.postcard.xmp`) for other tools to recognise the association.
+> [!WARNING]
+> Some features of metadata (particularly the location of secrets) assumes that the image being described is laid out like a Web format postcard — the front above the back, and the back rotated as in the Web format.
+
+> [!TIP]
+> When output directly with `-f xmp` a file `{name}-meta.xmp` will be produced — you may need to rename it to match the name of the postcard file (`{name}.postcard.xmp`) for other tools to recognise the association.
 
 ## Structure
 

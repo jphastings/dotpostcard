@@ -2,9 +2,11 @@
 
 Used in conjunction with the [css](css.md) and [web](web.md) formats, this output format creates a sample `{name}.html` file with an HTML fragment that's suitable to display the postcard being converted.
 
-The HTML fragment produced has two sections separated by `\n\n` (the only `\n\n` in the file). The first of these sections can be discarded if you're injecting the HTML into an already established postcards page.
+> [!TIP]
+> The HTML fragment produced has two sections separated by `\n\n` (the only `\n\n` in the file). The first of these sections can be discarded if you're injecting the HTML into an already established postcards page.
 
-In the unlikely even that the CSS being produced by the [css](css.md) format changes in a backwards incompatible way (which will only happen after a breaking change release of this tool) then any HTML previously produced by this format may also need to be updated. Details on how to manually make the needed changes will be in the release notes for this tool.
+> [!NOTE]
+> In the unlikely even that the CSS being produced by the [css](css.md) format changes in a backwards incompatible way (which will only happen after a breaking change release of this tool) then any HTML previously produced by this format may also need to be updated. Details on how to manually make the needed changes will be in the release notes for this tool.
 
 ## Example
 

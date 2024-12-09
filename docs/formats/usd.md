@@ -1,6 +1,9 @@
 # Universal Scene Description 3D format
 
-The component parts of a [USDZ file](usdz.md).
+An ASCII formatted USD file, and its texture. The components of a compiled [USDZ file](usdz.md).
+
+> [!TIP]
+> If you meet the requirements of `usdz` output (you have the `usdzip` tool installed) then you probably want that format, not this one!
 
 ## Example
 

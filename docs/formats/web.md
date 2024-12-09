@@ -4,7 +4,8 @@ The most versatile of the formats, the Web format holds both sides of the postca
 
 If the postcard is 'heteroriented' (the back and front have different orientations) then the lower half will be rotated 90º clockwise (for left-hand flip postcards), or 90º anti-clockwise (for right-hand flip postcards), so that a Web format postcard is always the same width as the front of the postcard, and twice the height of the front.
 
-By default this format uses lossy JPEGli compression and resizing to make a small but high quality image. If your input images use transparency, or if you request an 'archival' quality postcard, then it will produce a WebP format image that can support what you've requested.
+> [!TIP]
+> By default this format uses lossy JPEGli compression and resizing to make a small but high quality image. If your input images use transparency, or if you request an 'archival' quality postcard, then it will produce a WebP format image that can support what you've requested.
 
 ## Example
 
