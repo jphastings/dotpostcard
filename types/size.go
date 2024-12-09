@@ -38,6 +38,34 @@ func (s Size) Resolution() (xRes *big.Rat, yRes *big.Rat) {
 	return
 }
 
+type Orientation string
+
+const (
+	OrientationLandscape Orientation = "landscape"
+	OrientationPortrait  Orientation = "portrait"
+	OrientationSquare    Orientation = "square"
+)
+
+// Returns the most probable orientation of the size. Within 5mm/5px of square is considered square
+func (s Size) Orientation() Orientation {
+	if s.HasPhysical() {
+		diff, _ := new(big.Rat).Sub(s.CmWidth, s.CmHeight).Float64()
+		if math.Abs(diff) <= 0.5 {
+			return OrientationSquare
+		}
+	} else {
+		diff := math.Abs(float64(s.PxWidth - s.PxHeight))
+		if math.Abs(diff) <= 5 {
+			return OrientationSquare
+		}
+	}
+
+	if s.PxWidth > s.PxHeight {
+		return OrientationLandscape
+	}
+	return OrientationPortrait
+}
+
 // SimilarPhysical compares two physical sizes and returns true if their dimensions are within ~1% of each other
 func (s Size) SimilarPhysical(other Size, flip Flip) bool {
 	if !s.HasPhysical() || !other.HasPhysical() {

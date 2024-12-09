@@ -28,3 +28,4 @@
 - [x] Move to using JPEGli for smaller filesizes
 - [x] Add XMP to web JPG & PNG output #xmp
 - [x] XMP decoder #xmp
+- [x] Throw error on invalid flip

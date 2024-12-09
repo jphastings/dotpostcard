@@ -30,11 +30,11 @@ func (b bundle) Decode(opts *formats.DecodeOptions) (types.Postcard, error) {
 
 	pc.Name = b.name
 
-	img, size, hasTransparency, err := decodeImage(b.frontFile, opts)
+	img, frontSize, hasTransparency, err := decodeImage(b.frontFile, opts)
 	if err != nil {
 		return types.Postcard{}, fmt.Errorf("couldn't decode postcard's front image: %w", err)
 	}
-	pc.Meta.Physical.FrontDimensions = size
+	pc.Meta.Physical.FrontDimensions = frontSize
 	pc.Meta.HasTransparency = hasTransparency
 
 	pc.Front, pc.Meta.Front.Secrets, err = hideSecrets(img, pc.Meta.Front.Secrets)
@@ -45,15 +45,19 @@ func (b bundle) Decode(opts *formats.DecodeOptions) (types.Postcard, error) {
 	if b.backFile == nil {
 		pc.Meta.Flip = types.FlipNone
 	} else {
-		img, size, hasTransparencyBack, err := decodeImage(b.backFile, opts)
+		img, backSize, hasTransparencyBack, err := decodeImage(b.backFile, opts)
 		if err != nil {
 			return types.Postcard{}, fmt.Errorf("couldn't decode postcard's back image: %w", err)
 		}
 		// With Heterorientation cards it's possible one corner has transparency and the other doesn't
 		pc.Meta.HasTransparency = pc.Meta.HasTransparency || hasTransparencyBack
 
-		if !size.SimilarPhysical(pc.Meta.Physical.FrontDimensions, pc.Meta.Flip) {
-			return types.Postcard{}, fmt.Errorf("the front and back images are different physical sizes (%v, %v), are they of the same postcard?", pc.Meta.Physical.FrontDimensions, size)
+		if !backSize.SimilarPhysical(frontSize, pc.Meta.Flip) {
+			return types.Postcard{}, fmt.Errorf("the front and back images are different physical sizes (%v, %v), are they of the same postcard?", frontSize, backSize)
+		}
+
+		if err := types.CheckFlip(frontSize, backSize, pc.Meta.Flip); err != nil {
+			return types.Postcard{}, err
 		}
 
 		pc.Back, pc.Meta.Back.Secrets, err = hideSecrets(img, pc.Meta.Back.Secrets)
