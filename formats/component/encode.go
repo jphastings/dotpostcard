@@ -5,7 +5,7 @@ import (
 	"image"
 	"io"
 
-	"github.com/chai2010/webp"
+	"git.sr.ht/~jackmordaunt/go-libwebp/webp"
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/types"
 	"golang.org/x/image/draw"
@@ -17,34 +17,31 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 
 	encImg := func(side image.Image) func(io.Writer) error {
 		return func(w io.Writer) error {
-			var webpOpts *webp.Options
 			if opts != nil && opts.Archival {
-				webpOpts = &webp.Options{Lossless: true}
-			} else {
-				startSize := side.Bounds()
-				startW := startSize.Dx()
-				startH := startSize.Dy()
-				finalW := finalSize.Dx()
-				finalH := finalSize.Dy()
-
-				// Swap the width and height if this side is the opposite orientation to the 'finalSize' (the front)
-				if (finalW > finalH) != (startW > startH) {
-					finalW = finalSize.Dy()
-					finalH = finalSize.Dx()
-				}
-
-				if finalW < startW || finalH < startH {
-					resizedSize := image.Rect(0, 0, finalW, finalH)
-					resizedImg := image.NewRGBA(resizedSize)
-					draw.CatmullRom.Scale(resizedImg, resizedSize, side, startSize, draw.Src, nil)
-
-					side = resizedImg
-				}
-
-				webpOpts = &webp.Options{Lossless: false, Quality: 75}
+				return webp.Encode(w, side, webp.Lossless())
 			}
 
-			return webp.Encode(w, side, webpOpts)
+			startSize := side.Bounds()
+			startW := startSize.Dx()
+			startH := startSize.Dy()
+			finalW := finalSize.Dx()
+			finalH := finalSize.Dy()
+
+			// Swap the width and height if this side is the opposite orientation to the 'finalSize' (the front)
+			if (finalW > finalH) != (startW > startH) {
+				finalW = finalSize.Dy()
+				finalH = finalSize.Dx()
+			}
+
+			if finalW < startW || finalH < startH {
+				resizedSize := image.Rect(0, 0, finalW, finalH)
+				resizedImg := image.NewRGBA(resizedSize)
+				draw.CatmullRom.Scale(resizedImg, resizedSize, side, startSize, draw.Src, nil)
+
+				side = resizedImg
+			}
+
+			return webp.Encode(w, side, webp.Quality(75))
 		}
 	}
 

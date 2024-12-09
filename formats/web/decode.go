@@ -7,9 +7,9 @@ import (
 	"image/draw"
 	"io"
 
-	"github.com/chai2010/webp"
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/formats/xmp"
+	"github.com/jphastings/dotpostcard/pkg/xmpinject"
 	"github.com/jphastings/dotpostcard/types"
 )
 
@@ -17,12 +17,18 @@ func (b bundle) Decode(_ *formats.DecodeOptions) (types.Postcard, error) {
 	var dataCopy bytes.Buffer
 	t := io.TeeReader(b, &dataCopy)
 
-	img, _, err := image.Decode(t)
+	img, format, err := image.Decode(t)
 	if err != nil {
 		return types.Postcard{}, fmt.Errorf("unable to decode image: %w", err)
 	}
 
-	xmpData, err := webp.GetMetadata(dataCopy.Bytes(), "xmp")
+	var xmpData []byte
+	switch format {
+	case "webp":
+		xmpData, err = xmpinject.XMPfromWebP(dataCopy.Bytes())
+	default:
+		err = fmt.Errorf("no XMP extractor for %s format", format)
+	}
 	if err != nil {
 		return types.Postcard{}, fmt.Errorf("couldn't extract XMP metadata: %w", err)
 	}

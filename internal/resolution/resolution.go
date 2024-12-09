@@ -16,14 +16,14 @@ var readers = []struct {
 	{[]byte{0x49, 0x49, 0x2A, 0x00}, decodeTIFF},
 }
 
-// Decode returns the resolution (number of pixels per centimetre) an image declares it is stored with
+// Decode returns the width and height resolution (number of pixels per centimetre) an image declares it is stored with
 func Decode(data []byte) (*big.Rat, *big.Rat, error) {
 	for _, r := range readers {
 		if isMagic(data[0:len(r.magicBytes)], r.magicBytes) {
 			return r.fn(data)
 		}
 	}
-	return nil, nil, fmt.Errorf("unparseable image format")
+	return nil, nil, fmt.Errorf("unknown image format")
 }
 
 func isMagic(data, magic []byte) bool {

@@ -1,21 +1,16 @@
 package web
 
 import (
-	"bytes"
 	"fmt"
 	"image"
-	"image/png"
 	"io"
 	"math/big"
 	"strings"
 
-	"github.com/chai2010/webp"
-	"github.com/gen2brain/jpegli"
 	"golang.org/x/image/draw"
 
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/formats/xmp"
-	"github.com/jphastings/dotpostcard/pkg/xmpinject"
 	"github.com/jphastings/dotpostcard/types"
 )
 
@@ -83,7 +78,7 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 
 		switch format {
 		case "webp":
-			err = writeWebP(w, combinedImg, xmpData, opts.Archival)
+			err = writeWebP(w, combinedImg, xmpData, opts.Archival, pc.Meta.HasTransparency)
 		case "png":
 			err = writePNG(w, combinedImg, xmpData, opts.Archival)
 		case "jpg":
@@ -96,51 +91,6 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 	}
 
 	return []formats.FileWriter{formats.NewFileWriter(name, writer)}, nil
-}
-
-func writeWebP(w io.Writer, combinedImg image.Image, xmpData []byte, archival bool) error {
-	var webpOpts *webp.Options
-	if archival {
-		webpOpts = &webp.Options{Lossless: true}
-	} else {
-		webpOpts = &webp.Options{Lossless: false, Quality: 75}
-	}
-
-	data := new(bytes.Buffer)
-	if err := webp.Encode(data, combinedImg, webpOpts); err != nil {
-		return err
-	}
-
-	dataBytes, err := webp.SetMetadata(data.Bytes(), xmpData, "XMP")
-	if err != nil {
-		return err
-	}
-
-	_, err = w.Write(dataBytes)
-	return err
-}
-
-func writePNG(w io.Writer, combinedImg image.Image, xmpData []byte, archival bool) error {
-	pngData := new(bytes.Buffer)
-	if err := png.Encode(pngData, combinedImg); err != nil {
-		return err
-	}
-
-	return xmpinject.XMPintoPNG(w, pngData.Bytes(), xmpData)
-}
-
-func writeJPG(w io.Writer, combinedImg image.Image, xmpData []byte) error {
-	jpegliOpts := &jpegli.EncodingOptions{
-		Quality:           70,
-		FancyDownsampling: true,
-	}
-
-	jpgData := new(bytes.Buffer)
-	if err := jpegli.Encode(jpgData, combinedImg, jpegliOpts); err != nil {
-		return err
-	}
-
-	return xmpinject.XMPintoJPEG(w, jpgData.Bytes(), xmpData)
 }
 
 func rotateForWeb(img image.Image, flip types.Flip) (image.Image, image.Rectangle) {
