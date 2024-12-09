@@ -82,7 +82,7 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 		return nil
 	}
 
-	usdzFilename := pc.Name + ".usdz"
+	usdzFilename := pc.Name + ".postcard.usdz"
 	return []formats.FileWriter{
 		formats.NewFileWriter(usdzFilename, writeUSDZ),
 	}, nil

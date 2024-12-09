@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,7 +21,9 @@ var rootCmd = &cobra.Command{
 	Use:     "postcards --formats=output,formats [flags] postcard-file.ext...",
 	Example: "  postcards -f web,json postcard1-front.jpg postcard2.webp directory/*\n  postcards -f components --archival --overwrite pc.webp",
 	Short:   "A tool for converting between formats for representing images of postcards",
+	Long:    longMessage(),
 	Version: general.Version,
+	Args:    cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, inputPaths []string) error {
 		// Grab relevant flags
 		formatList, err := cmd.Flags().GetStringSlice("formats")
@@ -124,12 +127,12 @@ func count(n int, singular string) string {
 }
 
 func main() {
-	rootCmd.Flags().Bool("out-here", false, "Output files in the current working directory")
+	rootCmd.Flags().Bool("out-here", false, "Output files in the current working directory (default)")
 	rootCmd.Flags().Bool("out-there", true, "Output files in the same directory as the source data")
 	rootCmd.Flags().String("out-dir", "", "Output files to the given directory")
 	rootCmd.MarkFlagsMutuallyExclusive("out-here", "out-there", "out-dir")
 
-	formatsExpl := fmt.Sprintf("Formats to convert to (comma separated, any of: %s)", postcards.Formats())
+	formatsExpl := fmt.Sprintf("Formats to convert to (comma separated, any of: %s)", strings.Join(postcards.Codecs, ", "))
 	rootCmd.Flags().StringSliceP("formats", "f", []string{}, formatsExpl)
 	rootCmd.Flags().BoolP("archival", "A", false, "Turn off image resizing, use lossless compression")
 	rootCmd.Flags().BoolP("remove-border", "B", false, "Attempts to turn the border around a postcard scan transparent")
@@ -140,4 +143,21 @@ func main() {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
+}
+
+func longMessage() string {
+	return `Convert digital representations of postcards between various formats.
+
+	To start from scratch, scan both sides of your postcard and name them
+	whatever-front.png and whatever-back.png then run:
+	$ postcards init whatever-front.png
+
+	This will generate the metadata file "whatever-meta.yaml" for you to fill out.
+	Once you're ready you can then run:
+	$ postcards -f web,usdz whatever-front.png
+
+	Which will compile your postcard into the "web" format and the "usdz" format.
+	Advice on doing this well in this tool's readme at:
+	  https://github.com/jphastings/dotpostcard
+	`
 }

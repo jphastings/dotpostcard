@@ -19,7 +19,7 @@ func MakeBundles(filesAndDirPaths []string) ([]formats.Bundle, error) {
 
 	var bundles []formats.Bundle
 	for _, group := range groups {
-		for _, codecID := range codecOrder {
+		for _, codecID := range Codecs {
 			codec := codecs[codecID]
 			newBundles, remaining, err := codec.Bundle(group)
 			if err != nil {

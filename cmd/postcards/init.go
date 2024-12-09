@@ -13,7 +13,7 @@ import (
 var initCmd = &cobra.Command{
 	Use:     "init <postcard name>...",
 	Example: "  postcards init mine\n",
-	Short:   "Creates a template YAML metadata file to fill out for your postcard.",
+	Short:   "Creates a template YAML metadata file to fill out for your postcard",
 	Args:    cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, names []string) error {
 		overwrite, err := cmd.Flags().GetBool("overwrite")

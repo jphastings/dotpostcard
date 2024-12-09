@@ -1,9 +1,8 @@
 # TODO
 
-- [ ] XMP decoder #xmp
 - [ ] Only one postcards.css per group/directory
 - [x] Figure out USD format
-  - [ ] Add colour to postcard edges
+  - [x] Add colour to postcard edges
   - [x] Calendar flip cards
   - [x] No flip cards
   - [ ] Four point edges
@@ -14,6 +13,7 @@
   - NB. This USDZ/USDC writer seems to be incomplete at the moment
 - [ ] Get this CLI tool building automatically
 - [ ] Creating a USD(Z) from an image that doesn't have resolution data (eg front/back portrait fixtures) seems to nil pointer fail. #bug
+- [ ] Decode USD & USDZ #usd
 
 ## Done
 
@@ -27,3 +27,4 @@
 - [x] Paper edge colour #usd
 - [x] Move to using JPEGli for smaller filesizes
 - [x] Add XMP to web JPG & PNG output #xmp
+- [x] XMP decoder #xmp

@@ -1,6 +1,7 @@
 package postcards
 
 import (
+	"embed"
 	"fmt"
 	"strings"
 
@@ -15,6 +16,9 @@ import (
 	"github.com/jphastings/dotpostcard/formats/xmp"
 )
 
+//go:embed docs/formats/*.md
+var formatDocs embed.FS
+
 var codecs = map[string]formats.Codec{
 	"component": component.Codec(),
 	"web":       web.DefaultCodec,
@@ -27,13 +31,13 @@ var codecs = map[string]formats.Codec{
 	"xmp":       xmp.Codec(),
 }
 
-var codecOrder = []string{"component", "web", "usdz", "usd", "json", "yaml", "css", "html", "xmp"}
+var Codecs = []string{"component", "web", "usdz", "usd", "json", "yaml", "css", "html", "xmp"}
 
 func init() {
-	if len(codecOrder) != len(codecs) {
+	if len(Codecs) != len(codecs) {
 		panic("Codec order count doesn't match codec mapping")
 	}
-	for _, c := range codecOrder {
+	for _, c := range Codecs {
 		if _, ok := codecs[c]; !ok {
 			panic(fmt.Sprintf("the %s format name is not a registered codec", c))
 		}
@@ -46,7 +50,7 @@ func CodecsByFormat(names []string) ([]formats.Codec, error) {
 	for _, name := range names {
 		codec, ok := codecs[name]
 		if !ok {
-			return nil, fmt.Errorf("the format '%s' isn't one of those available: %s", name, Formats())
+			return nil, fmt.Errorf("the format '%s' isn't one of those available: %s", name, strings.Join(Codecs, ", "))
 		}
 
 		outCodecs = append(outCodecs, codec)
@@ -55,6 +59,8 @@ func CodecsByFormat(names []string) ([]formats.Codec, error) {
 	return outCodecs, nil
 }
 
-func Formats() string {
-	return strings.Join(codecOrder, ", ")
+// Returns markdown docs for the named format
+func FormatDocs(name string) (string, error) {
+	b, err := formatDocs.ReadFile(fmt.Sprintf("docs/formats/%s.md", name))
+	return string(b), err
 }

@@ -84,7 +84,7 @@ var clockwise = []usdPoint{
 func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats.FileWriter, error) {
 	// Note: USDZ files must contain a *binary encoded* USD layer, so we can't create a USDZ here
 	// without using the USD C++ API. (Which… perhaps on a rainy Sunday)
-	usdFilename := pc.Name + ".usd"
+	usdFilename := pc.Name + ".postcard.usd"
 
 	// Grab the filename of the texture image, as it might be JPG or PNG
 	webImg, _ := web.Codec("jpg", "png")
