@@ -215,7 +215,7 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 		case types.FlipLeftHand:
 			params.FlipAxis = []float64{1, 1, 0}
 		case types.FlipRightHand:
-			params.FlipAxis = []float64{-1, 1, 0}
+			params.FlipAxis = []float64{1, -1, 0}
 		case types.FlipCalendar:
 			params.FlipAxis = []float64{1, 0, 0}
 		case types.FlipBook:
