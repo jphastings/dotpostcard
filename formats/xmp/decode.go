@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/jphastings/dotpostcard/formats"
+	"github.com/jphastings/dotpostcard/internal/resolution"
 	"github.com/jphastings/dotpostcard/types"
 	"github.com/trimmer-io/go-xmp/xmp"
 )
@@ -59,7 +60,18 @@ type xmpJSON struct {
 			Latitude     string `json:"exif:GPSLatitude"`
 			Longitude    string `json:"exif:GPSLongitude"`
 		} `json:"exif"`
+		TIFF tiffTags `json:"tiff"`
 	} `json:"models"`
+}
+
+type tiffTags struct {
+	// The TIFF names for width/height are confusing
+	Height string `json:"tiff:ImageWidth"`
+	Width  string `json:"tiff:ImageLength"`
+
+	ResUnit string   `json:"tiff:ResolutionUnit"`
+	XRes    *big.Rat `json:"tiff:XResolution"`
+	YRes    *big.Rat `json:"tiff:YResolution"`
 }
 
 func MetadataFromXMP(r io.Reader) (types.Metadata, error) {
@@ -110,15 +122,28 @@ func MetadataFromXMP(r io.Reader) (types.Metadata, error) {
 	meta.Front.Secrets = front
 	meta.Back.Secrets = back
 
+	meta.Physical.FrontDimensions = tiffXMPToSize(js.Models.TIFF)
+
 	return meta, nil
 }
 
-func scanBigRat(str string) (*big.Rat, error) {
-	var a, b int64
-	if _, err := fmt.Sscanf(str, "%d/%d", &a, &b); err != nil {
-		return nil, err
+func tiffXMPToSize(tiff tiffTags) (s types.Size) {
+	w, wErr := strconv.ParseInt(tiff.Width, 10, 0)
+	h, hErr := strconv.ParseInt(tiff.Height, 10, 0)
+	if wErr != nil && hErr != nil {
+		return types.Size{}
 	}
-	return big.NewRat(a, b), nil
+
+	s.PxWidth = int(w)
+	s.PxHeight = int(h)
+
+	// Fallback to the default if it's not parseable
+	exifUnit, _ := strconv.ParseUint(tiff.ResUnit, 10, 16)
+	toCm := resolution.ResolutionToCm(uint16(exifUnit))
+
+	s.SetResolution(toCm(tiff.XRes), toCm(tiff.YRes))
+
+	return s
 }
 
 func scanDegrees(str string) *float64 {
