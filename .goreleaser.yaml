@@ -79,7 +79,7 @@ brews:
   repository:
     owner: jphastings
     name: homebrew-tools
-    token: "{{ .Env.GITHUB_PERSONAL_AUTH_TOKEN }}"
+    token: "{{ .Env.GITHUB_TOKEN }}"
   homepage: "https://dotpostcards.org/cli/postcards"
   description: "Tool for creating digital versions of physical postcards"
   license: "MIT"
