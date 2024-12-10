@@ -12,7 +12,6 @@ import (
 	postcards "github.com/jphastings/dotpostcard"
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/internal/cmdhelp"
-	"github.com/jphastings/dotpostcard/internal/general"
 	"github.com/spf13/cobra"
 )
 
@@ -22,7 +21,7 @@ var rootCmd = &cobra.Command{
 	Example: "  postcards -f web,json postcard1-front.jpg postcard2.webp directory/*\n  postcards -f components --archival --overwrite pc.webp",
 	Short:   "A tool for converting between formats for representing images of postcards",
 	Long:    longMessage(),
-	Version: general.Version,
+	Version: postcards.Version,
 	Args:    cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, inputPaths []string) error {
 		// Grab relevant flags
@@ -148,16 +147,16 @@ func main() {
 func longMessage() string {
 	return `Convert digital representations of postcards between various formats.
 
-	To start from scratch, scan both sides of your postcard and name them
-	whatever-front.png and whatever-back.png then run:
-	$ postcards init whatever-front.png
+To start from scratch, scan both sides of your postcard and name them
+whatever-front.png and whatever-back.png then run:
+$ postcards init whatever-front.png
 
-	This will generate the metadata file "whatever-meta.yaml" for you to fill out.
-	Once you're ready you can then run:
-	$ postcards -f web,usdz whatever-front.png
+This will generate the metadata file "whatever-meta.yaml" for you to fill out.
+Once you're ready you can then run:
+$ postcards -f web,usdz whatever-front.png
 
-	Which will compile your postcard into the "web" format and the "usdz" format.
-	Advice on doing this well in this tool's readme at:
-	  https://github.com/jphastings/dotpostcard
-	`
+Which will compile your postcard into the "web" format and the "usdz" format.
+Advice on doing this well in this tool's readme at:
+  https://github.com/jphastings/dotpostcard
+`
 }

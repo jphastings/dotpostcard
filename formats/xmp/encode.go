@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/dotpostcard/postcards-go"
 	"github.com/jphastings/dotpostcard/formats"
-	"github.com/jphastings/dotpostcard/internal/general"
 	"github.com/jphastings/dotpostcard/types"
 )
 
@@ -40,7 +40,7 @@ func MetadataToXMP(meta types.Metadata, dims *types.Size) ([]byte, error) {
 
 	x := xmpXML{
 		NamespaceX:     "adobe:ns:meta/",
-		NamespaceXMPTK: fmt.Sprintf("postcards/v%s", general.Version),
+		NamespaceXMPTK: fmt.Sprintf("postcards/v%s", postcards.Version),
 		RDF: rdfXML{
 			Namespace: "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
 			Sections:  sections,

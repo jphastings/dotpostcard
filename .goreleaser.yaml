@@ -1,0 +1,91 @@
+# This is an example .goreleaser.yml file with some sensible defaults.
+# Make sure to check the documentation at https://goreleaser.com
+
+# The lines below are called `modelines`. See `:help modeline`
+# Feel free to remove those if you don't want/need to use them.
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - main: ./cmd/postcards
+    binary: postcards
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X "main.Date={{.CommitDate}}"
+universal_binaries:
+  - name_template: postcards
+    id: mac-universal
+    replace: true
+
+archives:
+  - format: tar.gz
+    # this name template makes the OS and Arch compatible with the results of `uname`.
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    # use zip for windows archives
+    format_overrides:
+      - goos: windows
+        format: zip
+
+changelog:
+  sort: asc
+  groups:
+  - title: ⚠️ Breaking changes
+    regexp: "BREAKING CHANGE"
+    order: 0
+  - title: 👀 New features
+    regexp: "^feat[(\\w)]*:+.*$"
+    order: 1
+  - title: 🐛 Bug fixes
+    regexp: "^fix[(\\w)]*:+.*$"
+    order: 2
+  - title: Others
+    order: 999
+  filters:
+    exclude:
+    - '^docs[(\\w)]*:'
+    - '^style[(\\w)]*:'
+    - '^refactor[(\\w)]*:'
+    - '^test[(\\w)]*:'
+    - '^build[(\\w)]*:'
+    - '^ci[(\\w)]*:'
+    - '^chore[(\\w)]*:'
+    - '^revert:'
+    - '^bump:'
+release:
+  prerelease: auto
+  draft: false
+brews:
+- name: postcards
+  repository:
+    owner: jphastings
+    name: homebrew-tools
+    token: "{{ .Env.GITHUB_PERSONAL_AUTH_TOKEN }}"
+  homepage: "https://dotpostcards.org/cli/postcards"
+  description: "Tool for creating digital versions of physical postcards"
+  license: "MIT"
+  test: |
+    resource("hello.postcard").stage do
+      expected_start = "Convert digital representations of postcards between various formats.\n"
+      actual_output = shell_output("#{bin}/postcards help")
+      assert actual_output.start_with?(expected_start)
+    end

@@ -13,9 +13,9 @@ import (
 	"io/fs"
 	"text/template"
 
+	"github.com/dotpostcard/postcards-go"
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/formats/web"
-	"github.com/jphastings/dotpostcard/internal/general"
 	"github.com/jphastings/dotpostcard/types"
 )
 
@@ -196,7 +196,7 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 		}
 
 		params := usdParams{
-			Creator: fmt.Sprintf("postcards v%s (https://dotpostcard.org)", general.Version),
+			Creator: fmt.Sprintf("postcards v%s (https://dotpostcard.org)", postcards.Version),
 
 			MaxX:   maxX,
 			MaxY:   maxY,
