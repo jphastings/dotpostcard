@@ -13,7 +13,7 @@ import (
 	"github.com/trimmer-io/go-xmp/xmp"
 )
 
-func (b bundle) Decode(_ *formats.DecodeOptions) (types.Postcard, error) {
+func (b bundle) Decode(_ formats.DecodeOptions) (types.Postcard, error) {
 	meta, err := MetadataFromXMP(b.r)
 	// TODO: How do I get the name here?
 	return types.Postcard{Meta: meta}, err

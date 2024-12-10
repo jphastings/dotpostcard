@@ -16,6 +16,7 @@
 - [ ] Don't re-encode same-same format. (eg. USDZ to Web(no alpha, lossy); Web to Web)
 - [ ] Show warning when using fallback size to generate USDZ
 - [ ] Show warning when losing information on conversion (are there any of these cases now?)
+- [ ] Web (webp) with transparency not convertable (eg. to USD) #bug
 
 ## Done
 

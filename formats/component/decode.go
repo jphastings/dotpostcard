@@ -21,7 +21,7 @@ import (
 	"golang.org/x/image/draw"
 )
 
-func (b bundle) Decode(opts *formats.DecodeOptions) (types.Postcard, error) {
+func (b bundle) Decode(opts formats.DecodeOptions) (types.Postcard, error) {
 	pc, err := b.metaBundle.Decode(opts)
 	if err != nil {
 		return types.Postcard{}, err
@@ -78,7 +78,7 @@ func (b bundle) Decode(opts *formats.DecodeOptions) (types.Postcard, error) {
 	return pc, nil
 }
 
-func decodeImage(r io.Reader, decOpts *formats.DecodeOptions) (image.Image, types.Size, bool, error) {
+func decodeImage(r io.Reader, decOpts formats.DecodeOptions) (image.Image, types.Size, bool, error) {
 	var dataCopy bytes.Buffer
 	t := io.TeeReader(r, &dataCopy)
 
@@ -93,9 +93,9 @@ func decodeImage(r io.Reader, decOpts *formats.DecodeOptions) (image.Image, type
 	}
 
 	_, _, _, a := img.At(0, 0).RGBA()
-	hasTransparency := a != 65535
+	hasTransparency := (a != 65535) && !decOpts.IgnoreTransparency
 
-	if decOpts != nil && decOpts.RemoveBorder && !hasTransparency {
+	if decOpts.RemoveBorder {
 		img, err = removeBorder(img)
 		if err != nil {
 			return nil, types.Size{}, hasTransparency, err

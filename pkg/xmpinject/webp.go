@@ -19,7 +19,6 @@ var chunkOrder = []string{"VP8X", "ICCP", "ANIM", "VP8 ", "VP8L", "EXIF", "XMP "
 
 // The VP8X header (that declares XMP data is present) also includes the image width and height & context on whether there is Alpha. This *can* be extracted from the VP8 or VP8L data, but providing the data here is faster & easier.
 func XMPintoWebP(out io.Writer, webpData []byte, xmpData []byte, bounds image.Rectangle, hasAlpha bool) error {
-
 	chunks, err := parseChunks(webpData)
 	if err != nil {
 		return err

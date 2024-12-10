@@ -13,7 +13,7 @@ import (
 	"github.com/jphastings/dotpostcard/types"
 )
 
-func (b bundle) Decode(_ *formats.DecodeOptions) (types.Postcard, error) {
+func (b bundle) Decode(decOpts formats.DecodeOptions) (types.Postcard, error) {
 	var dataCopy bytes.Buffer
 	t := io.TeeReader(b, &dataCopy)
 
@@ -22,20 +22,22 @@ func (b bundle) Decode(_ *formats.DecodeOptions) (types.Postcard, error) {
 		return types.Postcard{}, fmt.Errorf("unable to decode image: %w", err)
 	}
 
-	var xmpData []byte
+	var xmpDecoder func([]byte) ([]byte, error)
 	switch format {
 	case "webp":
-		xmpData, err = xmpinject.XMPfromWebP(dataCopy.Bytes())
+		xmpDecoder = xmpinject.XMPfromWebP
 	case "jpeg":
-		xmpData, err = xmpinject.XMPfromJPEG(dataCopy.Bytes())
+		xmpDecoder = xmpinject.XMPfromJPEG
 	default:
-		err = fmt.Errorf("no XMP extractor for %s format", format)
+		return types.Postcard{}, fmt.Errorf("no XMP extractor for %s format", format)
 	}
+
+	xmpData, err := xmpDecoder(dataCopy.Bytes())
 	if err != nil {
 		return types.Postcard{}, fmt.Errorf("couldn't extract XMP metadata: %w", err)
 	}
 
-	pc, err := xmp.BundleFromBytes(xmpData, b.refPath).Decode(nil)
+	pc, err := xmp.BundleFromBytes(xmpData, b.refPath).Decode(decOpts)
 	if err != nil {
 		return types.Postcard{}, fmt.Errorf("didn't contain postcard metadata: %w", err)
 	}

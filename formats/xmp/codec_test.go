@@ -5,6 +5,7 @@ import (
 	"io"
 	"testing"
 
+	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/internal/testhelpers"
 	"github.com/jphastings/dotpostcard/types"
 	"github.com/stretchr/testify/assert"
@@ -49,7 +50,7 @@ func TestDecode(t *testing.T) {
 	ex.Physical.FrontDimensions = types.Size{}
 	bnd := bundle{r: bytes.NewReader(testhelpers.SampleXMP)}
 
-	pc, err := bnd.Decode(nil)
+	pc, err := bnd.Decode(formats.DecodeOptions{})
 	assert.NoError(t, err)
 
 	// Because floating points are imprecise we need to compare them manually.

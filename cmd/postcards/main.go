@@ -33,14 +33,19 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			panic("Archival flag doesn't seem to be boolean")
 		}
-		removeBorder, err := cmd.Flags().GetBool("remove-border")
-		if err != nil {
-			panic("Remove border flag doesn't seem to be boolean")
-		}
 		overwrite, err := cmd.Flags().GetBool("overwrite")
 		if err != nil {
 			panic("Overwrite flag doesn't seem to be boolean")
 		}
+		removeBorder, err := cmd.Flags().GetBool("remove-border")
+		if err != nil {
+			panic("Remove border flag doesn't seem to be boolean")
+		}
+		ignoreTransparency, err := cmd.Flags().GetBool("ignore-transparency")
+		if err != nil {
+			panic("Ignore transparency flag doesn't seem to be boolean")
+		}
+		decOpts := formats.DecodeOptions{RemoveBorder: removeBorder, IgnoreTransparency: ignoreTransparency}
 
 		codecs, err := postcards.CodecsByFormat(formatList)
 		if err != nil {
@@ -72,7 +77,7 @@ var rootCmd = &cobra.Command{
 			}
 			filename := path.Base(bundle.RefPath())
 
-			pc, err := bundle.Decode(&formats.DecodeOptions{RemoveBorder: removeBorder})
+			pc, err := bundle.Decode(decOpts)
 			if err != nil {
 				return err
 			}
@@ -135,6 +140,8 @@ func main() {
 	rootCmd.Flags().StringSliceP("formats", "f", []string{}, formatsExpl)
 	rootCmd.Flags().BoolP("archival", "A", false, "Turn off image resizing, use lossless compression")
 	rootCmd.Flags().BoolP("remove-border", "B", false, "Attempts to turn the border around a postcard scan transparent")
+	rootCmd.Flags().BoolP("ignore-transparency", "T", false, "Ignores any transparency in the source images")
+	rootCmd.MarkFlagsMutuallyExclusive("remove-border", "ignore-transparency")
 	rootCmd.Flags().Bool("overwrite", false, "Overwrite output files")
 
 	err := rootCmd.Execute()

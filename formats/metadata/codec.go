@@ -102,7 +102,7 @@ func (c codec) Encode(pc types.Postcard, _ *formats.EncodeOptions) ([]formats.Fi
 	return []formats.FileWriter{formats.NewFileWriter(name, writer)}, nil
 }
 
-func (b bundle) Decode(_ *formats.DecodeOptions) (types.Postcard, error) {
+func (b bundle) Decode(_ formats.DecodeOptions) (types.Postcard, error) {
 	var pc types.Postcard
 	var err error
 	switch b.ext {

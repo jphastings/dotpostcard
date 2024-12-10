@@ -20,6 +20,8 @@ type EncodeOptions struct {
 type DecodeOptions struct {
 	// Assumes the postcard was on uniformly coloured paper when it was scanned, and attempts to convert it to transparency.
 	RemoveBorder bool
+	// Forces the image to be treated as if it has no transparency. Will error if used with RemoveBorder
+	IgnoreTransparency bool
 }
 
 // FileGroup represents a subset of files within a single directory
