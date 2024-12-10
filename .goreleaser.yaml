@@ -80,6 +80,7 @@ brews:
     owner: jphastings
     name: homebrew-tools
     token: "{{ .Env.GITHUB_TOKEN }}"
+  directory: Formula
   homepage: "https://dotpostcards.org/cli/postcards"
   description: "Tool for creating digital versions of physical postcards"
   license: "MIT"

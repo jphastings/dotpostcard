@@ -17,7 +17,7 @@ jobs:
       new_version: ${{ steps.new_version.outputs.version }}
     steps:
       - name: Check out
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Create bump and changelog
@@ -36,12 +36,12 @@ jobs:
     runs-on: ubuntu-latest
     name: Release binaries as Github releases
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{ needs.bump-version.outputs.new_version }}
           fetch-depth: 0
       - run: git fetch --force --tags
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
       - name: Run GoReleaser
