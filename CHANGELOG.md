@@ -1,3 +1,13 @@
+## 0.3.0 (2024-12-10)
+
+### Feat
+
+- Allow ignoring transparency
+
+### Fix
+
+- :adhesive_bandage: Collect the physical & pixel size from XMP
+
 ## 0.2.4 (2024-12-10)
 
 ### Fix
