@@ -1,3 +1,9 @@
+## 0.2.2 (2024-12-10)
+
+### Fix
+
+- :construction_worker: Fix Goreleaser workflow
+
 ## 0.2.1 (2024-12-10)
 
 ### Fix
