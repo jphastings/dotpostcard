@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/jphastings/dotpostcard/formats"
+	"github.com/jphastings/dotpostcard/formats/xmp"
 	"github.com/jphastings/dotpostcard/types"
 	"gopkg.in/yaml.v3"
 )
@@ -36,8 +37,9 @@ type MetadataType string
 
 var AsJSON MetadataType = ".json"
 var AsYAML MetadataType = ".yaml"
+var AsXMP MetadataType = ".xmp"
 
-var Extensions = []string{".json", ".yaml", ".yml"}
+var Extensions = []string{".json", ".yaml", ".yml", ".xmp"}
 
 func Codec(ext MetadataType) formats.Codec { return codec{ext: ext} }
 
@@ -47,6 +49,8 @@ func (c codec) Name() string {
 		return "JSON " + codecName
 	case AsYAML:
 		return "YAML " + codecName
+	case AsXMP:
+		return "XMP " + codecName
 	default:
 		return codecName
 	}
@@ -83,7 +87,7 @@ func (c codec) Bundle(group formats.FileGroup) ([]formats.Bundle, []fs.File, err
 
 // The structure information is stored in the internal/types/postcard.go file, because Go.
 func (c codec) Encode(pc types.Postcard, _ *formats.EncodeOptions) ([]formats.FileWriter, error) {
-	if c.ext != AsJSON && c.ext != AsYAML {
+	if c.ext != AsJSON && c.ext != AsYAML && c.ext != AsXMP {
 		return nil, fmt.Errorf("unknown metadata format '%s'", c.ext)
 	}
 
@@ -94,6 +98,13 @@ func (c codec) Encode(pc types.Postcard, _ *formats.EncodeOptions) ([]formats.Fi
 			return json.NewEncoder(w).Encode(pc.Meta)
 		case AsYAML:
 			return yaml.NewEncoder(w).Encode(pc.Meta)
+		case AsXMP:
+			xmp, err := xmp.MetadataToXMP(pc.Meta, nil)
+			if err != nil {
+				return err
+			}
+			_, err = w.Write(xmp)
+			return err
 		default:
 			return fmt.Errorf("unknown metadata format '%s'", c.ext)
 		}
@@ -110,6 +121,8 @@ func (b bundle) Decode(_ formats.DecodeOptions) (types.Postcard, error) {
 		err = json.NewDecoder(b.file).Decode(&pc.Meta)
 	case AsYAML:
 		err = yaml.NewDecoder(b.file).Decode(&pc.Meta)
+	case AsXMP:
+		pc.Meta, err = xmp.MetadataFromXMP(b.file)
 	default:
 		return types.Postcard{}, fmt.Errorf("unknown metadata format '%s'", b.ext)
 	}
