@@ -1,3 +1,13 @@
+## 0.4.0 (2024-12-11)
+
+### Feat
+
+- :necktie: Allow XMP as component input
+
+### Fix
+
+- :white_check_mark: Add YAML tests and fix discovered issue
+
 ## 0.3.0 (2024-12-10)
 
 ### Feat
