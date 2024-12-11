@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 	"math/big"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -133,6 +134,9 @@ func (poly *Polygon) UnmarshalYAML(y *yaml.Node) error {
 			return fmt.Errorf("invalid polygon secret definition")
 		}
 
+		poly.Prehidden = polygon.Prehidden
+		poly.Points = polygon.Points
+
 		return nil
 	default:
 		return fmt.Errorf("unknown secret type: %s", typer.Type)
@@ -207,7 +211,8 @@ func (s *Size) UnmarshalYAML(y *yaml.Node) error {
 func (d *Date) UnmarshalYAML(y *yaml.Node) error {
 	switch y.ShortTag() {
 	case "!!str":
-		t, err := time.Parse(`"2006-01-02"`, y.Value)
+		val := strings.TrimSuffix(strings.TrimPrefix(y.Value, `"`), `"`)
+		t, err := time.Parse(`2006-01-02`, val)
 		if err != nil {
 			return err
 		}
@@ -221,8 +226,6 @@ func (d *Date) UnmarshalYAML(y *yaml.Node) error {
 		d.Time = t
 		return nil
 	}
-
-	fmt.Println(y.Value, y.ShortTag())
 
 	return fmt.Errorf("dates need to be in the format YYYY-MM-DD")
 }
