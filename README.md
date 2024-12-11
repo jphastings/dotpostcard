@@ -11,6 +11,12 @@ See them in use at:
 $ go install github.com/jphastings/dotpostcard/cmd/postcards@latest
 ```
 
+Or, if you have [Homebrew](https://brew.sh) installed:
+
+```sh
+$ brew install jphastings/tools/postcards
+```
+
 ## Usage
 
 To make your first postcard file you should scan both sides of your postcard, its "comonents".
