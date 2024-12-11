@@ -118,5 +118,8 @@ var SamplePostcard = types.Postcard{
 	Back:  testImages["back-landscape.png"],
 }
 
-//go:embed samplexmp.xml
+//go:embed sample-meta.xmp
 var SampleXMP []byte
+
+//go:embed sample-meta.yaml
+var SampleYAML []byte
