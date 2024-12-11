@@ -46,6 +46,10 @@ func TestEncode(t *testing.T) {
 func TestDecode(t *testing.T) {
 	ex := testhelpers.SamplePostcard.Meta
 
+	// As XMP comes from an image the secrets will have been prehidden
+	ex.Front.Secrets[0].Prehidden = true
+	ex.Back.Secrets[0].Prehidden = true
+
 	// Postcard XMP isn't expected to hold size data
 	ex.Physical.FrontDimensions = types.Size{}
 	bnd := bundle{r: bytes.NewReader(testhelpers.SampleXMP)}

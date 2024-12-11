@@ -1,49 +1,49 @@
 locale: en-GB
 location:
-  name: Front, Italy
-  latitude: 45.28
-  longitude: 7.66
+    name: Front, Italy
+    latitude: 45.28
+    longitude: 7.66
 flip: book
 sent_on: "2006-01-02"
 sender:
-  name: Alice
-  link: https://alice.example.com
+    name: Alice
+    link: https://alice.example.com
 recipient:
-  name: Bob
-  link: https://bob.example.org
+    name: Bob
+    link: https://bob.example.org
 front:
-  description: The word 'Front' in large blue letters
-  transcription: Front
-  secrets:
-  - type: polygon
-    prehidden: true
-    points:
-      - [0.300000, 0.600000]
-      - [0.300000, 0.800000]
-      - [0.400000, 0.800000]
-      - [0.400000, 0.600000]
+    description: The word 'Front' in large blue letters
+    transcription: Front
+    secrets:
+        - type: polygon
+          prehidden: false
+          points:
+            - [0.300000, 0.600000]
+            - [0.400000, 0.600000]
+            - [0.400000, 0.800000]
+            - [0.300000, 0.800000]
 back:
-  description: The word 'Back' in large red letters
-  transcription:
-    text: Back
-    annotations:
-    - type: locale
-      value: en-GB
-      start: 0
-      end: 4
-  secrets:
-  - type: polygon
-    prehidden: true
-    points:
-      - [0.000000, 0.000000]
-      - [0.000000, 0.400000]
-      - [0.100000, 0.400000]
-      - [0.100000, 0.000000]
+    description: The word 'Back' in large red letters
+    transcription:
+        text: Back
+        annotations:
+            - type: locale
+              value: en-GB
+              start: 0
+              end: 4
+    secrets:
+        - type: polygon
+          prehidden: false
+          points:
+            - [0.000000, 0.000000]
+            - [0.100000, 0.000000]
+            - [0.100000, 0.400000]
+            - [0.000000, 0.400000]
 context:
-  author:
-    name: Carol
-    link: https://carol.example.net
-  description: This is a sample postcard, with all fields expressed.
+    author:
+        name: Carol
+        link: https://carol.example.net
+    description: This is a sample postcard, with all fields expressed.
 physical:
-  front_size: 14.80cm x 10.50cm
-  thickness_mm: 0.4
+    front_size: 14.80cm x 10.50cm
+    thickness_mm: 0.4

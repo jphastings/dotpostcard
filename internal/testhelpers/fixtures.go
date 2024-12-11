@@ -66,12 +66,11 @@ var SamplePostcard = types.Postcard{
 				Text: "Front",
 			},
 			Secrets: []types.Polygon{{
-				Prehidden: true,
 				Points: []types.Point{
 					{0.3, 0.6},
-					{0.3, 0.8},
-					{0.4, 0.8},
 					{0.4, 0.6},
+					{0.4, 0.8},
+					{0.3, 0.8},
 				},
 			}},
 		},
@@ -87,12 +86,11 @@ var SamplePostcard = types.Postcard{
 				}},
 			},
 			Secrets: []types.Polygon{{
-				Prehidden: true,
 				Points: []types.Point{
 					{0, 0},
-					{0, 0.4},
-					{0.1, 0.4},
 					{0.1, 0},
+					{0.1, 0.4},
+					{0, 0.4},
 				},
 			}},
 		},
@@ -114,8 +112,8 @@ var SamplePostcard = types.Postcard{
 			ThicknessMM: 0.4,
 		},
 	},
-	Front: testImages["front-landscape.png"],
-	Back:  testImages["back-landscape.png"],
+	Front: testImages["sample-front.png"],
+	Back:  testImages["sample-back.png"],
 }
 
 //go:embed sample-meta.xmp
