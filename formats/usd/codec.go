@@ -151,7 +151,7 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 	usdFilename := pc.Name + extension
 
 	// Grab the filename of the texture image, as it might be JPG or PNG
-	webImg, _ := web.Codec("jpg", "png")
+	webImg, _ := web.Codec("jpeg", "png")
 	fws, err := webImg.Encode(pc, opts)
 	if err != nil {
 		return nil, err

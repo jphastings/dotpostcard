@@ -11,6 +11,7 @@ import (
 
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/formats/xmp"
+	"github.com/jphastings/dotpostcard/internal/images"
 	"github.com/jphastings/dotpostcard/types"
 )
 
@@ -78,11 +79,11 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 
 		switch format {
 		case "webp":
-			err = writeWebP(w, combinedImg, xmpData, opts.Archival, pc.Meta.HasTransparency)
+			err = images.WriteWebP(w, combinedImg, xmpData, opts.Archival, pc.Meta.HasTransparency)
 		case "png":
-			err = writePNG(w, combinedImg, xmpData, opts.Archival)
-		case "jpg":
-			err = writeJPG(w, combinedImg, xmpData)
+			err = images.WritePNG(w, combinedImg, xmpData, opts.Archival)
+		case "jpeg":
+			err = images.WriteJPEG(w, combinedImg, xmpData)
 		default:
 			err = fmt.Errorf("unsupported output image format: %s", format)
 		}

@@ -14,6 +14,7 @@ before:
 
 builds:
   - main: ./cmd/postcards
+    id: postcards
     binary: postcards
     env:
       - CGO_ENABLED=0
@@ -21,9 +22,11 @@ builds:
       - linux
       - windows
       - darwin
+      - wasip1
     goarch:
       - amd64
       - arm64
+      - wasm
     ldflags:
       - -s -w -X "main.Date={{.CommitDate}}"
 universal_binaries:

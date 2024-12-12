@@ -38,4 +38,4 @@
 - [x] Decode USD & USDZ #usd
 - [x] Creating a USD(Z) from an image that doesn't have resolution data (eg front/back portrait fixtures) seems to nil pointer fail. #bug
 - [x] Get this CLI tool building automatically
-- [x] Web (webp) with transparency not convertable (eg. to USD) #bug
+- [x] Web (webp) with transparency not convertible (eg. to USD) #bug

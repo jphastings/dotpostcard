@@ -13,10 +13,14 @@ type Postcard struct {
 }
 
 func (pc Postcard) Sides() int {
-	if pc.Back == nil {
+	switch {
+	case pc.Front == nil:
+		return 0
+	case pc.Back == nil:
 		return 1
+	default:
+		return 2
 	}
-	return 2
 }
 
 type Location struct {

@@ -8,14 +8,18 @@ See them in use at:
 ## Install
 
 ```sh
-$ go install github.com/jphastings/dotpostcard/cmd/postcards@latest
+go install github.com/jphastings/dotpostcard/cmd/postcards@latest
 ```
 
-Or, if you have [Homebrew](https://brew.sh) installed:
+If you have [Homebrew](https://brew.sh) installed:
 
 ```sh
-$ brew install jphastings/tools/postcards
+brew install jphastings/tools/postcards
 ```
+
+You can also download compiled binaries from [Github releases](https://github.com/jphastings/dotpostcard/releases/) for Windows, Linux, macOS — each of which is provided for arm64 and amd64 architectures.
+
+WASIp1 compatible WASM executables are also provided with a reduced feature set (notably more efficient image encoders, WebP and JPEGli, are absent).
 
 ## Usage
 

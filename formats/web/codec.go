@@ -23,7 +23,7 @@ var _ formats.Codec = codec{}
 
 type codec struct {
 	// This holds a list of formats, the first will be tried, and if it's unsuitable, the next etc.
-	// This is particularly useful for transparency. Eg. A `web.Codec("jpg", "webp")` would save as jpg
+	// This is particularly useful for transparency. Eg. A `web.Codec("jpeg", "webp")` would save as jpg
 	// if there is no transparency, and WebP if there is transparency to encode, or if "archival" was
 	// specified (as JPEG can't encode images losslessly).
 	formats []string
@@ -54,7 +54,7 @@ func (c capabilities) String() string {
 }
 
 var formatCapabilities = map[string]capabilities{
-	"jpg":  {},
+	"jpeg": {},
 	"webp": {lossless: true, transparency: true},
 	"png":  {lossless: true, transparency: true},
 }
@@ -77,6 +77,6 @@ func Codec(format string, altFormats ...string) (formats.Codec, error) {
 	return codec{formats: fmts}, nil
 }
 
-var DefaultCodec, _ = Codec("jpg", "webp")
+var DefaultCodec, _ = Codec("jpeg", "webp")
 
 func (c codec) Name() string { return codecName }
