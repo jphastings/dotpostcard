@@ -43,6 +43,6 @@ func (c codec) Encode(pc types.Postcard, _ *formats.EncodeOptions) ([]formats.Fi
 	}
 
 	return []formats.FileWriter{
-		formats.NewFileWriter(name, writer),
+		formats.NewFileWriter(name, "text/html", writer),
 	}, nil
 }

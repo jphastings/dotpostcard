@@ -7,7 +7,6 @@ import (
 	"io"
 	"io/fs"
 	"path"
-	"slices"
 	"strings"
 
 	"github.com/jphastings/dotpostcard/formats"
@@ -24,37 +23,42 @@ var GuideYAML string
 var _ formats.Bundle = bundle{}
 
 type bundle struct {
-	ext     MetadataType
+	mt      MetadataType
 	file    fs.File
 	refPath string
 }
 
 var _ formats.Codec = codec{}
 
-type codec struct{ ext MetadataType }
+type codec MetadataType
 
-type MetadataType string
+type MetadataType struct {
+	Extension string
+	Mimetype  string
+	HumanName string
+}
 
-var AsJSON MetadataType = ".json"
-var AsYAML MetadataType = ".yaml"
-var AsXMP MetadataType = ".xmp"
+var AsJSON = MetadataType{".json", "application/json", "JSON " + codecName}
+var AsYAML = MetadataType{".yaml", "application/yaml", "YAML " + codecName}
+var AsXMP = MetadataType{".xmp", xmp.Mimetype, "XMP " + codecName}
 
-var Extensions = []string{".json", ".yaml", ".yml", ".xmp"}
+var Extensions = []string{AsJSON.Extension, AsYAML.Extension, AsXMP.Extension}
 
-func Codec(ext MetadataType) formats.Codec { return codec{ext: ext} }
-
-func (c codec) Name() string {
-	switch c.ext {
-	case AsJSON:
-		return "JSON " + codecName
-	case AsYAML:
-		return "YAML " + codecName
-	case AsXMP:
-		return "XMP " + codecName
+func ExtToMediaType(ext string) (MetadataType, bool) {
+	switch ext {
+	case AsJSON.Extension:
+		return AsJSON, true
+	case AsYAML.Extension:
+		return AsYAML, true
+	case AsXMP.Extension:
+		return AsXMP, true
 	default:
-		return codecName
+		return MetadataType{}, false
 	}
 }
+
+func Codec(mt MetadataType) formats.Codec { return codec(mt) }
+func (c codec) Name() string              { return c.HumanName }
 
 func BundleFromFile(file fs.File, dirPath string) (formats.Bundle, error) {
 	info, err := file.Stat()
@@ -63,11 +67,12 @@ func BundleFromFile(file fs.File, dirPath string) (formats.Bundle, error) {
 	}
 	filename := info.Name()
 	ext := path.Ext(filename)
-	if !slices.Contains(Extensions, ext) {
+	mt, ok := ExtToMediaType(ext)
+	if !ok {
 		return nil, fmt.Errorf("unknown metadata extension '%s'", ext)
 	}
 
-	return bundle{file: file, ext: MetadataType(ext), refPath: path.Join(dirPath, filename)}, nil
+	return bundle{file: file, mt: mt, refPath: path.Join(dirPath, filename)}, nil
 }
 
 func (c codec) Bundle(group formats.FileGroup) ([]formats.Bundle, []fs.File, error) {
@@ -75,8 +80,8 @@ func (c codec) Bundle(group formats.FileGroup) ([]formats.Bundle, []fs.File, err
 	var remaining []fs.File
 
 	for _, file := range group.Files {
-		if filename, ok := formats.HasFileSuffix(file, string(c.ext)); ok {
-			bundles = append(bundles, bundle{file: file, ext: c.ext, refPath: path.Join(group.DirPath, filename)})
+		if filename, ok := formats.HasFileSuffix(file, string(c.Extension)); ok {
+			bundles = append(bundles, bundle{file: file, mt: MetadataType(c), refPath: path.Join(group.DirPath, filename)})
 		} else {
 			remaining = append(remaining, file)
 		}
@@ -87,13 +92,9 @@ func (c codec) Bundle(group formats.FileGroup) ([]formats.Bundle, []fs.File, err
 
 // The structure information is stored in the internal/types/postcard.go file, because Go.
 func (c codec) Encode(pc types.Postcard, _ *formats.EncodeOptions) ([]formats.FileWriter, error) {
-	if c.ext != AsJSON && c.ext != AsYAML && c.ext != AsXMP {
-		return nil, fmt.Errorf("unknown metadata format '%s'", c.ext)
-	}
-
-	name := fmt.Sprintf("%s-meta%s", pc.Name, c.ext)
+	name := fmt.Sprintf("%s-meta%s", pc.Name, c.Extension)
 	writer := func(w io.Writer) error {
-		switch c.ext {
+		switch MetadataType(c) {
 		case AsJSON:
 			return json.NewEncoder(w).Encode(pc.Meta)
 		case AsYAML:
@@ -106,17 +107,17 @@ func (c codec) Encode(pc types.Postcard, _ *formats.EncodeOptions) ([]formats.Fi
 			_, err = w.Write(xmp)
 			return err
 		default:
-			return fmt.Errorf("unknown metadata format '%s'", c.ext)
+			return fmt.Errorf("cannot encode '%s'", c.HumanName)
 		}
 	}
 
-	return []formats.FileWriter{formats.NewFileWriter(name, writer)}, nil
+	return []formats.FileWriter{formats.NewFileWriter(name, c.Mimetype, writer)}, nil
 }
 
 func (b bundle) Decode(_ formats.DecodeOptions) (types.Postcard, error) {
 	var pc types.Postcard
 	var err error
-	switch b.ext {
+	switch b.mt {
 	case AsJSON:
 		err = json.NewDecoder(b.file).Decode(&pc.Meta)
 	case AsYAML:
@@ -124,10 +125,10 @@ func (b bundle) Decode(_ formats.DecodeOptions) (types.Postcard, error) {
 	case AsXMP:
 		pc.Meta, err = xmp.MetadataFromXMP(b.file)
 	default:
-		return types.Postcard{}, fmt.Errorf("unknown metadata format '%s'", b.ext)
+		return types.Postcard{}, fmt.Errorf("cannot decode '%s'", b.mt.HumanName)
 	}
 
-	pc.Name = strings.TrimSuffix(path.Base(b.refPath), "-meta"+string(b.ext))
+	pc.Name = strings.TrimSuffix(path.Base(b.refPath), "-meta"+string(b.mt.Extension))
 
 	if err != nil {
 		err = fmt.Errorf("error decoding %s: %w", b.refPath, err)

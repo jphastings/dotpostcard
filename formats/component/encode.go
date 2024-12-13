@@ -5,8 +5,8 @@ import (
 	"image"
 	"io"
 
-	"git.sr.ht/~jackmordaunt/go-libwebp/webp"
 	"github.com/jphastings/dotpostcard/formats"
+	"github.com/jphastings/dotpostcard/internal/images"
 	"github.com/jphastings/dotpostcard/types"
 	"golang.org/x/image/draw"
 )
@@ -18,7 +18,7 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 	encImg := func(side image.Image) func(io.Writer) error {
 		return func(w io.Writer) error {
 			if opts != nil && opts.Archival {
-				return webp.Encode(w, side, webp.Lossless())
+				return images.WriteWebP(w, side, nil, true, pc.Meta.HasTransparency)
 			}
 
 			startSize := side.Bounds()
@@ -41,15 +41,15 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 				side = resizedImg
 			}
 
-			return webp.Encode(w, side, webp.Quality(75))
+			return images.WriteWebP(w, side, nil, opts.Archival, pc.Meta.HasTransparency)
 		}
 	}
 
 	frontName := fmt.Sprintf("%s-front.webp", pc.Name)
-	frontW := formats.NewFileWriter(frontName, encImg(pc.Front))
+	frontW := formats.NewFileWriter(frontName, "image/webp", encImg(pc.Front))
 
 	backName := fmt.Sprintf("%s-back.webp", pc.Name)
-	backW := formats.NewFileWriter(backName, encImg(pc.Back))
+	backW := formats.NewFileWriter(backName, "image/webp", encImg(pc.Back))
 
 	return []formats.FileWriter{frontW, backW}, nil
 }

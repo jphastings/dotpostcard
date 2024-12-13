@@ -114,6 +114,6 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 
 	usdzFilename := pc.Name + ".postcard.usdz"
 	return []formats.FileWriter{
-		formats.NewFileWriter(usdzFilename, writeUSDZ),
+		formats.NewFileWriter(usdzFilename, "model/vnd.usdz+zip", writeUSDZ),
 	}, nil
 }

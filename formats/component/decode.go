@@ -22,6 +22,11 @@ import (
 )
 
 func (b bundle) Decode(opts formats.DecodeOptions) (types.Postcard, error) {
+	defer b.frontFile.Close()
+	if b.backFile != nil {
+		defer b.backFile.Close()
+	}
+
 	pc, err := b.metaBundle.Decode(opts)
 	if err != nil {
 		return types.Postcard{}, err
@@ -71,7 +76,7 @@ func (b bundle) Decode(opts formats.DecodeOptions) (types.Postcard, error) {
 		pc.Meta.Physical.FrontDimensions.CmHeight = forcedSize.CmHeight
 	}
 
-	if err := validateMetadata(pc); err != nil {
+	if err := pc.Validate(); err != nil {
 		return types.Postcard{}, err
 	}
 

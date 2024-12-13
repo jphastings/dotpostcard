@@ -13,7 +13,8 @@ before:
     - go mod tidy
 
 builds:
-  - main: ./cmd/postcards
+  -
+    main: ./cmd/postcards
     id: postcards
     binary: postcards
     env:
@@ -29,10 +30,33 @@ builds:
       - wasm
     ldflags:
       - -s -w -X "main.Date={{.CommitDate}}"
-universal_binaries:
-  - name_template: postcards
-    id: mac-universal
-    replace: true
+  -
+    main: ./cmd/postoffice-serviceworker
+    id: postoffice-serviceworker
+    binary: postoffice-serviceworker
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - js
+    goarch:
+      - wasm
+  # It's important the postoffice native binary is built after the WASM blob
+  # As the WASM blob is baked into this server as part of an embed directive
+  -
+    main: ./cmd/postoffice
+    id: postoffice
+    binary: postoffice
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+      - wasip1
+    goarch:
+      - amd64
+      - arm64
+      - wasm
 
 archives:
   - format: tar.gz

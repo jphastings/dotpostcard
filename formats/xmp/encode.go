@@ -11,6 +11,8 @@ import (
 	"github.com/jphastings/dotpostcard/types"
 )
 
+const Mimetype = "application/x-xmp"
+
 func (c codec) Encode(pc types.Postcard, _ *formats.EncodeOptions) ([]formats.FileWriter, error) {
 	filename := fmt.Sprintf("%s-meta.xmp", pc.Name)
 	writer := func(w io.Writer) error {
@@ -22,7 +24,7 @@ func (c codec) Encode(pc types.Postcard, _ *formats.EncodeOptions) ([]formats.Fi
 			return err
 		}
 	}
-	fw := formats.NewFileWriter(filename, writer)
+	fw := formats.NewFileWriter(filename, Mimetype, writer)
 
 	return []formats.FileWriter{fw}, nil
 }

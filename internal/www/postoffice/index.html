@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Postbox</title>
+    <script src="postoffice.js"></script>
+  </head>
+  <body>
+    <h1>Postbox</h1>
+    <form id="postcard-input" action="/compile/" method="POST" enctype="multipart/form-data">
+      <input type="file" name="front" accept=".jpg, .jpeg, .png, .webp" required>
+      <input type="file" name="back" accept=".jpg, .jpeg, .png, .webp">
+
+      <label><input type="checkbox" name="remove-border">Try to remove mono-coloured background</label>
+      <label><input type="checkbox" name="ignore-transparency">Force non-transparent</label>
+      <label><input type="checkbox" name="archival">Make archival (lossless) version</label>
+
+      <input type="text" name="name">
+      <fieldset>
+        <legend>How does the postcard flip?</legend>
+        <label><input type="radio" name="flip" value="">One sided</label>
+        <label><input type="radio" name="flip" value="book">Like a book</label>
+        <label><input type="radio" name="flip" value="calendar">Like a calendar</label>
+        <label><input type="radio" name="flip" value="left-hand">Holding in the left hand</label>
+        <label><input type="radio" name="flip" value="right-hand">Holding in the right hand</label>
+      </fieldset>
+
+      <fieldset>
+        <legend>What format would you like?</legend>
+        <label><input type="radio" name="codec-choice" value="web">Web-based image</label>
+        <label><input type="radio" name="codec-choice" value="usdz">USDZ</label>
+      </fieldset>
+    
+      <button type="submit">Create Postcard</button>
+    </form>
+
+    <div id="output" style="max-width:40vw;margin: auto; display: none;">
+      <style></style>
+      <div class="postcard-html"></div>
+      <a class="postcard-download">Download</a>
+    </div>
+  </body>
+</html>

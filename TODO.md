@@ -17,6 +17,7 @@
 - [ ] Don't re-encode same-same format. (eg. USDZ to Web(no alpha, lossy); Web to Web)
 - [ ] Show warning when using fallback size to generate USDZ
 - [ ] Show warning when losing information on conversion (are there any of these cases now?)
+- [ ] Get HTML format to output the _right_ image extension (perhaps provide argument for what to add into templates?)
 
 ## Done
 

@@ -165,6 +165,7 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 	ext := path.Ext(fw.Filename)
 	sideFilename := strings.TrimSuffix(fw.Filename, ext) + "-texture" + ext
 	writeImage := func(w io.Writer) error { return fw.WriteTo(w) }
+	imageMimetype := fw.Mimetype
 
 	writeUSD := func(w io.Writer) error {
 		maxX, maxY := pc.Meta.Physical.FrontDimensions.MustPhysical()
@@ -226,7 +227,7 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 	}
 
 	return []formats.FileWriter{
-		formats.NewFileWriter(usdFilename, writeUSD),
-		formats.NewFileWriter(sideFilename, writeImage),
+		formats.NewFileWriter(usdFilename, "model/vnd.usda", writeUSD),
+		formats.NewFileWriter(sideFilename, imageMimetype, writeImage),
 	}, nil
 }

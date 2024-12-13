@@ -3,10 +3,12 @@ package component
 import (
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/formats/metadata"
+	"github.com/jphastings/dotpostcard/types"
 )
 
 const codecName = "Component files"
@@ -19,12 +21,16 @@ var (
 
 var _ formats.Bundle = bundle{}
 
+type decoder interface {
+	Decode(formats.DecodeOptions) (types.Postcard, error)
+}
+
 type bundle struct {
 	name       string
 	refPath    string
-	frontFile  fs.File
-	backFile   fs.File
-	metaBundle formats.Bundle
+	frontFile  io.ReadCloser
+	backFile   io.ReadCloser
+	metaBundle decoder
 }
 
 var _ formats.Codec = codec{}
