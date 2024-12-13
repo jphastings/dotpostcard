@@ -1,3 +1,9 @@
+## 0.5.0 (2024-12-13)
+
+### Feat
+
+- :children_crossing: Allow USDZ creation without OpenUSD
+
 ## 0.4.0 (2024-12-11)
 
 ### Feat
