@@ -2,11 +2,9 @@
 
 An ASCII formatted USD file, and its texture. The components of a compiled [USDZ file](usdz.md).
 
-> [!WARNING]
-> On macOS (at least) the tap-to-flip gesture only functions from within a [USDZ file](usdz.md).
-
 > [!TIP]
-> If you meet the requirements of `usdz` output (you have the `usdzip` tool installed) then you probably want that format, not this one!
+> On macOS (at least) the tap-to-flip gesture only functions from within a [USDZ file](usdz.md), you probably want that format, not this one!
+
 
 ## Example
 

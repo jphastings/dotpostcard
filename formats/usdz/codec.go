@@ -2,13 +2,11 @@ package usdz
 
 import (
 	"archive/zip"
-	"bytes"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"io/fs"
-	"os"
-	"os/exec"
 	"path"
 	"strings"
 
@@ -79,53 +77,36 @@ func usdzToTextureFile(file fs.File) (fs.File, error) {
 
 func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats.FileWriter, error) {
 	writeUSDZ := func(w io.Writer) error {
-		usdzip, err := exec.LookPath("usdzip")
-		if err != nil {
-			return fmt.Errorf("unable to find the usdzip executable in PATH: %w", err)
-		}
-
-		tempDir, err := os.MkdirTemp("", "postcards-usdz-*")
-		if err != nil {
-			return fmt.Errorf("unable to create temporary directory to compress USD: %w", err)
-		}
-		defer os.RemoveAll(tempDir)
-
-		outTmpFilename := "out.usdz"
-		args := []string{outTmpFilename}
 		fws, err := usd.Codec().Encode(pc, opts)
 		if err != nil {
 			return err
 		}
 
+		zw := zip.NewWriter(w)
+		defer zw.Close()
+
 		for _, fw := range fws {
-			fname, err := fw.WriteFile(tempDir, true)
+			b, err := fw.Bytes()
 			if err != nil {
-				return fmt.Errorf("unable to write USD component files to temporary directory: %w", err)
+				return err
 			}
-			args = append(args, fname)
-		}
 
-		var stderr bytes.Buffer
-		cmd := exec.Command(usdzip, args...)
-		cmd.Dir = tempDir
-		cmd.Stderr = &stderr
-
-		if err := cmd.Run(); err != nil {
-			errOut := stderr.String()
-			if len(errOut) > 0 {
-				err = errors.Join(fmt.Errorf("unable to run usdzip: %w", err), fmt.Errorf("usdzip error: %s", errOut))
+			zipFileHeader := &zip.FileHeader{
+				Name:               fw.Filename,
+				Method:             zip.Store,
+				CRC32:              crc32.ChecksumIEEE(b),
+				CompressedSize64:   uint64(len(b)),
+				UncompressedSize64: uint64(len(b)),
 			}
-			return fmt.Errorf("unable to compress USD into USDZ - error calling usdzip: %w", err)
-		}
 
-		f, err := os.Open(path.Join(tempDir, outTmpFilename))
-		if err != nil {
-			return fmt.Errorf("temporary USDZ file couldn't be openned: %w", err)
-		}
-		defer f.Close()
+			f, err := zw.CreateRaw(zipFileHeader)
+			if err != nil {
+				return err
+			}
 
-		if _, err := io.Copy(w, f); err != nil {
-			return fmt.Errorf("unable to move USDZ from temporary location: %w", err)
+			if _, err := f.Write(b); err != nil {
+				return err
+			}
 		}
 
 		return nil
