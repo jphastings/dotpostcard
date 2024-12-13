@@ -1,8 +1,3 @@
-# This is an example .goreleaser.yml file with some sensible defaults.
-# Make sure to check the documentation at https://goreleaser.com
-
-# The lines below are called `modelines`. See `:help modeline`
-# Feel free to remove those if you don't want/need to use them.
 # yaml-language-server: $schema=https://goreleaser.com/static/schema.json
 # vim: set ts=2 sw=2 tw=0 fo=cnqoj
 
@@ -41,7 +36,8 @@ builds:
     goarch:
       - wasm
   # It's important the postoffice native binary is built after the WASM blob
-  # As the WASM blob is baked into this server as part of an embed directive
+  # As the WASM blob is baked into this server as part of an embed directive.
+  # This needs to be done by calling goreleaser twice, specifying IDs to build.
   -
     main: ./cmd/postoffice
     id: postoffice
@@ -52,11 +48,9 @@ builds:
       - linux
       - windows
       - darwin
-      - wasip1
     goarch:
       - amd64
       - arm64
-      - wasm
 
 archives:
   - format: tar.gz
