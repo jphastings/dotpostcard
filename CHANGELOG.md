@@ -1,3 +1,9 @@
+## 0.6.3 (2024-12-14)
+
+### Fix
+
+- 👷‍♂️ Correct order of builds in Github Actions
+
 ## 0.6.2 (2024-12-14)
 
 ### Fix
