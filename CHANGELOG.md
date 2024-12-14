@@ -1,3 +1,9 @@
+## 0.6.7 (2024-12-14)
+
+### Fix
+
+- Ensure binaries have the same count
+
 ## 0.6.6 (2024-12-14)
 
 ### Fix
