@@ -97,6 +97,9 @@ release:
   draft: false
 brews:
 - name: postcards
+  ids:
+    - postcards
+    - postoffice
   repository:
     owner: jphastings
     name: homebrew-tools
