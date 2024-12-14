@@ -8,6 +8,7 @@ import (
 	"net/textproto"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/formats/component"
@@ -95,6 +96,27 @@ func requestToPostcard(codecChoices CodecChoices, r *http.Request) (types.Postca
 
 	meta.Name = r.FormValue("name")
 	meta.Flip = types.Flip(r.FormValue("flip"))
+	meta.Location.SetStrings(
+		r.FormValue("location.name"),
+		r.FormValue("location.latitude"),
+		r.FormValue("location.longitude"),
+	)
+
+	if t, err := time.Parse(`2006-01-02`, r.FormValue("sent-on")); err == nil {
+		meta.SentOn = types.Date{Time: t}
+	}
+
+	meta.Sender.Scan(r.FormValue("sender"))
+	meta.Recipient.Scan(r.FormValue("recipient"))
+
+	meta.Front.Description = r.FormValue("front.description")
+	meta.Back.Description = r.FormValue("back.description")
+
+	meta.Front.Transcription.Text = r.FormValue("front.transcription.text")
+	meta.Back.Transcription.Text = r.FormValue("back.transcription.text")
+
+	meta.Context.Description = r.FormValue("context.description")
+	meta.Context.Author.Scan(r.FormValue("context.author"))
 
 	frontR, nameGuess, err := formToFile(r.MultipartForm.File["front"])
 	if err != nil {

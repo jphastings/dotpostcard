@@ -7,14 +7,28 @@
   <body>
     <h1>Postbox</h1>
     <form id="postcard-input" action="/compile/" method="POST" enctype="multipart/form-data">
-      <input type="file" name="front" accept=".jpg, .jpeg, .png, .webp" required>
-      <input type="file" name="back" accept=".jpg, .jpeg, .png, .webp">
+      <label>
+        Image for the front of the postcard
+        <input type="file" name="front" accept=".jpg, .jpeg, .png, .webp" required>
+      </label>
+      <label>
+        Image for the back of the postcard (ignore for single sided cards)
+        <input type="file" name="back" accept=".jpg, .jpeg, .png, .webp">
+      </label>
 
-      <label><input type="checkbox" name="remove-border">Try to remove mono-coloured background</label>
-      <label><input type="checkbox" name="ignore-transparency">Force non-transparent</label>
-      <label><input type="checkbox" name="archival">Make archival (lossless) version</label>
+      <label>
+        Try to remove mono-coloured background
+        <input type="checkbox" name="remove-border">
+      </label>
+      <label>
+        Force non-transparent
+        <input type="checkbox" name="ignore-transparency">
+      </label>
+      <label>
+        Make archival (lossless) version
+        <input type="checkbox" name="archival">
+      </label>
 
-      <input type="text" name="name">
       <fieldset>
         <legend>How does the postcard flip?</legend>
         <label><input type="radio" name="flip" value="">One sided</label>
@@ -23,6 +37,79 @@
         <label><input type="radio" name="flip" value="left-hand">Holding in the left hand</label>
         <label><input type="radio" name="flip" value="right-hand">Holding in the right hand</label>
       </fieldset>
+
+      <fieldset>
+        <legend>Where was the postcard sent from?</legend>
+        <label>
+          Name
+          <input type="text" name="location.name">
+        </label>
+        <label>
+          Latitude
+          <input type="number" name="location.latitude" min="-90" max="90">
+        </label>
+        <label>
+          Longitude
+          <input type="number" name="location.longitude" min="-180" max="180">
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>When & who?</legend>
+        <label>
+          When was the postcard sent?
+          <input type="date" name="sent-on">
+        </label>
+
+        <label>
+          Who was the sender?
+          <input type="text" name="sender">
+        </label>
+        <label>
+          Who was the recipient?
+          <input type="text" name="recipient">
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>About the front</legend>
+        <label>
+          Describe the front (alt text)
+          <input type="text" name="front.description">
+        </label>
+        <!-- TODO: Make this rich text & add annotations -->
+        <label>
+          Transcribe any message on the front
+          <textarea name="front.transcription.text"></textarea>
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>About the back</legend>
+        <label>
+          Describe the back (alt-text)
+          <input type="text" name="back.description">
+        </label>
+        <!-- TODO: Make this rich text & add annotations -->
+        <label>
+          Transcribe any message on the back
+          <textarea name="back.transcription.text"></textarea>
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Additional context</legend>
+        <label>
+          Any context about the postcard?
+          <textarea name="context.description"></textarea>
+        </label>
+        <label>
+          Who is the author of the context?
+          <input type="text" name="context.author">
+        </label>
+      </fieldset>
+
+      <hr />
 
       <fieldset>
         <legend>What format would you like?</legend>

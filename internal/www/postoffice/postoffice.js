@@ -11,7 +11,9 @@ document.addEventListener("DOMContentLoaded", () => {
 })
 
 async function processResult(res) {
-  if (res.headers.get('Content-Type') == "multipart/form") {
+  const mimeType = res.headers.get('Content-Type').split(';')[0]
+  debugger
+  if (mimeType == 'multipart/form-data') {
     const fd = await res.formData()
     displayPostcard(fd.values())
   } else {
@@ -32,9 +34,15 @@ function extractFilename(res) {
   return matches[2]
 }
 
-function onlyOk(res) {
+async function onlyOk(res) {
   if (!res.ok) {
-    throw new Error(`Unusable HTTP response: ${res.res.statusText}`)
+    const body = await res.text().catch()
+    if (res.status == 400) {
+      throw new Error(body)
+    } else {
+      throw new Error(`Unusable HTTP response (${res.status}): ${body}`)
+    }
+    
   }
   return res
 }

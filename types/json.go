@@ -12,7 +12,6 @@ func (d *Date) UnmarshalJSON(b []byte) (err error) {
 		return nil
 	}
 
-	// Specify your custom layout here
 	d.Time, err = time.Parse(`"2006-01-02"`, str)
 	return err
 }

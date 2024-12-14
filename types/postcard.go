@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 	"image"
+	"strconv"
 )
 
 type Postcard struct {
@@ -35,6 +36,42 @@ func (l Location) String() string {
 	}
 
 	return fmt.Sprintf("%s (%.5f,%.5f)", l.Name, *l.Latitude, *l.Longitude)
+}
+
+func (l *Location) SetStrings(name, lat, lng string) {
+	l.Name = name
+	if name == "" {
+		l.Latitude = nil
+		l.Longitude = nil
+		return
+	}
+
+	latF, err := strconv.ParseFloat(lat, 64)
+	if err != nil {
+		l.Latitude = nil
+		l.Longitude = nil
+		return
+	}
+	if latF < -90 || latF > 90 {
+		l.Latitude = nil
+		l.Longitude = nil
+		return
+	}
+
+	lngF, err := strconv.ParseFloat(lng, 64)
+	if err != nil {
+		l.Latitude = nil
+		l.Longitude = nil
+		return
+	}
+	if latF < -180 || latF > 180 {
+		l.Latitude = nil
+		l.Longitude = nil
+		return
+	}
+
+	l.Latitude = &latF
+	l.Longitude = &lngF
 }
 
 type Polygon struct {
