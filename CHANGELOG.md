@@ -1,3 +1,9 @@
+## 0.6.1 (2024-12-14)
+
+### Fix
+
+- :construction_worker: Don;t push service worker to homebrew
+
 ## 0.6.0 (2024-12-14)
 
 ### Feat
