@@ -1,3 +1,14 @@
+## 0.6.0 (2024-12-14)
+
+### Feat
+
+- :construction: Add web-based postcard maker, including WASM
+- :construction: Support WASM as compilation target
+
+### Fix
+
+- Add inputs for all postcard metadata
+
 ## 0.5.0 (2024-12-13)
 
 ### Feat
