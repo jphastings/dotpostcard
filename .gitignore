@@ -1,3 +1,5 @@
 
 dist/
 .vscode/launch.json
+# This needs to be excluded or the release can't function (as the git state will be inconsistent)
+internal/www/postoffice/postoffice-serviceworker.wasm
