@@ -1,3 +1,9 @@
+## 0.6.6 (2024-12-14)
+
+### Fix
+
+- Remove unneeded rm command in build
+
 ## 0.6.5 (2024-12-14)
 
 ### Fix
