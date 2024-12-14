@@ -44,21 +44,21 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: Run GoReleaser (postcards, postoffice-serviceworker)
+      - name: Build postoffice-serviceworker
         uses: goreleaser/goreleaser-action@v6
         with:
           version: "~> v2"
-          args: release --clean --id=postcards --id=postoffice-serviceworker
+          args: build --clean --id=postcards --id=postoffice-serviceworker
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-      - name: Copy Serviceworker WASM ready for postoffice build
+      - name: Move Serviceworker WASM ready for postoffice build
         run: |
           rm internal/www/postoffice/postoffice-serviceworker.wasm
-          cp dist/postoffice-serviceworker_js_wasm/postoffice-serviceworker.wasm internal/www/postoffice/postoffice-serviceworker.wasm
-      - name: Run GoReleaser (postoffice)
+          mv dist/postoffice-serviceworker_js_wasm/postoffice-serviceworker.wasm internal/www/postoffice/postoffice-serviceworker.wasm
+      - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
           version: "~> v2"
-          args: release --clean --id=postoffice
+          args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
