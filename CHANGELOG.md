@@ -1,3 +1,9 @@
+## 0.7.0 (2024-12-14)
+
+### Feat
+
+- :lipstick: Add Underline annotation style
+
 ## 0.6.9 (2024-12-14)
 
 ### Fix
