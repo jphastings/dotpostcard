@@ -8,14 +8,16 @@ import (
 	"image/jpeg"
 	"io"
 
-	"git.sr.ht/~jackmordaunt/go-libwebp/webp"
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/formats/xmp"
+	"github.com/jphastings/dotpostcard/internal/images"
 	"github.com/jphastings/dotpostcard/pkg/xmpinject"
 	"github.com/jphastings/dotpostcard/types"
 )
 
 func (b bundle) Decode(decOpts formats.DecodeOptions) (types.Postcard, error) {
+	defer b.Close()
+
 	var dataCopy bytes.Buffer
 	t := io.TeeReader(b, &dataCopy)
 
@@ -28,7 +30,8 @@ func (b bundle) Decode(decOpts formats.DecodeOptions) (types.Postcard, error) {
 	var xmpDecoder func([]byte) ([]byte, error)
 	switch format {
 	case "webp":
-		imgDecoder = webp.Decode
+		// This function is defined in multiple files so we can keep the WebP package out of WASM builds.
+		imgDecoder = images.ReadWebP
 		xmpDecoder = xmpinject.XMPfromWebP
 	case "jpeg":
 		imgDecoder = jpeg.Decode
@@ -89,19 +92,4 @@ func (b bundle) Decode(decOpts formats.DecodeOptions) (types.Postcard, error) {
 	}
 
 	return pc, nil
-}
-
-// the goalang.org/x/image/webp decoder bugs out on Alpha layers; it gets Registered with the image package
-// when jackmordaunt's webp parser is loaded, but sits at the top of the pack — so using image.Decode to
-// decode automatically won't work (it uses golang.org version, which breaks) and using image.DecodeConfig
-// to get the format also fails (as that also uses the golang.org version, which breaks)
-// This slightly hacky approach means we can manually use only jackmordaunt's version
-func determineFormat(r io.Reader) (string, error) {
-	_, err := webp.DecodeConfig(r)
-	if err == nil {
-		return "webp", nil
-	}
-
-	_, format, err := image.Decode(r)
-	return format, err
 }

@@ -2,6 +2,7 @@ package component
 
 import (
 	"errors"
+	"io"
 	"io/fs"
 	"path"
 	"regexp"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/formats/metadata"
+	"github.com/jphastings/dotpostcard/types"
 )
 
 var usableExtensions = []string{".webp", ".png", ".jpg", ".jpeg", ".tif", ".tiff"}
@@ -91,4 +93,26 @@ func (b bundle) RefPath() string {
 
 func (b bundle) Name() string {
 	return codecName
+}
+
+type decodedMeta types.Metadata
+
+func (m decodedMeta) Decode(formats.DecodeOptions) (types.Postcard, error) {
+	return types.Postcard{Meta: types.Metadata(m)}, nil
+}
+
+func BundleFromReaders(meta types.Metadata, front io.ReadCloser, back ...io.ReadCloser) formats.Bundle {
+	b := bundle{
+		frontFile: front,
+		name:      meta.Name,
+		// TODO: is this right?
+		refPath:    ".",
+		metaBundle: decodedMeta(meta),
+	}
+
+	if len(back) >= 1 {
+		b.backFile = back[0]
+	}
+
+	return b
 }

@@ -17,6 +17,7 @@
 - [ ] Don't re-encode same-same format. (eg. USDZ to Web(no alpha, lossy); Web to Web)
 - [ ] Show warning when using fallback size to generate USDZ
 - [ ] Show warning when losing information on conversion (are there any of these cases now?)
+- [ ] Get HTML format to output the _right_ image extension (perhaps provide argument for what to add into templates?)
 
 ## Done
 
@@ -38,4 +39,4 @@
 - [x] Decode USD & USDZ #usd
 - [x] Creating a USD(Z) from an image that doesn't have resolution data (eg front/back portrait fixtures) seems to nil pointer fail. #bug
 - [x] Get this CLI tool building automatically
-- [x] Web (webp) with transparency not convertable (eg. to USD) #bug
+- [x] Web (webp) with transparency not convertible (eg. to USD) #bug

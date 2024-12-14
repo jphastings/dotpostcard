@@ -48,12 +48,14 @@ type Codec interface {
 type FileWriter struct {
 	fn       func(io.Writer) error
 	Filename string
+	Mimetype string
 }
 
 // NewFileWriter is a helper function for creating a read stream for the return values of Encoders
-func NewFileWriter(filename string, fn func(w io.Writer) error) FileWriter {
+func NewFileWriter(filename, mimetype string, fn func(w io.Writer) error) FileWriter {
 	return FileWriter{
 		Filename: filename,
+		Mimetype: mimetype,
 		fn:       fn,
 	}
 }

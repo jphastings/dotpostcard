@@ -11,10 +11,11 @@ import (
 
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/formats/xmp"
+	"github.com/jphastings/dotpostcard/internal/images"
 	"github.com/jphastings/dotpostcard/types"
 )
 
-func (c codec) pickFormat(meta types.Metadata, opts *formats.EncodeOptions) (string, error) {
+func (c codec) pickFormat(meta types.Metadata, opts *formats.EncodeOptions) (string, string, error) {
 	needs := capabilities{
 		transparency: meta.HasTransparency,
 		lossless:     (opts != nil) && opts.Archival,
@@ -28,18 +29,18 @@ func (c codec) pickFormat(meta types.Metadata, opts *formats.EncodeOptions) (str
 		}
 	}
 	if format == "" {
-		return "", fmt.Errorf(
+		return "", "", fmt.Errorf(
 			"none of the configured formats (%s) meet the needs of this postcard & options (%s)",
 			strings.Join(c.formats, ", "),
 			needs.String(),
 		)
 	}
 
-	return format, nil
+	return format, "image/" + format, nil
 }
 
 func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats.FileWriter, error) {
-	format, err := c.pickFormat(pc.Meta, opts)
+	format, mimetype, err := c.pickFormat(pc.Meta, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -78,11 +79,11 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 
 		switch format {
 		case "webp":
-			err = writeWebP(w, combinedImg, xmpData, opts.Archival, pc.Meta.HasTransparency)
+			err = images.WriteWebP(w, combinedImg, xmpData, opts.Archival, pc.Meta.HasTransparency)
 		case "png":
-			err = writePNG(w, combinedImg, xmpData, opts.Archival)
-		case "jpg":
-			err = writeJPG(w, combinedImg, xmpData)
+			err = images.WritePNG(w, combinedImg, xmpData, opts.Archival)
+		case "jpeg":
+			err = images.WriteJPEG(w, combinedImg, xmpData)
 		default:
 			err = fmt.Errorf("unsupported output image format: %s", format)
 		}
@@ -90,7 +91,7 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 		return err
 	}
 
-	return []formats.FileWriter{formats.NewFileWriter(name, writer)}, nil
+	return []formats.FileWriter{formats.NewFileWriter(name, mimetype, writer)}, nil
 }
 
 func rotateForWeb(img image.Image, flip types.Flip) (image.Image, image.Rectangle) {

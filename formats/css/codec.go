@@ -28,5 +28,5 @@ func (c codec) Encode(_ types.Postcard, _ *formats.EncodeOptions) ([]formats.Fil
 		return err
 	}
 
-	return []formats.FileWriter{formats.NewFileWriter("postcards.css", writer)}, nil
+	return []formats.FileWriter{formats.NewFileWriter("postcards.css", "text/css", writer)}, nil
 }
