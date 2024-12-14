@@ -1,3 +1,9 @@
+## 0.6.5 (2024-12-14)
+
+### Fix
+
+- :construction_worker: Ensure the build can complete, even with WASM in the www/postoffice dir
+
 ## 0.6.4 (2024-12-14)
 
 ### Fix
