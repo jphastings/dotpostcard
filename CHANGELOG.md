@@ -1,3 +1,9 @@
+## 0.6.9 (2024-12-14)
+
+### Fix
+
+- Work around Goreleaser brew.ids issue
+
 ## 0.6.8 (2024-12-14)
 
 ### Fix
