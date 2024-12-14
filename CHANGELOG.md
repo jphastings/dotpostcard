@@ -1,3 +1,9 @@
+## 0.6.8 (2024-12-14)
+
+### Fix
+
+- Allow different binary counts
+
 ## 0.6.7 (2024-12-14)
 
 ### Fix
