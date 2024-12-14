@@ -35,6 +35,8 @@ builds:
       - js
     goarch:
       - wasm
+    ldflags:
+      - -s -w -X "main.Date={{.CommitDate}}"
   # It's important the postoffice native binary is built after the WASM blob
   # As the WASM blob is baked into this server as part of an embed directive.
   # This needs to be done by calling goreleaser twice, specifying IDs to build.
@@ -53,6 +55,8 @@ builds:
       - amd64
       - arm64
       - wasm
+    ldflags:
+      - -s -w -X "main.Date={{.CommitDate}}"
 
 archives:
   - format: tar.gz
@@ -100,9 +104,6 @@ release:
   draft: false
 brews:
 - name: postcards
-  ids:
-    - postcards
-    - postoffice
   repository:
     owner: jphastings
     name: homebrew-tools
