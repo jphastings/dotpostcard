@@ -48,9 +48,11 @@ builds:
       - linux
       - windows
       - darwin
+      - wasip1
     goarch:
       - amd64
       - arm64
+      - wasm
 
 archives:
   - format: tar.gz
