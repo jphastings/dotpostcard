@@ -48,7 +48,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v6
         with:
           version: "~> v2"
-          args: release --clean --id postcards --id postoffice-serviceworker
+          args: release --clean --id=postcards --id=postoffice-serviceworker
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
       - name: Copy Serviceworker WASM ready for postoffice build
@@ -59,6 +59,6 @@ jobs:
         uses: goreleaser/goreleaser-action@v6
         with:
           version: "~> v2"
-          args: release --clean --id postoffice
+          args: release --clean --id=postoffice
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
