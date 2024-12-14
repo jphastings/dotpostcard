@@ -26,9 +26,10 @@ type Annotation struct {
 type AnnotationType string
 
 const (
-	ATLocale   AnnotationType = "locale"
-	ATEmphasis AnnotationType = "em"
-	ATStrong   AnnotationType = "strong"
+	ATLocale    AnnotationType = "locale"
+	ATEmphasis  AnnotationType = "em"
+	ATStrong    AnnotationType = "strong"
+	ATUnderline AnnotationType = "underline"
 )
 
 func (at AnnotatedText) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
