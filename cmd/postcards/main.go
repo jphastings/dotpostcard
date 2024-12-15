@@ -79,7 +79,7 @@ var rootCmd = &cobra.Command{
 
 			pc, err := bundle.Decode(decOpts)
 			if err != nil {
-				return err
+				return fmt.Errorf("unable to decode bundle '%s': %w", filename, err)
 			}
 
 			for _, codec := range codecs {
@@ -139,7 +139,7 @@ func main() {
 	formatsExpl := fmt.Sprintf("Formats to convert to (comma separated, any of: %s)", strings.Join(postcards.Codecs, ", "))
 	rootCmd.Flags().StringSliceP("formats", "f", []string{}, formatsExpl)
 	rootCmd.Flags().BoolP("archival", "A", false, "Turn off image resizing, use lossless compression")
-	rootCmd.Flags().BoolP("remove-border", "B", false, "Attempts to turn the border around a postcard scan transparent")
+	rootCmd.Flags().BoolP("remove-border", "B", false, "Attempts to turn the border around a postcard scan transparent (experimental; component input only)")
 	rootCmd.Flags().BoolP("ignore-transparency", "T", false, "Ignores any transparency in the source images")
 	rootCmd.MarkFlagsMutuallyExclusive("remove-border", "ignore-transparency")
 	rootCmd.Flags().Bool("overwrite", false, "Overwrite output files")
