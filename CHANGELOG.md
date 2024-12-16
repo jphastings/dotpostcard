@@ -1,3 +1,9 @@
+## 0.7.6 (2024-12-16)
+
+### Fix
+
+- :bug: Correctly half the web decoder's FrontSize.PxHeight
+
 ## 0.7.5 (2024-12-16)
 
 ### Fix
