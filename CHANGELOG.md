@@ -1,3 +1,9 @@
+## 0.7.7 (2024-12-16)
+
+### Fix
+
+- Correct HTML output for underline Annotation
+
 ## 0.7.6 (2024-12-16)
 
 ### Fix
