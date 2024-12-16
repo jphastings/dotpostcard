@@ -34,14 +34,13 @@ func XMPintoWebP(out io.Writer, webpData []byte, xmpData []byte, bounds image.Re
 
 	// File size for RIFF header
 	riffSize := 4
-	for _, chunk := range chunks {
-		riffSize += 8 + len(chunk)
-	}
-
-	addExtraByte := false
-	if riffSize%2 != 0 {
-		riffSize += 1
-		addExtraByte = true
+	for n, chunk := range chunks {
+		chunkLen := len(chunk)
+		if chunkLen%2 != 0 {
+			chunkLen++
+			chunks[n] = append(chunk, '\x00')
+		}
+		riffSize += 8 + chunkLen
 	}
 
 	// Magic bytes & header
@@ -66,12 +65,6 @@ func XMPintoWebP(out io.Writer, webpData []byte, xmpData []byte, bounds image.Re
 	// Any remaining unknown chunks
 	for fourCC, chunk := range chunks {
 		if err := writeWebpChunk(out, fourCC, chunk); err != nil {
-			return err
-		}
-	}
-
-	if addExtraByte {
-		if _, err := out.Write([]byte{0x00}); err != nil {
 			return err
 		}
 	}
