@@ -65,9 +65,8 @@ type xmpJSON struct {
 }
 
 type tiffTags struct {
-	// The TIFF names for width/height are confusing
-	Height string `json:"tiff:ImageWidth"`
-	Width  string `json:"tiff:ImageLength"`
+	Height string `json:"tiff:ImageLength"`
+	Width  string `json:"tiff:ImageWidth"`
 
 	ResUnit string   `json:"tiff:ResolutionUnit"`
 	XRes    *big.Rat `json:"tiff:XResolution"`
