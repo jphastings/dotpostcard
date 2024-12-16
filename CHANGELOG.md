@@ -1,3 +1,9 @@
+## 0.7.4 (2024-12-16)
+
+### Fix
+
+- **border-detector**: :bug: Fix incorrect scaling threshold value
+
 ## 0.7.3 (2024-12-16)
 
 ### Fix
