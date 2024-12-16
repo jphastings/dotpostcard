@@ -1,3 +1,9 @@
+## 0.7.2 (2024-12-16)
+
+### Perf
+
+- :arrow_up: Upgrade dependencies
+
 ## 0.7.1 (2024-12-16)
 
 ### Fix
