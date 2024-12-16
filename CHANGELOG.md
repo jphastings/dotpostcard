@@ -1,3 +1,9 @@
+## 0.7.3 (2024-12-16)
+
+### Fix
+
+- Align chunks with even offsets
+
 ## 0.7.2 (2024-12-16)
 
 ### Perf
