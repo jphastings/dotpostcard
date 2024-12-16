@@ -1,3 +1,14 @@
+## 0.7.1 (2024-12-16)
+
+### Fix
+
+- Improve transparency algorithm
+- Allow ignoring transparency and removing border
+
+### Refactor
+
+- :art: Break border removal into own file
+
 ## 0.7.0 (2024-12-14)
 
 ### Feat
