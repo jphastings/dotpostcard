@@ -86,6 +86,12 @@ func (at AnnotatedText) HTML() string {
 	return outHTML.String()
 }
 
+var htmlMap = map[AnnotationType]string{
+	ATEmphasis:  "em",
+	ATStrong:    "strong",
+	ATUnderline: "underline",
+}
+
 func (a Annotation) HTMLTag(isOpen bool) string {
 	switch a.Type {
 	case ATLocale:
@@ -95,10 +101,14 @@ func (a Annotation) HTMLTag(isOpen bool) string {
 			return "</span>"
 		}
 	default:
+		tag, ok := htmlMap[a.Type]
+		if !ok {
+			return ""
+		}
 		if isOpen {
-			return fmt.Sprintf("<%s>", a.Type)
+			return fmt.Sprintf("<%s>", tag)
 		} else {
-			return fmt.Sprintf("</%s>", a.Type)
+			return fmt.Sprintf("</%s>", tag)
 		}
 	}
 }
