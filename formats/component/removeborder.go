@@ -11,6 +11,12 @@ import (
 	"github.com/ernyoke/imger/padding"
 )
 
+const (
+	travelExtra               = 2 // px further after finding sobel edge
+	borderMinThick            = 8
+	allowableDistanceFromMode = 12 // px
+)
+
 var ErrAlreadyTransparent = errors.New("this image already has transparent pixels, ")
 
 type rollingColor struct {
@@ -31,12 +37,6 @@ type borderEdge struct {
 	points       []image.Point
 	mode         int
 }
-
-const (
-	pcPixelsInLine = 80
-	travelExtra    = 2 // px further after finding sobel edge
-	borderMinThick = 8
-)
 
 func removeBorder(img image.Image) (image.Image, error) {
 	bounds := img.Bounds()
@@ -132,7 +132,7 @@ func borderFinder(img *image.Gray, rows int) func(color.Color) bool {
 
 	stats.stdDev = math.Sqrt(stats.av2 - (stats.av * stats.av))
 
-	most := stats.av + 4*stats.stdDev
+	most := stats.av + 10*stats.stdDev
 	thresh := most + (65535-most)*2/3
 
 	return func(c color.Color) bool {
@@ -176,39 +176,35 @@ func findTopBorderEdgePoints(img *image.Gray) ([]image.Point, int, error) {
 		}
 	}
 
-	devCountdown := ((bounds.Dx() * pcPixelsInLine) / 100) - modeMax
-	devPos := 1
-	devNeg := 1
-
-	for i := 1; i < 25; i++ {
-		if devCountdown <= 0 {
-			break
-		}
-		amtPos := modeTrack[modeY+devPos]
-		amtNeg := modeTrack[modeY-devNeg]
-		if amtPos > amtNeg {
-			devPos++
-			devCountdown -= amtPos
-		} else {
-			devNeg++
-			devCountdown -= amtNeg
+	isBad := makePixelJudge(modeY, bounds)
+	var nearMode []image.Point
+	for _, p := range edge {
+		if !isBad(p) {
+			nearMode = append(nearMode, p)
 		}
 	}
 
-	for i, e := range edge {
-		if e.Y > modeY+devPos || e.Y < modeY-devNeg {
-			brightestY := modeY
-			brightestVal := uint32(0)
-			for y := modeY; y <= modeY+devPos; y++ {
-				val, _, _, _ := bImg.At(e.X, y).RGBA()
-				if val > brightestVal {
-					brightestY = y
-					brightestVal = val
-				}
-			}
-			edge[i] = image.Point{X: e.X, Y: brightestY + travelExtra}
-		}
+	return nearMode, modeY, nil
+}
+
+// Returns a func which will return true if the edge pixel should be ignored
+func makePixelJudge(modeY int, bounds image.Rectangle) func(image.Point) bool {
+	maxDim := float64(bounds.Dy())
+	dx := float64(bounds.Dx())
+	if dx > maxDim {
+		maxDim = dx
 	}
 
-	return edge, modeY, nil
+	allowLeftOf := int(0.02 * maxDim)
+	allowRightOf := int(dx - 0.02*maxDim)
+
+	ignoreAbove := modeY + allowableDistanceFromMode
+	ignoreBelow := modeY - allowableDistanceFromMode
+
+	return func(this image.Point) bool {
+		xIsFarFromEdge := this.X > allowLeftOf && this.X < allowRightOf
+		yIsOutsideMode := this.Y > ignoreAbove || this.Y < ignoreBelow
+
+		return xIsFarFromEdge && yIsOutsideMode
+	}
 }
