@@ -1,3 +1,9 @@
+## 0.7.5 (2024-12-16)
+
+### Fix
+
+- :bug: Correct TIDD width/height ordering on EXIF read
+
 ## 0.7.4 (2024-12-16)
 
 ### Fix
