@@ -89,7 +89,7 @@ func (at AnnotatedText) HTML() string {
 var htmlMap = map[AnnotationType]string{
 	ATEmphasis:  "em",
 	ATStrong:    "strong",
-	ATUnderline: "underline",
+	ATUnderline: "u",
 }
 
 func (a Annotation) HTMLTag(isOpen bool) string {
