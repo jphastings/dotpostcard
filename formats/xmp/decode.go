@@ -121,12 +121,17 @@ func MetadataFromXMP(r io.Reader) (types.Metadata, error) {
 	meta.Front.Secrets = front
 	meta.Back.Secrets = back
 
-	meta.Physical.FrontDimensions = tiffXMPToSize(js.Models.TIFF)
+	sides := 2
+	if meta.Flip == types.FlipNone {
+		sides = 1
+	}
+
+	meta.Physical.FrontDimensions = tiffXMPToSize(js.Models.TIFF, sides)
 
 	return meta, nil
 }
 
-func tiffXMPToSize(tiff tiffTags) (s types.Size) {
+func tiffXMPToSize(tiff tiffTags, sidesInHeight int) (s types.Size) {
 	w, wErr := strconv.ParseInt(tiff.Width, 10, 0)
 	h, hErr := strconv.ParseInt(tiff.Height, 10, 0)
 	if wErr != nil && hErr != nil {
@@ -134,7 +139,7 @@ func tiffXMPToSize(tiff tiffTags) (s types.Size) {
 	}
 
 	s.PxWidth = int(w)
-	s.PxHeight = int(h)
+	s.PxHeight = int(h) / sidesInHeight
 
 	// Fallback to the default if it's not parseable
 	exifUnit, _ := strconv.ParseUint(tiff.ResUnit, 10, 16)
