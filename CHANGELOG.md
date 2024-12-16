@@ -1,3 +1,9 @@
+## 0.7.8 (2024-12-16)
+
+### Fix
+
+- :bug: Set the *right* HTML codes for annotations
+
 ## 0.7.7 (2024-12-16)
 
 ### Fix
