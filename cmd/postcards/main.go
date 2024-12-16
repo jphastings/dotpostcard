@@ -141,7 +141,6 @@ func main() {
 	rootCmd.Flags().BoolP("archival", "A", false, "Turn off image resizing, use lossless compression")
 	rootCmd.Flags().BoolP("remove-border", "B", false, "Attempts to turn the border around a postcard scan transparent (experimental; component input only)")
 	rootCmd.Flags().BoolP("ignore-transparency", "T", false, "Ignores any transparency in the source images")
-	rootCmd.MarkFlagsMutuallyExclusive("remove-border", "ignore-transparency")
 	rootCmd.Flags().Bool("overwrite", false, "Overwrite output files")
 
 	err := rootCmd.Execute()
