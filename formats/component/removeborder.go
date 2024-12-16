@@ -132,7 +132,7 @@ func borderFinder(img *image.Gray, rows int) func(color.Color) bool {
 
 	stats.stdDev = math.Sqrt(stats.av2 - (stats.av * stats.av))
 
-	most := stats.av + 10*stats.stdDev
+	most := stats.av + 2*stats.stdDev
 	thresh := most + (65535-most)*2/3
 
 	return func(c color.Color) bool {
