@@ -160,7 +160,7 @@ def Xform "Postcard" (
             double staticFriction = 0.5
         }
     }
-
+{{ if .FlipAxis }}
     def RealityKitComponent "RCP_BehaviorsContainer"
     {
         rel behaviors = </Postcard/OnTap>
@@ -212,4 +212,5 @@ def Xform "Postcard" (
             }
         }
     }
+{{ end }}
 }
