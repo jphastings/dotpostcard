@@ -16,7 +16,7 @@ type xmpExif struct {
 }
 
 func addExifSection(sections []interface{}, meta types.Metadata) []interface{} {
-	hasSentOn := !meta.SentOn.IsZero()
+	hasSentOn := meta.SentOn != nil
 	hasLocation := meta.Location != types.Location{}
 
 	if !hasSentOn && !hasLocation {
