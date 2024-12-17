@@ -49,7 +49,7 @@ var SamplePostcard = types.Postcard{
 			Longitude: &([]float64{7.66}[0]),
 		},
 		Flip: types.FlipBook,
-		SentOn: types.Date{
+		SentOn: &types.Date{
 			Time: time.Date(2006, time.January, 2, 0, 0, 0, 0, time.UTC),
 		},
 		Sender: types.Person{

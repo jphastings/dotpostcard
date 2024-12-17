@@ -23,14 +23,16 @@ func addExifSection(sections []interface{}, meta types.Metadata) []interface{} {
 		return sections
 	}
 
-	yy, mm, dd := meta.SentOn.Date()
-
 	exif := xmpExif{
-		Namespace:        "http://ns.adobe.com/exif/1.0/",
-		OriginalDateTime: fmt.Sprintf("%d-%02d-%02d", yy, mm, dd),
-		Placename:        meta.Location.Name,
-		Latitude:         fmtEXIFDegrees(meta.Location.Latitude, true),
-		Longitude:        fmtEXIFDegrees(meta.Location.Longitude, false),
+		Namespace: "http://ns.adobe.com/exif/1.0/",
+		Placename: meta.Location.Name,
+		Latitude:  fmtEXIFDegrees(meta.Location.Latitude, true),
+		Longitude: fmtEXIFDegrees(meta.Location.Longitude, false),
+	}
+
+	if meta.SentOn != nil {
+		yy, mm, dd := meta.SentOn.Date()
+		exif.OriginalDateTime = fmt.Sprintf("%d-%02d-%02d", yy, mm, dd)
 	}
 
 	return append(sections, exif)

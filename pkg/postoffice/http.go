@@ -103,7 +103,7 @@ func requestToPostcard(codecChoices CodecChoices, r *http.Request) (types.Postca
 	)
 
 	if t, err := time.Parse(`2006-01-02`, r.FormValue("sent-on")); err == nil {
-		meta.SentOn = types.Date{Time: t}
+		meta.SentOn = &types.Date{Time: t}
 	}
 
 	meta.Sender.Scan(r.FormValue("sender"))

@@ -7,7 +7,7 @@ import (
 )
 
 type Person struct {
-	Name string `json:"name"`
+	Name string `json:"name,omitempty"`
 	Uri  string `json:"uri,omitempty" yaml:"link,omitempty"`
 }
 

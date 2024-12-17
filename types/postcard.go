@@ -94,10 +94,10 @@ type Metadata struct {
 	Name            string `json:"-" yaml:"-"`
 	HasTransparency bool   `json:"-" yaml:"-"`
 
-	Locale    string   `json:"locale,omitempty"`
+	Locale    string   `json:"locale,omitempty" yaml:"locale,omitempty"`
 	Location  Location `json:"location,omitempty" yaml:"location,omitempty"`
-	Flip      Flip     `json:"flip" yaml:"flip"`
-	SentOn    Date     `json:"sentOn,omitempty" yaml:"sent_on,omitempty"`
+	Flip      Flip     `json:"flip,omitempty" yaml:"flip,omitempty"`
+	SentOn    *Date    `json:"sentOn,omitempty" yaml:"sent_on,omitempty"`
 	Sender    Person   `json:"sender,omitempty" yaml:"sender,omitempty"`
 	Recipient Person   `json:"recipient,omitempty" yaml:"recipient,omitempty"`
 	Front     Side     `json:"front,omitempty" yaml:"front,omitempty"`
@@ -107,7 +107,7 @@ type Metadata struct {
 }
 
 type Physical struct {
-	FrontDimensions Size    `json:"frontSize" yaml:"front_size,omitempty"`
+	FrontDimensions Size    `json:"frontSize,omitempty" yaml:"front_size,omitempty"`
 	ThicknessMM     float64 `json:"thicknessMM,omitempty" yaml:"thickness_mm,omitempty"`
 }
 

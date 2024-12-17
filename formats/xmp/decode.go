@@ -111,7 +111,7 @@ func MetadataFromXMP(r io.Reader) (types.Metadata, error) {
 	json.Unmarshal([]byte(js.Models.Postcard.TranscriptionBack), &meta.Back.Transcription)
 
 	if date, err := time.Parse(`2006-01-02`, js.Models.EXIF.Date); err == nil {
-		meta.SentOn = types.Date{Time: date}
+		meta.SentOn = &types.Date{Time: date}
 	}
 	meta.Location.Name = js.Models.EXIF.LocationName
 	meta.Location.Latitude = scanDegrees(js.Models.EXIF.Latitude)
