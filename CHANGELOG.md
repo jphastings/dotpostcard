@@ -1,3 +1,14 @@
+## 0.8.0 (2024-12-17)
+
+### Feat
+
+- :technologist: Add the postcards info command
+
+### Fix
+
+- Prevent empty fields from appearing in YAML
+- :poop: Custom image decoder selection
+
 ## 0.7.9 (2024-12-17)
 
 ### Fix
