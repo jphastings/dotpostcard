@@ -1,3 +1,9 @@
+## 0.8.1 (2024-12-17)
+
+### Fix
+
+- Handle finding -only images as part of a component bundle
+
 ## 0.8.0 (2024-12-17)
 
 ### Feat
