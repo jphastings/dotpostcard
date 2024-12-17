@@ -1,3 +1,9 @@
+## 0.8.2 (2024-12-17)
+
+### Fix
+
+- Prevent segfault when no SentOn date
+
 ## 0.8.1 (2024-12-17)
 
 ### Fix
