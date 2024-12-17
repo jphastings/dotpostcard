@@ -18,7 +18,9 @@ import (
 )
 
 func (b bundle) Decode(opts formats.DecodeOptions) (types.Postcard, error) {
-	defer b.frontFile.Close()
+	if b.frontFile != nil {
+		defer b.frontFile.Close()
+	}
 	if b.backFile != nil {
 		defer b.backFile.Close()
 	}

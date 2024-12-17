@@ -2,6 +2,7 @@ package component
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"path"
@@ -66,6 +67,18 @@ func (c codec) Bundle(group formats.FileGroup) ([]formats.Bundle, []fs.File, err
 			b.frontFile, toSkip = findFile(group.Dir, b.name+"-front", usableExtensions)
 			skip = append(skip, toSkip)
 		}
+		if b.frontFile == nil {
+			var toSkip string
+			b.frontFile, toSkip = findFile(group.Dir, b.name+"-only", usableExtensions)
+			skip = append(skip, toSkip)
+			skipBack = true
+		}
+		if b.frontFile == nil {
+			err = fmt.Errorf("no image found for the front of this postcard (%s-front.<ext>, or %s-only.<ext>)", b.name, b.name)
+			finalErr = errors.Join(finalErr, formats.NewFileError(filename, err))
+			continue
+		}
+
 		if b.backFile == nil && !skipBack {
 			var toSkip string
 			b.backFile, toSkip = findFile(group.Dir, b.name+"-back", usableExtensions)
