@@ -1,55 +1,23 @@
 package web
 
 import (
-	"bytes"
 	"fmt"
 	"image"
 	"image/draw"
-	"image/jpeg"
-	"io"
 
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/formats/xmp"
 	"github.com/jphastings/dotpostcard/internal/images"
-	"github.com/jphastings/dotpostcard/pkg/xmpinject"
 	"github.com/jphastings/dotpostcard/types"
 )
 
 func (b bundle) Decode(decOpts formats.DecodeOptions) (types.Postcard, error) {
 	defer b.Close()
 
-	var dataCopy bytes.Buffer
-	t := io.TeeReader(b, &dataCopy)
-
-	format, err := determineFormat(t)
-	if err != nil {
-		return types.Postcard{}, fmt.Errorf("unable to determine image file format: %w", err)
-	}
-
-	var imgDecoder func(io.Reader) (image.Image, error)
-	var xmpDecoder func([]byte) ([]byte, error)
-	switch format {
-	case "webp":
-		// This function is defined in multiple files so we can keep the WebP package out of WASM builds.
-		imgDecoder = images.ReadWebP
-		xmpDecoder = xmpinject.XMPfromWebP
-	case "jpeg":
-		imgDecoder = jpeg.Decode
-		xmpDecoder = xmpinject.XMPfromJPEG
-	default:
-		return types.Postcard{}, fmt.Errorf("no XMP extractor for %s format", format)
-	}
-
-	img, err := imgDecoder(t)
+	img, xmpData, err := images.Decode(b)
 	if err != nil {
 		return types.Postcard{}, fmt.Errorf("unable to decode image: %w", err)
 	}
-
-	xmpData, err := xmpDecoder(dataCopy.Bytes())
-	if err != nil {
-		return types.Postcard{}, fmt.Errorf("couldn't extract XMP metadata: %w", err)
-	}
-
 	if len(xmpData) == 0 {
 		return types.Postcard{}, fmt.Errorf("image didn't contain XMP metadata, it's not readable as a postcard")
 	}

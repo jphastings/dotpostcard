@@ -15,6 +15,4 @@ func WriteWebP(w io.Writer, img image.Image, xmpData []byte, archival, hasAlpha 
 	return fmt.Errorf("writing webP images is not available on this platform")
 }
 
-func ReadWebP(r io.Reader) (image.Image, error) {
-	return webp.Decode(r)
-}
+var decodeWebP = webp.Decode

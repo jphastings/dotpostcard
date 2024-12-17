@@ -67,12 +67,12 @@ func usdzToTextureFile(file fs.File) (fs.File, error) {
 
 	for _, zf := range zr.File {
 		name := path.Base(zf.Name)
-		if strings.HasSuffix(name, ".postcard-texture.jpg") || strings.HasSuffix(name, ".postcard-texture.png") {
+		if strings.HasSuffix(name, ".postcard-texture.jpeg") || strings.HasSuffix(name, ".postcard-texture.png") {
 			return fs.FS(zr).Open(zf.Name)
 		}
 	}
 
-	return nil, fmt.Errorf("no texture postcard texture files found")
+	return nil, fmt.Errorf("no postcard texture files found")
 }
 
 func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats.FileWriter, error) {

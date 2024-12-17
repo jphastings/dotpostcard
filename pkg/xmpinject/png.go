@@ -56,3 +56,7 @@ func xmpToITXT(xmpData []byte) []byte {
 
 	return chunk.Bytes()
 }
+
+func XMPfromPNG(pngData []byte) ([]byte, error) {
+	return nil, fmt.Errorf("extracting XMP data from PNG files is not yet supported")
+}
