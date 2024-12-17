@@ -1,3 +1,9 @@
+## 0.7.9 (2024-12-17)
+
+### Fix
+
+- Prevent flip for single-sided cards
+
 ## 0.7.8 (2024-12-16)
 
 ### Fix
