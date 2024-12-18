@@ -1,3 +1,9 @@
+## 0.9.3 (2024-12-18)
+
+### Fix
+
+- Use Upload Pages Artifact action
+
 ## 0.9.2 (2024-12-18)
 
 ### Fix
