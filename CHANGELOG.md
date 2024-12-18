@@ -1,3 +1,9 @@
+## 0.8.4 (2024-12-18)
+
+### Fix
+
+- Swap back to WebP as default transparent/lossless format for web
+
 ## 0.8.3 (2024-12-18)
 
 ### Fix
