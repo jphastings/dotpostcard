@@ -1,3 +1,9 @@
+## 0.9.2 (2024-12-18)
+
+### Fix
+
+- Deploy static postoffice to Github Pages
+
 ## 0.9.1 (2024-12-18)
 
 ### Fix
