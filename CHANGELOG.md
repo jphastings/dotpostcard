@@ -1,3 +1,9 @@
+## 0.10.1 (2024-12-18)
+
+### Fix
+
+- **postoffice**: Hide output when restarting form
+
 ## 0.10.0 (2024-12-18)
 
 ### Feat
