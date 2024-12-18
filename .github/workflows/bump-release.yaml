@@ -62,12 +62,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
       - name: Upload static Postoffice site artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-pages-artifact@v3
         with:
           name: postoffice-static
           path: internal/www/postoffice
   
   deploy-postoffice-static:
+    name: Deploy Postoffice to Github Pages
     needs: goreleaser
     runs-on: ubuntu-latest
     permissions:
