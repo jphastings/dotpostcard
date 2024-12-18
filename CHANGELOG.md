@@ -1,3 +1,10 @@
+## 0.8.3 (2024-12-18)
+
+### Fix
+
+- :bug: Fix WebP XMP padding byte issue
+- :bug: Correct the CRC32 calculated for the iTXt PNG chunk
+
 ## 0.8.2 (2024-12-17)
 
 ### Fix
