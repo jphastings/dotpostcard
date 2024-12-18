@@ -7,6 +7,7 @@ async function processResult(res) {
     const blob = await res.blob()
     const file = new File([blob], extractFilename(res), { type: blob.type });
     downloadFile(file)
+    document.querySelector('#output').classList.toggle('loading', false)
   }
 }
 
