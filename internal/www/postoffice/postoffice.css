@@ -19,13 +19,9 @@ input[type="number"] {
   display: none !important;
 }
 
-.only-empty {
-  display:none;
-}
-
-:has(> .only-empty) > *:not(legend,.irrelevant) {
+:has(> .only-empty):has(> *:not(legend,.irrelevant,.only-empty)) {
   .only-empty {
-    display: block;
+    display: none;
   }
 }
 
@@ -65,9 +61,10 @@ input[type="number"] {
 /* Image inputs */
 
 label[for$="-image"] {
-  min-height: 4rem;
-  border: 4px dashed var(--border);
-  border-radius: calc(4*var(--standard-border-radius));
+  padding: 1rem;
+  min-height: 6rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--standard-border-radius);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -104,19 +101,22 @@ fieldset:has(input[name="flip"]) {
     cursor: pointer;
 
     &:has(input:checked) {
+      color: var(--accent);
       border-color: var(--accent);
     }
 
     input {
       outline: none;
+      appearance: none;
       position: absolute;
-      display: block;
-      aspect-ratio: 148/105;
+      display: inline-block;
+      /* aspect-ratio: 148/105; */
       content: '';
       top: 1.5rem;
       background-color: var(--text-light);
       border-radius: var(--standard-border-radius);
       width: 80%;
+      height:45%;
       cursor: pointer;
 
       transform-origin: center;

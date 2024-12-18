@@ -21,7 +21,9 @@
 - [ ] Show images when chosen in PostOffice
 - [ ] Allow selection of secrets in PostOffice
 - [ ] Allow conversion of postcard files on PostOffice
-- [ ] Pit buttons for downloading CSS and HTML on web-js output (PostOffice)
+- [ ] Put buttons for downloading CSS and HTML on web-js output (PostOffice)
+- [ ] Allow uploading/choice of SVGs for the back side, to make a "blank" postcard
+  - [ ] Responsive layout for the back — in physical units
 
 ## Done
 
