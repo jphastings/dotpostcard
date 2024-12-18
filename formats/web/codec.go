@@ -77,6 +77,6 @@ func Codec(format string, altFormats ...string) (formats.Codec, error) {
 	return codec{formats: fmts}, nil
 }
 
-var DefaultCodec, _ = Codec("jpeg", "png")
+var DefaultCodec, _ = Codec("jpeg", "webp")
 
 func (c codec) Name() string { return codecName }
