@@ -1,3 +1,9 @@
+## 0.10.2 (2024-12-18)
+
+### Fix
+
+- **postoffice**: Stop loading after downloading a file
+
 ## 0.10.1 (2024-12-18)
 
 ### Fix
