@@ -15,6 +15,20 @@ input[type="number"] {
   content: '🚧';
 }
 
+.irrelevant {
+  display: none !important;
+}
+
+.only-empty {
+  display:none;
+}
+
+:has(> .only-empty) > *:not(legend,.irrelevant) {
+  .only-empty {
+    display: block;
+  }
+}
+
 /* Image inputs */
 
 label[for$="-image"] {
@@ -70,6 +84,7 @@ fieldset:has(input[name="flip"]) {
       background-color: var(--text-light);
       border-radius: 0;
       width: 80%;
+      cursor: pointer;
 
       transform-origin: center;
       transform-style: preserve-3d;
@@ -79,11 +94,8 @@ fieldset:has(input[name="flip"]) {
       &[value="left-hand"] { animation: flip-left-hand 3s linear infinite; }
       &[value="right-hand"] { animation: flip-right-hand 3s linear infinite; }
     }
-
-
   }
 }
-
 
 @keyframes flip-book {
   from { transform: perspective(1000px) rotateY(0deg) }

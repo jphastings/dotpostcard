@@ -1,15 +1,3 @@
-document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById('postcard-input').addEventListener('submit', async (event) => {
-    event.preventDefault()
-    const {action, method} = event.target
-    const body = new FormData(event.target)
-  
-    const res = await fetch(action, { method, body,})
-      .then(onlyOk)
-      .then(processResult)
-  })
-})
-
 async function processResult(res) {
   const mimeType = res.headers.get('Content-Type').split(';')[0]
   if (mimeType == 'multipart/form-data') {
@@ -109,4 +97,89 @@ function downloadFile(file) {
   URL.revokeObjectURL(url);
 }
 
-navigator.serviceWorker.register('postoffice-serviceworker.js').catch(console.error)
+function sideImageChanged(e) {
+  const input = e.target
+  const file = input.files[0]
+  const reader = new FileReader();
+
+  reader.addEventListener('load', (file) => {
+    const img = new Image();
+
+    img.addEventListener('load', () => {
+      const width = img.width;
+      const height = img.height;
+
+      if (Math.abs(width - height) < 10) {
+        input.dataset.orientation = "square"
+      } else if (width > height) {
+        input.dataset.orientation = "landscape"
+      } else {
+        input.dataset.orientation = "portrait"
+      }
+
+      input.setCustomValidity("")
+      showAppropriateFlips()
+    })
+
+    img.addEventListener('error', () => {
+      input.setCustomValidity("Doesn't appear to be an image file")
+    })
+
+    // Trigger loading the image
+    img.src = file.target.result;
+  })
+
+  reader.addEventListener('error', () => {
+    input.setCustomValidity("Couldn't read the chosen file")
+  })
+  
+  reader.readAsDataURL(file)
+}
+
+function showAppropriateFlips() {
+  const frontOrientation = document.getElementById('front-image')?.dataset?.orientation
+  const backOrientation = document.getElementById('back-image')?.dataset?.orientation
+  const flipChoices = document.querySelectorAll('input[name="flip"]')
+
+  if (!frontOrientation) {
+    flipChoices.forEach((flip) => flip.parentElement.classList.toggle('irrelevant', true))
+  } else if (!backOrientation) {
+    flipChoices.forEach((flip) => flip.parentElement.classList.toggle('irrelevant', flip.value != ""))
+  } else if (frontOrientation == "square") {
+    flipChoices.forEach((flip) => flip.parentElement.classList.toggle('irrelevant', false))
+  } else {
+    const homoriented = frontOrientation == backOrientation
+    flipChoices.forEach((flip) => {
+      const isIrrelevant = flip.value == '' || flip.value.endsWith('-hand') == homoriented
+      flip.parentElement.classList.toggle('irrelevant', isIrrelevant)
+    })
+  }
+
+  const chosen = document.querySelector('input[name="flip"]:checked')
+  if (!chosen || chosen.parentElement.classList.contains('irrelevant')) {
+    const first = document.querySelector('label:has(input[name="flip"]):not(.irrelevant) input')
+    if (first) {
+      first.checked = true
+    }
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById('postcard-input').addEventListener('submit', async (event) => {
+    event.preventDefault()
+    const {action, method} = event.target
+    const body = new FormData(event.target)
+  
+    const res = await fetch(action, { method, body,})
+      .then(onlyOk)
+      .then(processResult)
+  })
+
+  document.querySelectorAll('#front-image,#back-image')
+    .forEach((input) => {
+      input.addEventListener('change', sideImageChanged)
+    })
+  showAppropriateFlips()
+})
+
+navigator.serviceWorker?.register('postoffice-serviceworker.js')?.catch(console.error)
