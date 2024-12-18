@@ -1,3 +1,9 @@
+## 0.10.3 (2024-12-18)
+
+### Fix
+
+- Move Checkboxes to the right side
+
 ## 0.10.2 (2024-12-18)
 
 ### Fix
