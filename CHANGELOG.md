@@ -1,3 +1,13 @@
+## 0.9.0 (2024-12-18)
+
+### Feat
+
+- **postoffice**: Allow noJS friendly web response
+
+### Fix
+
+- :bug: Prevent segfault extracting empty lat/long from XMP
+
 ## 0.8.4 (2024-12-18)
 
 ### Fix
