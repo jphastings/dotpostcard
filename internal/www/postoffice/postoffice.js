@@ -181,7 +181,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById('begin').addEventListener('click', () => {
     form.classList.toggle('irrelevant', false)
-    form.classList.toggle('output', true)
+    output.classList.toggle('irrelevant', true)
   })
 
   // Now the submit listener is registered, swap to showing the postcard on the page, instead of downloading
