@@ -1,0 +1,106 @@
+input[type="text"] {
+  width: 100%;
+}
+
+input[type="number"] {
+  width: 50%;
+}
+
+.tips {
+  font-size: small;
+  margin-top: 0;
+}
+
+.experimental:before {
+  content: '🚧';
+}
+
+/* Image inputs */
+
+label[for$="-image"] {
+  min-height: 4rem;
+  border: 4px dashed var(--border);
+  border-radius: calc(4*var(--standard-border-radius));
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  margin-bottom: 1rem;
+}
+
+input[type="file"][id$="-image"] {
+  display: none;
+}
+
+/* Flip selection */
+
+fieldset:has(input[name="flip"]) {
+  text-align: center;
+  text-wrap: balance;
+
+  legend {
+    text-align: left;
+  }
+
+  label {
+    border: 1px solid var(--border);
+    border-radius: var(--standard-border-radius);
+    margin: 0.5rem;
+    width: 8rem;
+    height: 10rem;
+    font-size: small;
+
+    position: relative;
+    display: inline-flex;
+    justify-content: center;
+    align-items: end;
+    cursor: pointer;
+
+    &:has(input:checked) {
+      border-color: var(--accent);
+    }
+
+    input {
+      outline: none;
+      position: absolute;
+      display: block;
+      aspect-ratio: 148/105;
+      content: '';
+      top: 1.5rem;
+      background-color: var(--text-light);
+      border-radius: 0;
+      width: 80%;
+
+      transform-origin: center;
+      transform-style: preserve-3d;
+
+      &[value="book"] { animation: flip-book 3s linear infinite; }
+      &[value="calendar"] { animation: flip-calendar 3s linear infinite; }
+      &[value="left-hand"] { animation: flip-left-hand 3s linear infinite; }
+      &[value="right-hand"] { animation: flip-right-hand 3s linear infinite; }
+    }
+
+
+  }
+}
+
+
+@keyframes flip-book {
+  from { transform: perspective(1000px) rotateY(0deg) }
+  to { transform: perspective(1000px) rotateY(360deg) }
+}
+
+@keyframes flip-calendar {
+  from { transform: perspective(1000px) rotateX(0deg) }
+  to { transform: perspective(1000px) rotateX(360deg) }
+}
+
+@keyframes flip-left-hand {
+  from { transform: perspective(1000px) rotate3d(-1,1,0, 0deg) }
+  to { transform: perspective(1000px) rotate3d(-1,1,0, 360deg) }
+}
+
+@keyframes flip-right-hand {
+  from { transform: perspective(1000px) rotate3d(1,1,0, 0deg) }
+  to { transform: perspective(1000px) rotate3d(1,1,0, 360deg) }
+}

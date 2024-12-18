@@ -21,7 +21,7 @@ func main() {
 		port = "7678"
 	}
 
-	fmt.Printf("Starting server on :%s...\n", port)
+	fmt.Printf("Starting server on http://0.0.0.0:%s\n", port)
 	check(http.ListenAndServe(":"+port, nil), "Error starting server")
 }
 
