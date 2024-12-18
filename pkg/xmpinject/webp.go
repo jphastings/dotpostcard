@@ -15,7 +15,7 @@ const (
 	vp8xHasAnimation byte = 1 << 1
 )
 
-var chunkOrder = []string{"VP8X", "ICCP", "ANIM", "VP8 ", "VP8L", "EXIF", "XMP "}
+var chunkOrder = []string{"VP8X", "ICCP", "ANIM", "ALPH", "VP8 ", "VP8L", "EXIF", "XMP "}
 
 // The VP8X header (that declares XMP data is present) also includes the image width and height & context on whether there is Alpha. This *can* be extracted from the VP8 or VP8L data, but providing the data here is faster & easier.
 func XMPintoWebP(out io.Writer, webpData []byte, xmpData []byte, bounds image.Rectangle, hasAlpha bool) error {
@@ -34,13 +34,13 @@ func XMPintoWebP(out io.Writer, webpData []byte, xmpData []byte, bounds image.Re
 
 	// File size for RIFF header
 	riffSize := 4
-	for n, chunk := range chunks {
+	for _, chunk := range chunks {
 		chunkLen := len(chunk)
-		if chunkLen%2 != 0 {
-			chunkLen++
-			chunks[n] = append(chunk, '\x00')
-		}
 		riffSize += 8 + chunkLen
+
+		if chunkLen%2 != 0 {
+			riffSize++
+		}
 	}
 
 	// Magic bytes & header
@@ -81,6 +81,14 @@ func writeWebpChunk(out io.Writer, fourCC string, chunk []byte) error {
 	if _, err := out.Write(chunk); err != nil {
 		return err
 	}
+
+	// Extra padding byte if chunk length isn't even (as all chunks must start on an even byte, and all header data is even length)
+	if len(chunk)%2 != 0 {
+		if _, err := out.Write([]byte{0x00}); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -128,9 +136,13 @@ func parseChunks(webpData []byte) (map[string][]byte, error) {
 
 		chunks[fourCC] = webpData[i : i+chunkLen]
 		i += chunkLen
+		// Skip a null byte if we're on an odd boundary, inserted as per WebP spec
+		if i%2 == 1 && webpData[i] == '\x00' {
+			i++
+		}
 	}
 
-	// TODO: Do I discard data beyond the RIFF envelope?
+	// Discard data beyond the RIFF envelope, as per the spec
 
 	return chunks, nil
 }
