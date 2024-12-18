@@ -35,14 +35,16 @@ func XMPintoPNG(out io.Writer, pngData []byte, xmpData []byte) error {
 	return err
 }
 
-func xmpToITXT(xmpData []byte) []byte {
-	crc := crc32.Checksum(xmpData, crc32.IEEETable)
+var iTXTcode = []byte("iTXt")
 
+func xmpToITXT(xmpData []byte) []byte {
+	// https://www.libpng.org/pub/png/spec/1.2/PNG-Chunks.html#C.iTXt
 	content := []byte("XML:com.adobe.xmp")
 	content = append(content, []byte{
 		0x00, // separator
 		0x00, // uncompressed
 		0x00, // no compression method
+		0x00, // separator
 		0x00, // separator
 	}...)
 	content = append(content, xmpData...)
@@ -50,8 +52,9 @@ func xmpToITXT(xmpData []byte) []byte {
 	// Compute the length and CRC
 	chunk := bytes.NewBuffer(nil)
 	binary.Write(chunk, binary.BigEndian, uint32(len(content)))
-	chunk.WriteString("iTXt")
+	chunk.Write(iTXTcode)
 	chunk.Write(content)
+	crc := crc32.Checksum(append(iTXTcode, content...), crc32.IEEETable)
 	binary.Write(chunk, binary.BigEndian, crc)
 
 	return chunk.Bytes()
