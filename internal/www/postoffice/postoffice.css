@@ -25,6 +25,13 @@ input[type="number"] {
   }
 }
 
+:focus {
+  border-color: var(--accent);
+  outline-color: var(--accent);
+}
+
+/* Output */
+
 #output {
   max-width:40vw;
   margin: auto;
@@ -66,6 +73,7 @@ label[for$="-image"] {
   border: 1px dashed var(--border);
   border-radius: var(--standard-border-radius);
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   cursor: pointer;

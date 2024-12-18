@@ -124,7 +124,11 @@ function sideImageChanged(e) {
     })
 
     // Trigger loading the image
-    img.src = file.target.result;
+    img.src = file.target.result
+
+    const label = document.querySelector(`label[for="${input.id}"]`)
+    label.innerHTML = ''
+    label.appendChild(img)
   })
 
   reader.addEventListener('error', () => {
