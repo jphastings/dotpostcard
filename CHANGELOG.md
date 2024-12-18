@@ -1,3 +1,11 @@
+## 0.10.0 (2024-12-18)
+
+### Feat
+
+- **postoffice**: Add loading spinner while creating
+- **postoffice**: Show only the appropriate flip choices
+- **postoffice**: :art: Style the Postoffice
+
 ## 0.9.3 (2024-12-18)
 
 ### Fix
