@@ -13,7 +13,7 @@
     <p>Welcome to <em>Postoffice</em>, a tool for creating digital files that represent Postcards, and all the information you care to share about them.</p>
     <p>It can create 3D models in the USDZ format, and JPEG/PNG images with the HTML & CSS needed to allow them to 'flip' on your site. See an example at <a href="https://shutup.jp" target="_blank">shutup.jp</a>.</p>
 
-    <a class="button" href="#front">Begin!</a>
+    <a class="button" id="begin" href="#front">Begin!</a>
 
     <form id="postcard-input" action="/compile/" method="POST" enctype="multipart/form-data">
       <section id="front">
@@ -139,7 +139,7 @@
       <button type="submit">Create Postcard</button>
     </form>
 
-    <div id="output" style="max-width:40vw;margin: auto; display: none;">
+    <div id="output" class="irrelevant">
       <style></style>
       <div class="postcard-html"></div>
       <a class="postcard-download">Download</a>

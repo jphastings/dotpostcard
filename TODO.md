@@ -18,6 +18,8 @@
 - [ ] Get HTML format to output the _right_ image extension (perhaps provide argument for what to add into templates?)
 - [ ] Store number of sides in the Metadata
 - [ ] Validate the number of sides in the metadata with the number of images provided
+- [ ] Show images when chosen in PostOffice
+- [ ] Allow selection of secrets in PostOffice
 
 ## Done
 

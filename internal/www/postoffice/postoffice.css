@@ -29,6 +29,39 @@ input[type="number"] {
   }
 }
 
+#output {
+  max-width:40vw;
+  margin: auto;
+  position:relative;
+
+  &.loading {
+    * {
+      display: none;
+    }
+
+    &::before {
+      position: absolute;
+      display: flex;
+
+      aspect-ratio: 148/105;
+      content: '';
+      font-size: 8rem;
+      justify-content: center;
+      align-items: center;
+      left: -8rem;
+      top: 1.5rem;
+      color: var(--bg);
+      background-color: var(--text-light);
+      border-radius: var(--standard-border-radius);
+      width: 16rem;
+
+      transform-origin: center;
+      transform-style: preserve-3d;
+      animation: flip-calendar 1.5s linear infinite;
+    }
+  }
+}
+
 /* Image inputs */
 
 label[for$="-image"] {
@@ -82,7 +115,7 @@ fieldset:has(input[name="flip"]) {
       content: '';
       top: 1.5rem;
       background-color: var(--text-light);
-      border-radius: 0;
+      border-radius: var(--standard-border-radius);
       width: 80%;
       cursor: pointer;
 

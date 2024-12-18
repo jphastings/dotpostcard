@@ -39,10 +39,6 @@ async function displayPostcard(files) {
 
   for (file of files) {
     switch(file.type) {
-      case "model/vnd.usdz+zip":
-        // Shortcut and just download the USDZ here, for now
-        downloadFile(file)
-        return
       case "text/css":
         await file.text().then(insertPostcardCSS)
         break;
@@ -60,7 +56,8 @@ async function displayPostcard(files) {
   }
 
   insertPostcardHTML(html, image)
-  document.querySelector('#output').style.display = 'block'
+  const outClass = document.querySelector('#output').classList
+  outClass.toggle('loading', false)
 }
 
 
@@ -165,8 +162,15 @@ function showAppropriateFlips() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById('postcard-input').addEventListener('submit', async (event) => {
+  const form = document.getElementById('postcard-input')
+  const output = document.getElementById('output')
+  
+  form.addEventListener('submit', async (event) => {
     event.preventDefault()
+    form.classList.toggle('irrelevant', true)
+    output.classList.toggle('irrelevant', false)
+    output.classList.toggle('loading', true)
+
     const {action, method} = event.target
     const body = new FormData(event.target)
   
@@ -174,6 +178,14 @@ document.addEventListener("DOMContentLoaded", () => {
       .then(onlyOk)
       .then(processResult)
   })
+
+  document.getElementById('begin').addEventListener('click', () => {
+    form.classList.toggle('irrelevant', false)
+    form.classList.toggle('output', true)
+  })
+
+  // Now the submit listener is registered, swap to showing the postcard on the page, instead of downloading
+  document.querySelector('input[name="codec-choice"][value="web"]').value = "web-js"
 
   document.querySelectorAll('#front-image,#back-image')
     .forEach((input) => {
