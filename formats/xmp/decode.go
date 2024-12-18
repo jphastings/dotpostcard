@@ -151,6 +151,9 @@ func tiffXMPToSize(tiff tiffTags, sidesInHeight int) (s types.Size) {
 }
 
 func scanDegrees(str string) *float64 {
+	if len(str) == 0 {
+		return nil
+	}
 	var deg int
 	var min float64
 	dir := str[len(str)-1:]
