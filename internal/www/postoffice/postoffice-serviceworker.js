@@ -3,9 +3,9 @@ importScripts('https://cdn.jsdelivr.net/gh/nlepage/go-wasm-http-server@v2.0.5/sw
 
 const wasm = 'postoffice-serviceworker.wasm'
 
-// addEventListener('install', (event) => {
-//   event.waitUntil(caches.open('postoffice').then((cache) => cache.add(wasm)))
-// })
+addEventListener('install', (event) => {
+  event.waitUntil(caches.open('postoffice').then((cache) => cache.add(wasm)))
+})
 
 addEventListener('activate', (event) => {
   event.waitUntil(clients.claim())

@@ -12,7 +12,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function processResult(res) {
   const mimeType = res.headers.get('Content-Type').split(';')[0]
-  debugger
   if (mimeType == 'multipart/form-data') {
     const fd = await res.formData()
     displayPostcard(fd.values())

@@ -15,7 +15,8 @@ func DefaultCodecChoices() (CodecChoices, error) {
 	}
 
 	return map[string][]formats.Codec{
-		"web":  {webCodec, html.Codec(), css.Codec()},
-		"usdz": {usdz.Codec()},
+		"web-js": {webCodec, html.Codec(), css.Codec()},
+		"web":    {webCodec},
+		"usdz":   {usdz.Codec()},
 	}, nil
 }

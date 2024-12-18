@@ -14,7 +14,7 @@ func main() {
 	check(err, "Unable to load codecs")
 
 	http.Handle("/", www.PostOfficeHandler)
-	http.HandleFunc("/compile", postoffice.HTTPFormHander(codecChoices))
+	http.HandleFunc("/compile/", postoffice.HTTPFormHander(choices))
 
 	port, gavePort := os.LookupEnv("PORT")
 	if !gavePort {
