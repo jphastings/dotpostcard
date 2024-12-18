@@ -20,6 +20,8 @@
 - [ ] Validate the number of sides in the metadata with the number of images provided
 - [ ] Show images when chosen in PostOffice
 - [ ] Allow selection of secrets in PostOffice
+- [ ] Allow conversion of postcard files on PostOffice
+- [ ] Pit buttons for downloading CSS and HTML on web-js output (PostOffice)
 
 ## Done
 
