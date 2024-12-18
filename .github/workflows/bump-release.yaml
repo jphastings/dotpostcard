@@ -61,3 +61,24 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+      - name: Upload static Postoffice site artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: postoffice-static
+          path: internal/www/postoffice
+  
+  deploy-postoffice-static:
+    needs: goreleaser
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: Postoffice Web
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: postoffice-static
