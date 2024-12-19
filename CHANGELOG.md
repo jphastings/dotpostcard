@@ -1,3 +1,14 @@
+## 0.11.0 (2024-12-19)
+
+### Feat
+
+- **postoffice**: Allow selection of secrets in PostOffice
+- **postoffice**: Show front/back image when chosen
+
+### Fix
+
+- **postoffice**: Fix .only-empty to only show without items
+
 ## 0.10.5 (2024-12-18)
 
 ### Fix
