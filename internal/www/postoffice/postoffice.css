@@ -78,6 +78,42 @@ label[for$="-image"] {
   align-items: center;
   cursor: pointer;
   margin-bottom: 1rem;
+  position: relative;
+
+  .secret {
+    input {
+      display: none;
+    }
+    position: absolute;
+
+    border: 1px solid var(--text);
+    --a: hsl(from var(--text) h s l / 50%);
+    --b: hsl(from var(--bg) h s l / 50%);
+    background: repeating-linear-gradient(45deg, var(--a), var(--a) 5px, var(--b) 5px, var(--b) 10px);
+    background-size: 14.1421356237px 14.1421356237px;
+    animation: sweep-gradient 2s linear infinite;
+
+    &::before, &::after {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      content: '';
+      border: inherit;
+      background-color: var(--bg);
+    }
+
+    &::before {
+      top: -5px;
+      left: -5px;
+      cursor:nw-resize;
+    }
+
+    &::after {
+      bottom: -5px;
+      right: -5px;
+      cursor:se-resize;
+    }
+  }
 }
 
 input[type="file"][id$="-image"] {
@@ -156,4 +192,9 @@ fieldset:has(input[name="flip"]) {
 @keyframes flip-right-hand {
   from { transform: perspective(1000px) rotate3d(1,1,0, 0deg) }
   to { transform: perspective(1000px) rotate3d(1,1,0, 360deg) }
+}
+
+@keyframes sweep-gradient {
+  0% { background-position: 0 0; }
+  100% { background-position: -14.1421356237px 14.1421356237px; }
 }

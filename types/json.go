@@ -5,6 +5,12 @@ import (
 	"time"
 )
 
+func (poly *Polygon) UnmarshalJSON(b []byte) error {
+	return poly.multiPolygonUnmarshaller(func(into interface{}) error {
+		return json.Unmarshal(b, into)
+	})
+}
+
 func (d *Date) UnmarshalJSON(b []byte) (err error) {
 	str := string(b)
 	if str == "null" {
@@ -25,3 +31,4 @@ func (d Date) MarshalJSON() ([]byte, error) {
 
 var _ json.Marshaler = (*Date)(nil)
 var _ json.Unmarshaler = (*Date)(nil)
+var _ json.Unmarshaler = (*Polygon)(nil)

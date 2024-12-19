@@ -129,6 +129,8 @@ function sideImageChanged(e) {
     const label = document.querySelector(`label[for="${input.id}"]`)
     label.innerHTML = ''
     label.appendChild(img)
+
+    allowSecrets(img)
   })
 
   reader.addEventListener('error', () => {
@@ -137,6 +139,83 @@ function sideImageChanged(e) {
   
   reader.readAsDataURL(file)
 }
+
+function allowSecrets(img) {
+  const label = img.parentElement
+  img.draggable = false
+
+  const stopFileChooser = (e) => { e.preventDefault() }
+
+  let dragged, startPoint;
+  img.addEventListener('mousedown', (e) => {
+    label.addEventListener('click', stopFileChooser)
+
+    dragged = document.createElement('div')
+    dragged.classList.add('secret')
+
+    const rect = label.getBoundingClientRect()
+    startPoint = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    }
+    dragged.style.left = `${startPoint.x}px`
+    dragged.style.top = `${startPoint.y}px`
+
+    img.parentElement.appendChild(dragged)
+
+    const endDrag = (e) => {
+      if (!dragged) return;
+      
+      const rect = label.getBoundingClientRect()
+      const imgRect = img.getBoundingClientRect()
+      const b = makeSecretBox(startPoint, {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      })
+      // Translate coords relative & scaled to image, as needed
+      const imgBox = {
+        type: 'box',
+        left: (b.left - (imgRect.left - rect.left)) / imgRect.width,
+        top: (b.top - (imgRect.top - rect.top)) / imgRect.height,
+        width: b.width / imgRect.width,
+        height: b.height / imgRect.height,
+      }
+      const sideName = label.htmlFor.split('-')[0]
+
+      dragged.innerHTML = `<input type="hidden" name="${sideName}.secrets">`
+      dragged.querySelector('input').value = JSON.stringify(imgBox)
+
+      // Wait a moment, or the value isn't set properly (?!)
+      setTimeout(() => { dragged = null }, 1)
+      
+      window.removeEventListener('mouseup', endDrag)
+    }
+
+    window.addEventListener('mouseup', endDrag)
+  })
+
+  img.addEventListener('mousemove', (e) => {
+    if (!dragged) return;
+
+    const rect = label.getBoundingClientRect()
+    const b = makeSecretBox(startPoint, {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    })
+
+    dragged.style.left = `${b.left}px`
+    dragged.style.top = `${b.top}px`
+    dragged.style.width = `${b.width}px`
+    dragged.style.height = `${b.height}px`
+  })
+}
+
+const makeSecretBox = (startPoint, thisPoint) => ({
+  left: Math.min(startPoint.x, thisPoint.x),
+  top: Math.min(startPoint.y, thisPoint.y),
+  width: Math.abs(startPoint.x - thisPoint.x),
+  height: Math.abs(startPoint.y - thisPoint.y),
+})
 
 function showAppropriateFlips() {
   const frontOrientation = document.getElementById('front-image')?.dataset?.orientation

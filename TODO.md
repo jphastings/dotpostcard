@@ -18,12 +18,12 @@
 - [ ] Get HTML format to output the _right_ image extension (perhaps provide argument for what to add into templates?)
 - [ ] Store number of sides in the Metadata
 - [ ] Validate the number of sides in the metadata with the number of images provided
-- [x] Show images when chosen in PostOffice
-- [ ] Allow selection of secrets in PostOffice
 - [ ] Allow conversion of postcard files on PostOffice
 - [ ] Put buttons for downloading CSS and HTML on web-js output (PostOffice)
 - [ ] Allow uploading/choice of SVGs for the back side, to make a "blank" postcard
   - [ ] Responsive layout for the back — in physical units
+- [ ] Allow secrets to be removed #PostOffice
+- [ ] Figure out why secrets dragging is janky #PostOffice
 
 ## Done
 
@@ -47,3 +47,5 @@
 - [x] Get this CLI tool building automatically
 - [x] Web (webp) with transparency not convertible (eg. to USD) #bug
 - [x] Create USDZ directly (no need for OpenUSD tooling)
+- [x] Show images when chosen in PostOffice
+- [x] Allow selection of secrets in PostOffice

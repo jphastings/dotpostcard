@@ -1,6 +1,7 @@
 package postoffice
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -114,6 +115,20 @@ func requestToPostcard(codecChoices CodecChoices, r *http.Request) (types.Postca
 
 	meta.Front.Transcription.Text = r.FormValue("front.transcription.text")
 	meta.Back.Transcription.Text = r.FormValue("back.transcription.text")
+
+	for _, secret := range r.Form["front.secrets"] {
+		var poly types.Polygon
+		if err := json.Unmarshal([]byte(secret), &poly); err == nil {
+			meta.Front.Secrets = append(meta.Front.Secrets, poly)
+		}
+	}
+
+	for _, secret := range r.Form["back.secrets"] {
+		var poly types.Polygon
+		if err := json.Unmarshal([]byte(secret), &poly); err == nil {
+			meta.Back.Secrets = append(meta.Back.Secrets, poly)
+		}
+	}
 
 	meta.Context.Description = r.FormValue("context.description")
 	meta.Context.Author.Scan(r.FormValue("context.author"))
