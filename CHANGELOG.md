@@ -1,3 +1,9 @@
+## 0.11.1 (2025-01-05)
+
+### Fix
+
+- **postoffice**: Switch to local wasm_exec.js and sw.js
+
 ## 0.11.0 (2024-12-19)
 
 ### Feat
