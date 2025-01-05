@@ -251,6 +251,7 @@ document.addEventListener("DOMContentLoaded", () => {
   
   form.addEventListener('submit', async (event) => {
     event.preventDefault()
+
     form.classList.toggle('irrelevant', true)
     output.classList.toggle('irrelevant', false)
     output.classList.toggle('loading', true)
@@ -258,9 +259,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const {action, method} = event.target
     const body = new FormData(event.target)
   
+    console.log("Requesting Postcard…")
     const res = await fetch(action, { method, body,})
       .then(onlyOk)
       .then(processResult)
+      .then(() => console.log("Postcard retrieved & processed"))
   })
 
   document.getElementById('begin').addEventListener('click', () => {
@@ -278,4 +281,11 @@ document.addEventListener("DOMContentLoaded", () => {
   showAppropriateFlips()
 })
 
-navigator.serviceWorker?.register('postoffice-serviceworker.js')?.catch(console.error)
+if (navigator.serviceWorker) {
+  navigator.serviceWorker.register('postoffice-serviceworker.js')
+    .then(() => console.log("Service worker loaded: Postcards will be generated locally"))
+    .catch(console.error)
+} else {
+  console.warn("Service Workers are not available. You must access this page over HTTPS, or on localhost.")
+}
+

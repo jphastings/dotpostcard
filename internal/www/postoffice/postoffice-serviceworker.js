@@ -1,5 +1,5 @@
-importScripts('https://cdn.jsdelivr.net/gh/golang/go@go1.23.1/misc/wasm/wasm_exec.js')
-importScripts('https://cdn.jsdelivr.net/gh/nlepage/go-wasm-http-server@v2.0.5/sw.js')
+importScripts('wasm_exec.js')
+importScripts('sw.js')
 
 const wasm = 'postoffice-serviceworker.wasm'
 

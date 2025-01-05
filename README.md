@@ -23,7 +23,7 @@ WASIp1 compatible WASM executables are also provided with a reduced feature set 
 
 ## Usage
 
-To make your first postcard file you should scan both sides of your postcard, its "comonents".
+To make your first postcard file you should scan both sides of your postcard, its "components".
 
 > [!NOTE]
 > JPG, PNG and TIFF formats are all supported, but JPG may lose quality, and some scanning software's TIFF format isn't compatible with this software.

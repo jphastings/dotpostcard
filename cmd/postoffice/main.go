@@ -21,7 +21,9 @@ func main() {
 		port = "7678"
 	}
 
-	fmt.Printf("Starting server on http://0.0.0.0:%s\n", port)
+	// This can be accessed on any IP address, but ServiceWorkers will only function in
+	// a secure context (localhost, or over HTTPS).
+	fmt.Printf("Starting server. Access at http://127.0.0.1:%s\n", port)
 	check(http.ListenAndServe(":"+port, nil), "Error starting server")
 }
 
