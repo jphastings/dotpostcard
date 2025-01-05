@@ -1,3 +1,9 @@
+## 0.11.2 (2025-01-05)
+
+### Fix
+
+- **postoffice**: :bug: Allow decimals on lat/long input
+
 ## 0.11.1 (2025-01-05)
 
 ### Fix
