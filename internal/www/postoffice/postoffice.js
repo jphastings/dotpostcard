@@ -248,6 +248,23 @@ function showAppropriateFlips() {
   }
 }
 
+function showError(err) {
+  console.error("Unable to create postcard:", err)
+
+  const error = document.getElementById('error')
+  const output = document.getElementById('output')
+
+  error.querySelector('p').textContent = err.message
+  output.classList.remove('loading')
+  output.classList.add('irrelevant')
+  error.classList.remove('irrelevant')
+}
+
+function removeError() {
+  const error = document.getElementById('error')
+  error.classList.add('irrelevant')
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   const beginBtn = document.getElementById('begin')
   const form = document.getElementById('postcard-input')
@@ -256,9 +273,10 @@ document.addEventListener("DOMContentLoaded", () => {
   form.addEventListener('submit', async (event) => {
     event.preventDefault()
 
-    form.classList.toggle('irrelevant', true)
-    output.classList.toggle('irrelevant', false)
-    output.classList.toggle('loading', true)
+    form.classList.add('irrelevant')
+    output.classList.remove('irrelevant')
+    output.classList.add('loading')
+    removeError()
     beginBtn.innerHTML = beginBtn.dataset.afterClick
 
     const {action, method} = event.target
@@ -269,11 +287,13 @@ document.addEventListener("DOMContentLoaded", () => {
       .then(onlyOk)
       .then(processResult)
       .then(() => console.log("Postcard retrieved & processed"))
+      .catch(showError)
   })
 
   beginBtn.addEventListener('click', (e) => {
     form.classList.toggle('irrelevant', false)
     output.classList.toggle('irrelevant', true)
+    removeError()
   })
 
   // Now the submit listener is registered, swap to showing the postcard on the page, instead of downloading

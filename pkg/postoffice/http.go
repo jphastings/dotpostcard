@@ -23,6 +23,7 @@ func HTTPFormHander(codecChoices CodecChoices) func(http.ResponseWriter, *http.R
 		pc, codecs, encOpts, err := requestToPostcard(codecChoices, r)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Unable to create postcard: %v", err), http.StatusBadRequest)
+			return
 		}
 
 		var files []formats.FileWriter

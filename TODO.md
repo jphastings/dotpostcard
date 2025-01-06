@@ -1,7 +1,5 @@
 # TODO
 
-- [ ] Show useful errors on build fail #PostOffice
-- [ ] How to handle refreshing ServiceWorker WASM on update?
 - [ ] Get HTML format to output the _right_ image extension (fill out ImageExt argument)
 - [ ] Read XMP data from png `web` format
 - [ ] Read XMP data from generic JPEG format (eg. with EXIF APP1 chunk before XMP APP1 chunk)
@@ -52,3 +50,6 @@
   - [x] Calendar flip cards
   - [x] No flip cards
 - [x] Fix blob image display from ServiceWorker #bug #postoffice
+- [x] How to handle refreshing ServiceWorker WASM on update?
+  - Cache is busted automatically every 24 hours [by the browser](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerRegistration/update#:~:text=fetch%20occurred%20over-,24%20hours%20ago,-.).
+- [x] Show useful errors on build fail #PostOffice

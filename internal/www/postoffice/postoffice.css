@@ -126,6 +126,15 @@ input[type="number"] {
   }
 }
 
+#error {
+  margin-top: 1rem;
+  border: 1px solid #fa0a0a;
+  color: #fa3a3a;
+  background-color: rgba(250, 10, 10, 0.1);
+  padding: 0 1rem;
+  border-radius: var(--standard-border-radius);
+}
+
 /* Image inputs */
 
 label[for$="-image"] {
