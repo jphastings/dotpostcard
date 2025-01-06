@@ -74,10 +74,24 @@ func HTTPFormHander(codecChoices CodecChoices) func(http.ResponseWriter, *http.R
 
 func checkboxBool(formVal string) bool { return formVal == "on" }
 
+// TODO: I may need to have this configured differently between ServiceWorker and server.
+const formParseMaxMemory = 64 << 20 // 64MB
+
 func requestToPostcard(codecChoices CodecChoices, r *http.Request) (types.Postcard, []formats.Codec, formats.EncodeOptions, error) {
+	if err := r.ParseMultipartForm(formParseMaxMemory); err != nil {
+		return types.Postcard{}, nil, formats.EncodeOptions{}, fmt.Errorf("unable to parse form data, your images are probably too large: %w", err)
+	}
+
 	codecs, ok := codecChoices[r.FormValue("codec-choice")]
 	if !ok {
-		return types.Postcard{}, nil, formats.EncodeOptions{}, fmt.Errorf("no acceptable codec choice provided")
+		var choices []string
+		for c := range codecChoices {
+			choices = append(choices, c)
+		}
+		return types.Postcard{}, nil, formats.EncodeOptions{}, fmt.Errorf(
+			"unacceptable codec choice provided, '%s' should be in: %s",
+			r.FormValue("codec-choice"), strings.Join(choices, ", "),
+		)
 	}
 
 	decOpts := formats.DecodeOptions{

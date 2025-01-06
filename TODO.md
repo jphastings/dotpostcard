@@ -1,6 +1,7 @@
 # TODO
 
-- [ ] Fix blob image display from ServiceWorker #bug #postoffice
+- [ ] Show useful errors on build fail #PostOffice
+- [ ] How to handle refreshing ServiceWorker WASM on update?
 - [ ] Get HTML format to output the _right_ image extension (fill out ImageExt argument)
 - [ ] Read XMP data from png `web` format
 - [ ] Read XMP data from generic JPEG format (eg. with EXIF APP1 chunk before XMP APP1 chunk)
@@ -50,3 +51,4 @@
   - [x] Add colour to postcard edges
   - [x] Calendar flip cards
   - [x] No flip cards
+- [x] Fix blob image display from ServiceWorker #bug #postoffice
