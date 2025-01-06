@@ -1,3 +1,9 @@
+## 0.11.5 (2025-01-06)
+
+### Fix
+
+- **postoffice**: Show useful errors on failure
+
 ## 0.11.4 (2025-01-06)
 
 ### Fix
