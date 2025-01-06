@@ -1,3 +1,9 @@
+## 0.11.4 (2025-01-06)
+
+### Fix
+
+- **postoffice**: :bug: Detect & give reasonable error when input image too large
+
 ## 0.11.3 (2025-01-06)
 
 ### Fix
