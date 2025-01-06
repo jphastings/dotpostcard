@@ -1,3 +1,7 @@
+body {
+  margin-bottom: 4rem;
+}
+
 input[type="text"] {
   width: 100%;
 }
@@ -32,12 +36,71 @@ input[type="number"] {
 
 /* Output */
 
+.postcard-download {
+  display: block;
+  width: 200px;
+  margin: 1rem auto;
+  text-align: center;
+}
+
 #output {
-  max-width:40vw;
+  width:100%;
   margin: auto;
   position:relative;
 
+  .postcard-html {
+    display: flex;
+    place-content: center;
+  }
+
+  .postcard {
+    width: 80%;
+    margin: 1rem;
+  }
+
+  .code {
+    display:flex;
+    flex-direction: column;
+    padding-bottom: 1rem;
+    text-align: left;
+
+    & > * {
+      flex: 1;
+      min-width: 50%;
+      box-sizing: border-box;
+      padding: 1rem;
+      border: 1px solid var(--border);
+      border-radius: var(--standard-border-radius);
+      background-color: var(--accent-bg);
+      margin: 0.5rem;
+      padding: 0;
+
+      label {
+        background-color: var(--bg);
+        border-bottom: 1px solid var(--border);
+        border-top-left-radius: var(--standard-border-radius);
+        border-top-right-radius: var(--standard-border-radius);
+        padding: 0.25rem 0.5rem;
+      }
+    }
+
+    style,code {
+      display:block;
+      white-space: pre;
+      font-family: var(--mono-font);
+      color: var(--preformatted);
+      overflow: scroll;
+      font-size: smaller;
+      padding: 0.5rem;
+      max-height: 600px;
+      tab-size: 2;
+    }
+  }
+
   &.loading {
+    position: relative;
+    margin: 1rem auto;
+
     * {
       display: none;
     }
@@ -48,19 +111,17 @@ input[type="number"] {
 
       aspect-ratio: 148/105;
       content: '';
-      font-size: 8rem;
       justify-content: center;
       align-items: center;
-      left: -8rem;
+      left: calc(50% - 4rem);
       top: 1.5rem;
-      color: var(--bg);
       background-color: var(--text-light);
       border-radius: var(--standard-border-radius);
-      width: 16rem;
+      width: 8rem;
 
       transform-origin: center;
       transform-style: preserve-3d;
-      animation: flip-calendar 1.5s linear infinite;
+      animation: flip-book 1.5s linear infinite;
     }
   }
 }

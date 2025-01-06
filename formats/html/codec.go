@@ -18,7 +18,11 @@ var postcardHTML string
 var htmlTmpl *template.Template
 
 func init() {
-	tmpl, err := template.New("postcard-html").Parse(postcardHTML)
+	tmpl, err := template.New("postcard-html").Funcs(template.FuncMap{
+		"comment": func(msg string) template.HTML {
+			return template.HTML("<!-- " + msg + " -->")
+		},
+	}).Parse(postcardHTML)
 	if err != nil {
 		panic(fmt.Sprintf("Couldn't parse HTML template: %v", err))
 	}
@@ -35,14 +39,23 @@ func (c codec) Bundle(group formats.FileGroup) ([]formats.Bundle, []fs.File, err
 	return nil, group.Files, nil
 }
 
+type htmlVars struct {
+	types.Metadata
+	ImageExt string
+}
+
 func (c codec) Encode(pc types.Postcard, _ *formats.EncodeOptions) ([]formats.FileWriter, error) {
-	name := fmt.Sprintf("%s.html", pc.Name)
+	v := htmlVars{
+		Metadata: pc.Meta,
+		ImageExt: ".jpeg",
+	}
+	v.Metadata.Name = pc.Name
+
 	writer := func(w io.Writer) error {
-		pc.Meta.Name = pc.Name
-		return htmlTmpl.Execute(w, pc.Meta)
+		return htmlTmpl.Execute(w, v)
 	}
 
 	return []formats.FileWriter{
-		formats.NewFileWriter(name, "text/html", writer),
+		formats.NewFileWriter(fmt.Sprintf("%s.html", pc.Name), "text/html", writer),
 	}, nil
 }

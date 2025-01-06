@@ -13,7 +13,7 @@
     <p>Welcome to <em>Postoffice</em>, a tool for creating digital files that represent Postcards, and all the information you care to share about them.</p>
     <p>It can create 3D models in the USDZ format, and JPEG/PNG images with the HTML & CSS needed to allow them to 'flip' on your site. See an example at <a href="https://shutup.jp" target="_blank">shutup.jp</a>.</p>
 
-    <a class="button" id="begin" href="#front">Describe your postcard!</a>
+    <a class="button" id="begin" href="#front" data-after-click="Edit your postcard's details">Create your postcard!</a>
 
     <form id="postcard-input" action="/compile/" method="POST" enctype="multipart/form-data">
       <section id="front">
@@ -58,7 +58,7 @@
       <section id="metadata">
         <fieldset>
           <legend>How does the postcard flip?</legend>
-          <label><input type="radio" name="flip" value="">One sided</label>
+          <label><input type="radio" name="flip" value="none">One sided</label>
           <label><input type="radio" name="flip" value="book">Like a book</label>
           <label><input type="radio" name="flip" value="calendar">Like a calendar</label>
           <label><input type="radio" name="flip" value="left-hand">Holding in the left hand</label>
@@ -140,9 +140,20 @@
     </form>
 
     <div id="output" class="irrelevant">
-      <style></style>
       <div class="postcard-html"></div>
-      <a class="postcard-download">Download</a>
+      <a class="postcard-download button">Download postcard</a>
+
+      <p>You can display this postcard on a web page using this HTML & CSS:</p>
+      <div class="code">
+        <div>
+          <label>HTML</label>
+          <code></code>
+        </div>
+        <div>
+          <label>CSS</label>
+          <style></style>
+        </div>
+      </div>
     </div>
   </body>
 </html>

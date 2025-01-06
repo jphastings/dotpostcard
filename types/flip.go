@@ -12,7 +12,7 @@ const (
 	FlipLeftHand  Flip = "left-hand"
 	FlipCalendar  Flip = "calendar"
 	FlipRightHand Flip = "right-hand"
-	FlipNone      Flip = ""
+	FlipNone      Flip = "none"
 )
 
 var ValidFlips = []Flip{FlipBook, FlipCalendar, FlipLeftHand, FlipRightHand, FlipNone}

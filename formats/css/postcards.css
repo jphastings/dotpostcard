@@ -1,13 +1,5 @@
-input[id^=postcard-] {
-  display: inline;
-  width: 0;
-  height: 0;
-  overflow:hidden;
-  visibility: hidden;
-
-  &:checked ~ label .postcard  {
-    --flip: 180deg;
-  }
+input[id^=postcard-]:checked ~ label.postcard  {
+  --flip: 180deg;
 }
 
 .postcard {
@@ -46,54 +38,62 @@ input[id^=postcard-] {
     --offset: translate(40px, 40px);
   }
 
-  &::before, &::after {
-    content: '';
-    width: 100%;
-    aspect-ratio: var(--aspect-ratio);
-    position: absolute;
-    box-sizing: inherit;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
-    transform-style: preserve-3d;
-    background-blend-mode: multiply;
-    z-index: 2;
+  &.portrait .shadow {
+    width:auto;
+    height:90%;
+    margin: 5%;
   }
 
-  &.portrait {
-    flex-direction: column;
-  
-    .shadow {
-      width:auto;
-      height:90%;
-      margin: 5%;
-    }
+  img {
+    position: absolute;
+  }
+
+  &:not(.flip-none) {
+    cursor: pointer;
 
     &::before, &::after {
-      width:auto;
-      height:100%;
+      content: '';
+      width: 100%;
+      aspect-ratio: var(--aspect-ratio);
+      position: absolute;
+      box-sizing: inherit;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      transform-style: preserve-3d;
+      background-blend-mode: multiply;
+      z-index: 2;
     }
-  }
 
-  &::after {
-    background: no-repeat top/100%;
-    mask: var(--postcard) top/100%;
-  }
+    &.portrait {
+      flex-direction: column;
   
-  &::before {
-    background: no-repeat bottom/100%;
-    mask: var(--postcard) bottom/100%;
-  }
+      &::before, &::after {
+        width:auto;
+        height:100%;
+      }
+    }
 
-  &::before, &::after, .shadow {
-    transition: transform 1s ease-in-out;
-  }
+    &::after {
+      background: no-repeat top/100%;
+      mask: var(--postcard) top/100%;
+    }
+    
+    &::before {
+      background: no-repeat bottom/100%;
+      mask: var(--postcard) bottom/100%;
+    }
 
-  /* TODO: Does this break accessibility? */
-  img {
-    display: none;
+    &::before, &::after, .shadow {
+      transition: transform 1s ease-in-out;
+    }
+
+    img {
+      /* TODO: Does hiding the img break the readability of the image's alt text for accessibility? */
+      display: none;
+    }
   }
 
   &.left-hand,&.right-hand {

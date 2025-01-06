@@ -1,29 +1,25 @@
 # TODO
 
-- [ ] Only one postcards.css per group/directory
-- [x] Figure out USD format
-  - [x] Add colour to postcard edges
-  - [x] Calendar flip cards
-  - [x] No flip cards
-  - [ ] Four point edges
-  - [ ] Figure out how to do multi-edge vertexes
-  - [ ] Co-orientation of front and back (slight rotation & translation differences)
-  - NB. Currently back of card is front of card in terms of points (esp. relevant for Calendar flip); not flip of card
-- [ ] Hold file size & other info? `fs.Info{}` from `.Stat()`
+- [ ] Fix blob image display from ServiceWorker #bug #postoffice
+- [ ] Get HTML format to output the _right_ image extension (fill out ImageExt argument)
 - [ ] Read XMP data from png `web` format
 - [ ] Read XMP data from generic JPEG format (eg. with EXIF APP1 chunk before XMP APP1 chunk)
 - [ ] Don't re-encode same-same format. (eg. USDZ to Web(no alpha, lossy); Web to Web)
 - [ ] Show warning when using fallback size to generate USDZ
 - [ ] Show warning when losing information on conversion (are there any of these cases now?)
-- [ ] Get HTML format to output the _right_ image extension (perhaps provide argument for what to add into templates?)
 - [ ] Store number of sides in the Metadata
 - [ ] Validate the number of sides in the metadata with the number of images provided
 - [ ] Allow conversion of postcard files on PostOffice
-- [ ] Put buttons for downloading CSS and HTML on web-js output (PostOffice)
+- [ ] Transparent bordered #USD postcards
+  - [ ] Four point edges #USD
+  - [ ] Figure out how to do multi-edge vertexes
+  - [ ] Co-orientation of front and back (slight rotation & translation differences)
+    - NB. Currently back of card is front of card in terms of points (esp. relevant for Calendar flip); not flip of card
 - [ ] Allow uploading/choice of SVGs for the back side, to make a "blank" postcard
   - [ ] Responsive layout for the back — in physical units
-- [ ] Allow secrets to be removed #PostOffice
+- [ ] Allow secrets to be unselected in #PostOffice UI
 - [ ] Figure out why secrets dragging is janky #PostOffice
+- [ ] Only one postcards.css per group/directory
 
 ## Done
 
@@ -49,3 +45,8 @@
 - [x] Create USDZ directly (no need for OpenUSD tooling)
 - [x] Show images when chosen in PostOffice
 - [x] Allow selection of secrets in PostOffice
+- [x] Put buttons for downloading CSS and HTML on web-js output (PostOffice)
+- [x] Figure out USD format
+  - [x] Add colour to postcard edges
+  - [x] Calendar flip cards
+  - [x] No flip cards

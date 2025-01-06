@@ -9,7 +9,8 @@
 # The language you're writing any text below in. en-GB for British, en-US for American English. Any BCP-47 code works (https://datatracker.ietf.org/doc/html/rfc5646)
 locale: en-GB
 
-# Required for double-sided postcards. How the postcard flips over. One of:
+# Required. How the postcard flips over. One of:
+#  none - only a single side of the postcard is provided (it shouldn't flip)
 #  book - holding on the bottom edge to flip makes the other side the right way up
 #  calendar - holding on the side edge to flip makes the other side the right way up
 #  left-hand - holding on the bottom left corner (with your left hand) makes the other side the right way up

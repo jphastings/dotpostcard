@@ -64,10 +64,11 @@ async function displayPostcard(files) {
 
 function insertPostcardCSS(css) {
   const outCSS = document.querySelector('#output style')
-  outCSS.appendChild(document.createTextNode(css));
+  outCSS.textContent = css;
 }
 
 function insertPostcardHTML(html, image) {
+  const showHTML = document.querySelector('#output code')
   const outHTML = document.querySelector('#output div.postcard-html')
   const outDownload = document.querySelector('#output a.postcard-download')
 
@@ -75,6 +76,8 @@ function insertPostcardHTML(html, image) {
   if (!uniqueHTML) {
     throw new Error("Unexpected HTML returned from postcard generator")
   }
+  showHTML.textContent = uniqueHTML;
+
   // TODO: fix this hack to replace the filename
   const toReplace = image.filename.replace(/\.[^/.]+$/, '.jpeg')
   outHTML.innerHTML = uniqueHTML.replaceAll(toReplace, image.blobURL)
@@ -225,13 +228,13 @@ function showAppropriateFlips() {
   if (!frontOrientation) {
     flipChoices.forEach((flip) => flip.parentElement.classList.toggle('irrelevant', true))
   } else if (!backOrientation) {
-    flipChoices.forEach((flip) => flip.parentElement.classList.toggle('irrelevant', flip.value != ""))
+    flipChoices.forEach((flip) => flip.parentElement.classList.toggle('irrelevant', flip.value != "none"))
   } else if (frontOrientation == "square") {
     flipChoices.forEach((flip) => flip.parentElement.classList.toggle('irrelevant', false))
   } else {
     const homoriented = frontOrientation == backOrientation
     flipChoices.forEach((flip) => {
-      const isIrrelevant = flip.value == '' || flip.value.endsWith('-hand') == homoriented
+      const isIrrelevant = flip.value == 'none' || flip.value.endsWith('-hand') == homoriented
       flip.parentElement.classList.toggle('irrelevant', isIrrelevant)
     })
   }
@@ -246,6 +249,7 @@ function showAppropriateFlips() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  const beginBtn = document.getElementById('begin')
   const form = document.getElementById('postcard-input')
   const output = document.getElementById('output')
   
@@ -255,10 +259,11 @@ document.addEventListener("DOMContentLoaded", () => {
     form.classList.toggle('irrelevant', true)
     output.classList.toggle('irrelevant', false)
     output.classList.toggle('loading', true)
+    beginBtn.innerHTML = beginBtn.dataset.afterClick
 
     const {action, method} = event.target
     const body = new FormData(event.target)
-  
+
     console.log("Requesting Postcard…")
     const res = await fetch(action, { method, body,})
       .then(onlyOk)
@@ -266,7 +271,7 @@ document.addEventListener("DOMContentLoaded", () => {
       .then(() => console.log("Postcard retrieved & processed"))
   })
 
-  document.getElementById('begin').addEventListener('click', () => {
+  beginBtn.addEventListener('click', (e) => {
     form.classList.toggle('irrelevant', false)
     output.classList.toggle('irrelevant', true)
   })
