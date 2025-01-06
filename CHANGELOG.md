@@ -1,3 +1,9 @@
+## 0.11.3 (2025-01-06)
+
+### Fix
+
+- **postoffice**: Simplify HTML output & fix flip none output
+
 ## 0.11.2 (2025-01-05)
 
 ### Fix
