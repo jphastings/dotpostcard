@@ -1,3 +1,9 @@
+## 0.11.12 (2025-01-25)
+
+### Fix
+
+- :green_heart: Update go.sum & README, to allow build to work
+
 ## 0.11.11 (2025-01-25)
 
 ### Fix
