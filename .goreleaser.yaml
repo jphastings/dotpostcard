@@ -5,8 +5,9 @@ version: 2
 
 before:
   hooks:
-    - go generate ./...
     - go mod tidy
+    - go get -u github.com/valyala/quicktemplate/qtc
+    - go generate ./...
 
 builds:
   -
