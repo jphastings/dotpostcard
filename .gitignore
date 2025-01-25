@@ -1,5 +1,10 @@
 
 dist/
 .vscode/launch.json
+
+# These are downloaded by go generate
+internal/www/postoffice/wasm_exec.js
+internal/www/postoffice/sw.js
+
 # This needs to be excluded or the release can't function (as the git state will be inconsistent)
 internal/www/postoffice/postoffice-serviceworker.wasm

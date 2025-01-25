@@ -6,6 +6,8 @@ import (
 	"net/http"
 )
 
+//go:generate sh ../../prepare-wasm-js.sh
+
 //go:embed postoffice/*
 var postOffice embed.FS
 
