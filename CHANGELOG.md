@@ -1,3 +1,9 @@
+## 0.11.10 (2025-01-25)
+
+### Fix
+
+- :green_heart: Copy correct wasm & service worker exec files
+
 ## 0.11.9 (2025-01-25)
 
 ### Fix
