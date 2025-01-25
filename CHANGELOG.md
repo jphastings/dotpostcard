@@ -1,3 +1,9 @@
+## 0.11.7 (2025-01-25)
+
+### Fix
+
+- :bug: Fix build bug, makes qtc available & generates after go mod
+
 ## 0.11.6 (2025-01-25)
 
 ### Refactor
