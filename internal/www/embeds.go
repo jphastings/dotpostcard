@@ -6,7 +6,8 @@ import (
 	"net/http"
 )
 
-//go:generate sh ../../prepare-wasm-js.sh
+//go:generate sh -c "cp \"$(go env GOMODCACHE)/$(go list -m github.com/nlepage/go-wasm-http-server/v2 | tr ' ' '@')/sw.js\" postoffice/sw.js"
+//go:generate sh -c "cp \"$(tinygo env TINYGOROOT)/targets/wasm_exec.js\" postoffice/wasm_exec.js"
 
 //go:embed postoffice/*
 var postOffice embed.FS
