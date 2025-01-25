@@ -1,3 +1,9 @@
+## 0.11.8 (2025-01-25)
+
+### Fix
+
+- :green_heart: Install QTC binary before build
+
 ## 0.11.7 (2025-01-25)
 
 ### Fix
