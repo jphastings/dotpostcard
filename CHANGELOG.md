@@ -1,3 +1,9 @@
+## 0.11.11 (2025-01-25)
+
+### Fix
+
+- :art: Fix lint issue with Github Action
+
 ## 0.11.10 (2025-01-25)
 
 ### Fix
