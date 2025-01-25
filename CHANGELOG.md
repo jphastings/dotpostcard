@@ -1,3 +1,9 @@
+## 0.11.9 (2025-01-25)
+
+### Fix
+
+- :green_heart: Install TinyGo before build
+
 ## 0.11.8 (2025-01-25)
 
 ### Fix
