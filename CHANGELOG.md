@@ -1,3 +1,9 @@
+## 0.11.13 (2025-01-25)
+
+### Fix
+
+- Overwrite wasm_exec files if needed
+
 ## 0.11.12 (2025-01-25)
 
 ### Fix
