@@ -44,6 +44,9 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      - uses: acifani/setup-tinygo@v2
+        with:
+          tinygo-version: '0.35.0'
       - name: Build postoffice-serviceworker
         uses: goreleaser/goreleaser-action@v6
         with:
