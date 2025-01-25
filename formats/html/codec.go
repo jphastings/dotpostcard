@@ -1,9 +1,7 @@
 package html
 
 import (
-	_ "embed"
 	"fmt"
-	"html/template"
 	"io"
 	"io/fs"
 
@@ -13,21 +11,7 @@ import (
 
 // TODO: Can this the HTML be simpler for non-flipping postcards?
 
-//go:embed postcard.html.tmpl
-var postcardHTML string
-var htmlTmpl *template.Template
-
-func init() {
-	tmpl, err := template.New("postcard-html").Funcs(template.FuncMap{
-		"comment": func(msg string) template.HTML {
-			return template.HTML("<!-- " + msg + " -->")
-		},
-	}).Parse(postcardHTML)
-	if err != nil {
-		panic(fmt.Sprintf("Couldn't parse HTML template: %v", err))
-	}
-	htmlTmpl = tmpl
-}
+//go:generate qtc -file postcard.html.qtpl
 
 func Codec() formats.Codec { return codec{} }
 
@@ -52,7 +36,8 @@ func (c codec) Encode(pc types.Postcard, _ *formats.EncodeOptions) ([]formats.Fi
 	v.Metadata.Name = pc.Name
 
 	writer := func(w io.Writer) error {
-		return htmlTmpl.Execute(w, v)
+		WriteHTML(w, v)
+		return nil
 	}
 
 	return []formats.FileWriter{

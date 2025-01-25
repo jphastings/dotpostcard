@@ -1,0 +1,12 @@
+Generates the HTML needed to display a web postcard.
+{% func HTML(v htmlVars) %}<!-- Make sure you reference postcards.css in your <head> -->
+<link rel="stylesheet" type="text/css" href="postcards.css">
+<!-- You can set the width of .postcard in CSS to limit the size of all postcards on your page -->
+<style>.postcard { max-width: 50vw; margin: auto; } body { margin: 1em; }</style>
+<!-- Put the lines following this wherever you want your postcard -->
+
+<input type="checkbox" id="postcard-{%s v.Name %}" style="display:none">
+<label for="postcard-{%s v.Name %}" class="postcard flip-{%s string(v.Flip) %} {%s string(v.Physical.FrontDimensions.Orientation()) %}" style="--postcard: url('{%s v.Name %}.postcard{%s v.ImageExt %}'); --aspect-ratio: {%d v.Physical.FrontDimensions.PxWidth %} / {%d v.Physical.FrontDimensions.PxHeight %}">
+	<img src="{%s v.Name %}.postcard{%s v.ImageExt %}" loading="lazy" alt="{%s v.Front.Description %}">
+	<div class="shadow"></div>
+</label>{% endfunc %}

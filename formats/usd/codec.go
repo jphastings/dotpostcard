@@ -2,7 +2,6 @@ package usd
 
 import (
 	"bytes"
-	_ "embed"
 	"errors"
 	"path"
 	"slices"
@@ -11,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"text/template"
 
 	"github.com/dotpostcard/postcards-go"
 	"github.com/jphastings/dotpostcard/formats"
@@ -21,9 +19,7 @@ import (
 
 const codecName = "USD 3D model"
 
-//go:embed postcard.usda.tmpl
-var usdTmplData string
-var usdTmpl *template.Template
+//go:generate qtc -file postcard.usda.qtpl
 
 const (
 	postcardGSM float64 = 350
@@ -35,18 +31,6 @@ var (
 	beforeTextureMarker = []byte("asset inputs:file = @")
 	afterTextureMarker  = []byte("@")
 )
-
-var funcs = template.FuncMap{
-	"half": func(n float64) float64 { return n / 2 },
-}
-
-func init() {
-	tmpl, err := template.New("postcard-usd").Funcs(funcs).Parse(usdTmplData)
-	if err != nil {
-		panic(fmt.Sprintf("Couldn't parse USD template: %v", err))
-	}
-	usdTmpl = tmpl
-}
 
 func Codec() formats.Codec { return codec{} }
 
@@ -223,7 +207,8 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 			params.FlipAxis = []float64{0, 1, 0}
 		}
 
-		return usdTmpl.Execute(w, params)
+		WriteUSDA(w, params)
+		return nil
 	}
 
 	return []formats.FileWriter{
