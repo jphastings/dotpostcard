@@ -1,3 +1,9 @@
+## 0.11.6 (2025-01-25)
+
+### Refactor
+
+- :zap: Swap templating library & compile WASM with TinyGo
+
 ## 0.11.5 (2025-01-06)
 
 ### Fix
