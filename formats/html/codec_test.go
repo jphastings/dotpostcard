@@ -28,14 +28,15 @@ func TestEncode(t *testing.T) {
 	content, err := fws[0].Bytes()
 	assert.NoError(t, err)
 
-	assert.Equal(t, `<link rel="stylesheet" type="text/css" href="postcards.css">
-<div style="max-width:50vw;margin: auto;">
+	assert.Equal(t, `<!-- Make sure you reference postcards.css in your <head> -->
+<link rel="stylesheet" type="text/css" href="postcards.css">
+<!-- You can set the width of .postcard in CSS to limit the size of all postcards on your page -->
+<style>.postcard { max-width: 50vw; margin: auto; } body { margin: 1em; }</style>
+<!-- Put the lines following this wherever you want your postcard -->
 
-<input type="checkbox" id="postcard-some-postcard">
-<label for="postcard-some-postcard">
-	<div class="postcard flip-book landscape" style="--postcard: url('some-postcard.postcard.jpg'); --aspect-ratio: 1480 / 1050">
-		<img src="some-postcard.postcard.jpg" loading="lazy" alt="The word &#39;Front&#39; in large blue letters" width="500px">
-		<div class="shadow"></div>
-	</div>
+<input type="checkbox" id="postcard-some-postcard" style="display:none">
+<label for="postcard-some-postcard" class="postcard flip-book landscape" style="--postcard: url('some-postcard.postcard.jpeg'); --aspect-ratio: 1480 / 1050">
+	<img src="some-postcard.postcard.jpeg" loading="lazy" alt="The word &#39;Front&#39; in large blue letters">
+	<div class="shadow"></div>
 </label>`, string(content))
 }

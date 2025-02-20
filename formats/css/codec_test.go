@@ -30,5 +30,5 @@ func TestEncode(t *testing.T) {
 	content, err := fws[0].Bytes()
 	assert.NoError(t, err)
 
-	assert.True(t, strings.HasPrefix(string(content), "input[id^=postcard-] {"))
+	assert.True(t, strings.HasPrefix(string(content), "input[id^=postcard-]:checked ~ label.postcard  {"))
 }
