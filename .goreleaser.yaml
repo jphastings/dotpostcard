@@ -32,6 +32,8 @@ builds:
     id: postoffice-serviceworker
     binary: postoffice-serviceworker
     tool: tinygo
+    flags:
+      - -no-debug
     env:
       - CGO_ENABLED=0
     goos:
