@@ -3,6 +3,8 @@ commitizen:
   changelog_file: CHANGELOG.md
   name: cz_conventional_commits
   update_changelog_on_bump: true
+  version_scheme: semver
+  tag_format: v$version
   version: 0.12.0
   version_files:
   - version.go
