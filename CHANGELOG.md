@@ -1,3 +1,9 @@
+## 0.12.0 (2025-03-08)
+
+### Feat
+
+- Allow specifying the country as part of the location
+
 ## 0.11.14 (2025-02-20)
 
 ### Perf
