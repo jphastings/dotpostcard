@@ -382,3 +382,90 @@
 - :memo: Updating TODO and triggering first build
 
 ## 0.2.0 (2024-12-10)
+
+## v0.13.0 (2025-03-08)
+
+### Feat
+
+- Allow specifying the country as part of the location
+- **postoffice**: Allow selection of secrets in PostOffice
+- **postoffice**: Show front/back image when chosen
+- **postoffice**: Add loading spinner while creating
+- **postoffice**: Show only the appropriate flip choices
+- **postoffice**: :art: Style the Postoffice
+- **postoffice**: Allow noJS friendly web response
+- :technologist: Add the postcards info command
+- :lipstick: Add Underline annotation style
+- :construction: Add web-based postcard maker, including WASM
+- :construction: Support WASM as compilation target
+- :children_crossing: Allow USDZ creation without OpenUSD
+- :necktie: Allow XMP as component input
+- Allow ignoring transparency
+
+### Fix
+
+- :technologist: Use v prefix for git tags
+- Overwrite wasm_exec files if needed
+- :green_heart: Update go.sum & README, to allow build to work
+- :art: Fix lint issue with Github Action
+- :green_heart: Copy correct wasm & service worker exec files
+- :green_heart: Install TinyGo before build
+- :green_heart: Install QTC binary before build
+- :bug: Fix build bug, makes qtc available & generates after go mod
+- **postoffice**: Show useful errors on failure
+- **postoffice**: :bug: Detect & give reasonable error when input image too large
+- **postoffice**: Simplify HTML output & fix flip none output
+- **postoffice**: :bug: Allow decimals on lat/long input
+- **postoffice**: Switch to local wasm_exec.js and sw.js
+- **postoffice**: Fix .only-empty to only show without items
+- Update TODO.md
+- Move experimental marker to the right
+- Move Checkboxes to the right side
+- **postoffice**: Stop loading after downloading a file
+- **postoffice**: Hide output when restarting form
+- Use Upload Pages Artifact action
+- Deploy static postoffice to Github Pages
+- **postoffice**: :bug: Forgot to merge extra git chunk
+- :bug: Prevent segfault extracting empty lat/long from XMP
+- Swap back to WebP as default transparent/lossless format for web
+- :bug: Fix WebP XMP padding byte issue
+- :bug: Correct the CRC32 calculated for the iTXt PNG chunk
+- Prevent segfault when no SentOn date
+- Handle finding -only images as part of a component bundle
+- Prevent empty fields from appearing in YAML
+- :poop: Custom image decoder selection
+- Prevent flip for single-sided cards
+- :bug: Set the *right* HTML codes for annotations
+- Correct HTML output for underline Annotation
+- :bug: Correctly half the web decoder's FrontSize.PxHeight
+- :bug: Correct TIDD width/height ordering on EXIF read
+- **border-detector**: :bug: Fix incorrect scaling threshold value
+- Align chunks with even offsets
+- Improve transparency algorithm
+- Allow ignoring transparency and removing border
+- Work around Goreleaser brew.ids issue
+- Allow different binary counts
+- Ensure binaries have the same count
+- Remove unneeded rm command in build
+- :construction_worker: Ensure the build can complete, even with WASM in the www/postoffice dir
+- Update TODO & force a build
+- 👷‍♂️ Correct order of builds in Github Actions
+- 👷‍♂️ Fix "Unknown flag --id"
+- :construction_worker: Don;t push service worker to homebrew
+- Add inputs for all postcard metadata
+- :white_check_mark: Add YAML tests and fix discovered issue
+- :adhesive_bandage: Collect the physical & pixel size from XMP
+- :construction_worker: Bump github actions & ship to correct tap dir
+- :construction_worker: Pass correct token to GoReleaser Homebrew
+- :construction_worker: Fix Goreleaser workflow
+- :memo: Updating TODO and triggering first build
+
+### Refactor
+
+- :zap: Swap templating library & compile WASM with TinyGo
+- :art: Break border removal into own file
+
+### Perf
+
+- :arrow_up: Bump versions
+- :arrow_up: Upgrade dependencies
