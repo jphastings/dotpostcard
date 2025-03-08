@@ -3,6 +3,7 @@ location:
     name: Front, Italy
     latitude: 45.28
     longitude: 7.66
+    countrycode: ITA
 flip: book
 sent_on: "2006-01-02"
 sender:

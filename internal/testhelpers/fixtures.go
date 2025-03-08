@@ -44,9 +44,10 @@ var SamplePostcard = types.Postcard{
 	Meta: types.Metadata{
 		Locale: "en-GB",
 		Location: types.Location{
-			Name:      "Front, Italy",
-			Latitude:  &([]float64{45.28}[0]),
-			Longitude: &([]float64{7.66}[0]),
+			Name:        "Front, Italy",
+			Latitude:    &([]float64{45.28}[0]),
+			Longitude:   &([]float64{7.66}[0]),
+			CountryCode: "ITA",
 		},
 		Flip: types.FlipBook,
 		SentOn: &types.Date{

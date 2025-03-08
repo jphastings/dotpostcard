@@ -25,6 +25,8 @@ location:
   latitude: 51.492
   # The latitude (East/West) of where the postcard was sent from
   longitude: -0.0106
+  # The ISO 3166-1 alpha3 country code of the country the postcard was sent from (eg. ITA for Italy)
+  countrycode: GBR
 
 # The date the postcard was sent.
 sent_on: 2000-02-28
