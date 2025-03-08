@@ -48,6 +48,7 @@ type xmpJSON struct {
 			DescriptionFront    string     `json:"Postcard:DescriptionFront"`
 			DescriptionBack     string     `json:"Postcard:DescriptionBack"`
 			Flip                types.Flip `json:"Postcard:Flip"`
+			CountryCode         string     `json:"Postcard:CountryCode"`
 			Sender              string     `json:"Postcard:Sender"`
 			Recipient           string     `json:"Postcard:Recipient"`
 			TranscriptionFront  string     `json:"Postcard:TranscriptionFront"`
@@ -99,6 +100,7 @@ func MetadataFromXMP(r io.Reader) (types.Metadata, error) {
 	}
 
 	meta.Flip = js.Models.Postcard.Flip
+	meta.Location.CountryCode = js.Models.Postcard.CountryCode
 	meta.Sender = scanPerson(js.Models.Postcard.Sender)
 	meta.Recipient = scanPerson(js.Models.Postcard.Recipient)
 	meta.Front.Description = js.Models.Postcard.DescriptionFront

@@ -54,9 +54,6 @@ func TestDecode(t *testing.T) {
 	ex.Physical.FrontDimensions = types.Size{}
 	bnd := bundle{r: bytes.NewReader(testhelpers.SampleXMP)}
 
-	// Postcard XMP isn't expected to hold country code
-	ex.Location.CountryCode = ""
-
 	pc, err := bnd.Decode(formats.DecodeOptions{})
 	assert.NoError(t, err)
 

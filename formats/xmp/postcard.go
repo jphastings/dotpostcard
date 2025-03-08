@@ -7,6 +7,7 @@ import (
 type xmpPostcard struct {
 	Namespace           string              `xml:"xmlns:Postcard,attr"`
 	Flip                types.Flip          `xml:"Postcard:Flip"`
+	CountryCode         string              `xml:"Postcard:CountryCode,omitempty"`
 	Sender              types.Person        `xml:"Postcard:Sender,omitempty"`
 	Recipient           types.Person        `xml:"Postcard:Recipient,omitempty"`
 	Context             langText            `xml:"Postcard:Context>rdf:Alt>rdf:li,omitempty"`
@@ -20,10 +21,11 @@ type xmpPostcard struct {
 
 func addPostcardSection(sections []interface{}, meta types.Metadata) []interface{} {
 	xmp := xmpPostcard{
-		Namespace: "https://dotpostcard.org/xmp/1.0/",
-		Flip:      meta.Flip,
-		Sender:    meta.Sender,
-		Recipient: meta.Recipient,
+		Namespace:   "https://dotpostcard.org/xmp/1.0/",
+		Flip:        meta.Flip,
+		CountryCode: meta.Location.CountryCode,
+		Sender:      meta.Sender,
+		Recipient:   meta.Recipient,
 
 		DescriptionFront:   meta.Front.Description,
 		DescriptionBack:    meta.Back.Description,

@@ -28,7 +28,7 @@ type Location struct {
 	Name        string   `json:"name,omitempty"`
 	Latitude    *float64 `json:"latitude,omitempty"`
 	Longitude   *float64 `json:"longitude,omitempty"`
-	CountryCode string   `json:"countrycode,omitempty"`
+	CountryCode string   `json:"countrycode,omitempty" yaml:"countrycode,omitempty"`
 }
 
 func (l Location) String() string {
