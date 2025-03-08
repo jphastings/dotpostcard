@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.13.2 (2025-03-08)
+
+### Fix
+
+- :construction_worker: Inject and retrieve countrycode from XMP
+
 ## v0.13.1 (2025-03-08)
 
 ### Fix
