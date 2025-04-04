@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 	"image"
+	"image/color"
 	"strconv"
 )
 
@@ -111,6 +112,22 @@ type Physical struct {
 	FrontDimensions Size    `json:"frontSize,omitempty" yaml:"front_size,omitempty"`
 	ThicknessMM     float64 `json:"thicknessMM,omitempty" yaml:"thickness_mm,omitempty"`
 	CardColor       *Color  `json:"cardColor,omitempty" yaml:"card_color,omitempty"`
+}
+
+// Returns the card colour, or the default, as a color.RGBA
+func (p Physical) GetCardColor() color.RGBA {
+	if p.CardColor == nil {
+		return color.RGBA{230, 230, 217, 255}
+	}
+	return color.RGBA(*p.CardColor)
+}
+
+// Returns the thickness of the postcard, or the default, as a float64 in millimetres
+func (p Physical) GetThicknessMM() float64 {
+	if p.ThicknessMM == 0 {
+		return 0.4
+	}
+	return p.ThicknessMM
 }
 
 func (pc Postcard) String() string {

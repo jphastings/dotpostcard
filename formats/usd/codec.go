@@ -121,8 +121,6 @@ type usdParams struct {
 	FlipAxis []float64
 }
 
-const pcThickCm = 0.04
-
 func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats.FileWriter, error) {
 	usdFilename := pc.Name + extension
 
@@ -154,10 +152,16 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 		// TODO: Coregister front & back?
 		// TODO: Handle no back
 
-		frontPoints := images.Outline(pc.Front, false, true)
+		frontPoints, err := images.Outline(pc.Front, false, true)
+		if err != nil {
+			return fmt.Errorf("front image can't be outlined: %w", err)
+		}
 		fTris := geom3d.Triangulate(frontPoints)
 
-		backPoints := images.Outline(pc.Back, true, true)
+		backPoints, err := images.Outline(pc.Back, true, true)
+		if err != nil {
+			return fmt.Errorf("back image can't be outlined: %w", err)
+		}
 		// Generate triangles on unrotated points
 		bTris := geom3d.Triangulate(backPoints)
 		backPoints = geom3d.RotateForFlip(backPoints, pc.Meta.Flip)
@@ -166,11 +170,11 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 
 		params := usdParams{
 			Creator:   fmt.Sprintf("postcards v%s (https://dotpostcard.org)", postcards.Version),
-			CardColor: pc.Meta.Physical.CardColor.RGBA(),
+			CardColor: pc.Meta.Physical.GetCardColor(),
 
 			MaxX:   maxX,
 			MaxY:   maxY,
-			MaxZ:   pcThickCm,
+			MaxZ:   pc.Meta.Physical.GetThicknessMM() / 10.0,
 			MassKg: (postcardGSM * maxX * maxY) * gsmToKgscm,
 
 			FrontPoints:    frontPoints,

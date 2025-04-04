@@ -1,6 +1,7 @@
 package images
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"slices"
@@ -11,7 +12,7 @@ import (
 )
 
 // Returns the outline of the image's transparency as an _anticlockwise_ series of X/Y points
-func Outline(im image.Image, invertX, invertY bool) []geom3d.Point {
+func Outline(im image.Image, invertX, invertY bool) ([]geom3d.Point, error) {
 	b := im.Bounds()
 
 	// Find a starting black pixel
@@ -27,13 +28,19 @@ func Outline(im image.Image, invertX, invertY bool) []geom3d.Point {
 		}
 	}
 
+	// There's no transparency here
 	if !found {
-		return nil // No black pixels found
+		return []geom3d.Point{
+			{X: 0, Y: 1},
+			{X: 0, Y: 0},
+			{X: 1, Y: 0},
+			{X: 1, Y: 1},
+		}, nil
 	}
 
 	var outline []rdp.Point
 
-	// Contour tracing using Moore Neighbor Tracing
+	// Contour tracing using Moore Neighbour Tracing
 	pos := start
 	dir := 0 // Initial direction (left)
 	for {
@@ -62,7 +69,11 @@ func Outline(im image.Image, invertX, invertY bool) []geom3d.Point {
 		}
 	}
 
-	return ensureDirection(geomPath)
+	if len(geomPath) < 3 {
+		return nil, fmt.Errorf("the outline of the image is only %d points; this probably means there's a non-transparent spec somewhere near its top left corner", len(geomPath))
+	}
+
+	return ensureDirection(geomPath), nil
 }
 
 func ensureDirection(points []geom3d.Point) []geom3d.Point {

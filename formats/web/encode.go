@@ -66,7 +66,7 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 		combinedImg := image.NewRGBA(combinedSize)
 		// Fill the backdrop with the card colour if we're ignoring transparency
 		if opts.IgnoreTransparency() {
-			bg := &image.Uniform{pc.Meta.Physical.CardColor.RGBA()}
+			bg := &image.Uniform{pc.Meta.Physical.GetCardColor()}
 			draw.Draw(combinedImg, combinedImg.Bounds(), bg, image.Point{}, draw.Src)
 		}
 		// Add the front of the postcard
