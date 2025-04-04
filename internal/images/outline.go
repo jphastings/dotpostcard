@@ -71,14 +71,7 @@ func Outline(im image.Image, invertX, invertY bool) ([]geom3d.Point, error) {
 }
 
 func ensureDirection(points []geom3d.Point) []geom3d.Point {
-	n := len(points)
-	area := 0.0
-	for i := 0; i < n; i++ {
-		j := (i + 1) % n
-		area += (points[j].X - points[i].X) * (points[j].Y + points[i].Y)
-	}
-
-	if area > 0 {
+	if geom3d.Area(points) > 0 {
 		slices.Reverse(points)
 	}
 
