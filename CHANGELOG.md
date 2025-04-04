@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.14.3 (2025-04-04)
+
+### Fix
+
+- **postoffice**: :lipstick: Remove HTML/CSS boxes for USD download
+
 ## v0.14.2 (2025-04-04)
 
 ### Fix
