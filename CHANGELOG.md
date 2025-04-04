@@ -383,6 +383,16 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.14.0 (2025-04-04)
+
+### Feat
+
+- :sparkles: 3D models that represent postcard transparency
+
+### Refactor
+
+- :fire: Remove old template format
+
 ## v0.13.2 (2025-03-08)
 
 ### Fix
