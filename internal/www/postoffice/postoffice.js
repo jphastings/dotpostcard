@@ -5,8 +5,10 @@ async function processResult(res) {
     displayPostcard(fd.values())
   } else {
     const blob = await res.blob()
-    const file = new File([blob], extractFilename(res), { type: blob.type });
+    const file = new File([blob], extractFilename(res), { type: blob.type })
     downloadFile(file)
+    document.querySelector('#output .code').classList.toggle('irrelevant', true)
+    document.querySelector('#output .code-explain').classList.toggle('irrelevant', true)
     document.querySelector('#output').classList.toggle('loading', false)
   }
 }
@@ -76,7 +78,9 @@ function insertPostcardHTML(html, image) {
   if (!uniqueHTML) {
     throw new Error("Unexpected HTML returned from postcard generator")
   }
-  showHTML.textContent = uniqueHTML;
+  showHTML.textContent = uniqueHTML
+  document.querySelector('#output .code').classList.toggle('irrelevant', false)
+  document.querySelector('#output .code-explain').classList.toggle('irrelevant', false)
 
   // TODO: fix this hack to replace the filename
   const toReplace = image.filename.replace(/\.[^/.]+$/, '.jpeg')
