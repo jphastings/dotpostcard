@@ -15,6 +15,16 @@ type EncodeOptions struct {
 	Archival bool
 	// Indicates the maximum width or height (in pixels) a postcard should have. Will be ignored if Archival is true
 	MaxDimension int
+	// Forces an encode without transparency — filling ant in with the provided card colour. This destroys information, so it will be ignored if archival==true.
+	NoTransparency bool
+}
+
+func (opts *EncodeOptions) WantsLossless() bool {
+	return (opts != nil) && opts.Archival
+}
+
+func (opts *EncodeOptions) IgnoreTransparency() bool {
+	return (opts != nil) && opts.NoTransparency && !opts.Archival
 }
 
 type DecodeOptions struct {

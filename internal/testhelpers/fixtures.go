@@ -15,7 +15,7 @@ var (
 	//go:embed *.png
 	testImagesData embed.FS
 
-	testImages = make(map[string]image.Image)
+	TestImages = make(map[string]image.Image)
 )
 
 func init() {
@@ -35,7 +35,7 @@ func init() {
 			panic(fmt.Sprintf("embedded test image couldn't be read: %v", err))
 		}
 
-		testImages[de.Name()] = img
+		TestImages[de.Name()] = img
 	}
 }
 
@@ -113,8 +113,8 @@ var SamplePostcard = types.Postcard{
 			ThicknessMM: 0.4,
 		},
 	},
-	Front: testImages["sample-front.png"],
-	Back:  testImages["sample-back.png"],
+	Front: TestImages["sample-front.png"],
+	Back:  TestImages["sample-back.png"],
 }
 
 //go:embed sample-meta.xmp

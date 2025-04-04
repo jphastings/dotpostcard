@@ -156,6 +156,24 @@ func (d Date) MarshalYAML() (interface{}, error) {
 	return d.Time.Format(`2006-01-02`), nil
 }
 
+func (c Color) MarshalYAML() (interface{}, error) {
+	return fmt.Sprintf(`"#%02X%02X%02X"`, c.R, c.G, c.B), nil
+}
+
+func (c *Color) UnmarshalYAML(y *yaml.Node) error {
+	if y.ShortTag() != "!!str" {
+		return fmt.Errorf("invalid color format, expected a string")
+	}
+
+	r, g, b, err := colorFromString(y.Value)
+	if err != nil {
+		return err
+	}
+
+	c.R, c.G, c.B = r, g, b
+	return nil
+}
+
 var _ yaml.Unmarshaler = (*Flip)(nil)
 var _ yaml.Marshaler = (*Polygon)(nil)
 var _ yaml.Unmarshaler = (*Polygon)(nil)
@@ -165,3 +183,5 @@ var _ yaml.Marshaler = (*AnnotatedText)(nil)
 var _ yaml.Unmarshaler = (*AnnotatedText)(nil)
 var _ yaml.Marshaler = (*Date)(nil)
 var _ yaml.Unmarshaler = (*Date)(nil)
+var _ yaml.Marshaler = (*Color)(nil)
+var _ yaml.Unmarshaler = (*Color)(nil)

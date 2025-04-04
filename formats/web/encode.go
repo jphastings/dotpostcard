@@ -17,8 +17,8 @@ import (
 
 func (c codec) pickFormat(meta types.Metadata, opts *formats.EncodeOptions) (string, string, error) {
 	needs := capabilities{
-		transparency: meta.HasTransparency,
-		lossless:     (opts != nil) && opts.Archival,
+		transparency: meta.HasTransparency && !opts.IgnoreTransparency(),
+		lossless:     opts.WantsLossless(),
 	}
 
 	var format string
@@ -64,12 +64,18 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 		}
 
 		combinedImg := image.NewRGBA(combinedSize)
-		draw.CatmullRom.Scale(combinedImg, finalSize, pc.Front, frontSize, draw.Src, nil)
+		// Fill the backdrop with the card colour if we're ignoring transparency
+		if opts.IgnoreTransparency() {
+			bg := &image.Uniform{pc.Meta.Physical.CardColor.RGBA()}
+			draw.Draw(combinedImg, combinedImg.Bounds(), bg, image.Point{}, draw.Src)
+		}
+		// Add the front of the postcard
+		draw.CatmullRom.Scale(combinedImg, finalSize, pc.Front, frontSize, draw.Over, nil)
 
 		if pc.Back != nil {
 			backImg, backSize := rotateForWeb(pc.Back, pc.Meta.Flip)
 			lowerSize := image.Rect(0, finalSize.Max.Y, finalSize.Max.X, finalSize.Max.Y*2)
-			draw.CatmullRom.Scale(combinedImg, lowerSize, backImg, backSize, draw.Src, nil)
+			draw.CatmullRom.Scale(combinedImg, lowerSize, backImg, backSize, draw.Over, nil)
 		}
 
 		xmpData, err := xmp.MetadataToXMP(pc.Meta, &outputImageSize)

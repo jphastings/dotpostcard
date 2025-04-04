@@ -8,11 +8,7 @@
 - [ ] Store number of sides in the Metadata
 - [ ] Validate the number of sides in the metadata with the number of images provided
 - [ ] Allow conversion of postcard files on PostOffice
-- [ ] Transparent bordered #USD postcards
-  - [ ] Four point edges #USD
-  - [ ] Figure out how to do multi-edge vertexes
-  - [ ] Co-orientation of front and back (slight rotation & translation differences)
-    - NB. Currently back of card is front of card in terms of points (esp. relevant for Calendar flip); not flip of card
+- [ ] Coregistration of front and back (slight rotation & translation differences)
 - [ ] Allow uploading/choice of SVGs for the back side, to make a "blank" postcard
   - [ ] Responsive layout for the back — in physical units
 - [ ] Allow secrets to be unselected in #PostOffice UI
@@ -53,3 +49,4 @@
   - Cache is busted automatically every 24 hours [by the browser](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerRegistration/update#:~:text=fetch%20occurred%20over-,24%20hours%20ago,-.).
 - [x] Show useful errors on build fail #PostOffice
 - [x] Read XMP data from png `web` format
+- [x] Transparent bordered #USD postcards

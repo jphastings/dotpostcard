@@ -3,6 +3,7 @@ package usd
 import (
 	"bytes"
 	"errors"
+	"image/color"
 	"path"
 	"slices"
 	"strings"
@@ -14,6 +15,8 @@ import (
 	"github.com/dotpostcard/postcards-go"
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/formats/web"
+	"github.com/jphastings/dotpostcard/internal/geom3d"
+	"github.com/jphastings/dotpostcard/internal/images"
 	"github.com/jphastings/dotpostcard/types"
 )
 
@@ -97,22 +100,20 @@ func usdaToTextureFile(file fs.File, dir fs.FS) (fs.File, string, error) {
 	return texture, texturePath, nil
 }
 
-type usdPoint struct {
-	X float64
-	Y float64
-}
-
 type usdParams struct {
-	Creator string
+	Creator   string
+	CardColor color.RGBA
 
 	MaxX float64
 	MaxY float64
 	MaxZ float64
 
-	FrontPoints   []usdPoint
-	FrontPrimVars []usdPoint
-	BackPoints    []usdPoint
-	BackPrimVars  []usdPoint
+	FrontPoints    []geom3d.Point
+	BackPoints     []geom3d.Point
+	BackSidePoints []geom3d.Point
+	FrontTriangles []int
+	BackTriangles  []int
+	SideTriangles  []int
 
 	SidesFilename string
 
@@ -122,20 +123,15 @@ type usdParams struct {
 
 const pcThickCm = 0.04
 
-var clockwise = []usdPoint{
-	{0, 1},
-	{0, 0},
-	{1, 0},
-	{1, 1},
-}
-
 func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats.FileWriter, error) {
-	// Note: USDZ files must contain a *binary encoded* USD layer, so we can't create a USDZ here
-	// without using the USD C++ API. (Which… perhaps on a rainy Sunday)
 	usdFilename := pc.Name + extension
 
 	// Grab the filename of the texture image, as it might be JPG or PNG
 	webImg, _ := web.Codec("jpeg", "png")
+	// We can scrub the transparency data (it's represented in mesh points)
+	// And make a significantly smaller (JPEG powered) texture.
+	// We must not do this for archival requests, as it loses the transparency data forever.
+	opts.NoTransparency = !opts.Archival
 	fws, err := webImg.Encode(pc, opts)
 	if err != nil {
 		return nil, err
@@ -152,46 +148,36 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 	imageMimetype := fw.Mimetype
 
 	writeUSD := func(w io.Writer) error {
+		// Both sides are required to be the same physical size, so this is safe
 		maxX, maxY := pc.Meta.Physical.FrontDimensions.MustPhysical()
 
-		frontPoints := make([]usdPoint, len(clockwise))
-		backPoints := make([]usdPoint, len(clockwise))
-		frontPrimVars := make([]usdPoint, len(clockwise))
-		backPrimVars := make([]usdPoint, len(clockwise))
+		// TODO: Coregister front & back?
+		// TODO: Handle no back
 
-		for i, mul := range clockwise {
-			frontPoints[i] = usdPoint{X: mul.X*maxX - maxX/2, Y: mul.Y*maxY - maxY/2}
+		frontPoints := images.Outline(pc.Front, false, true)
+		fTris := geom3d.Triangulate(frontPoints)
 
-			switch pc.Meta.Flip {
-			case types.FlipNone:
-				backPoints[i] = usdPoint{X: mul.X*maxX - maxX/2, Y: mul.Y*maxY - maxY/2}
-				frontPrimVars[i] = usdPoint{X: mul.X, Y: mul.Y}
-				backPrimVars[i] = frontPrimVars[i]
-			case types.FlipCalendar:
-				backPoints[(i+2)%4] = usdPoint{X: mul.X*maxX - maxX/2, Y: mul.Y*maxY - maxY/2}
-				// Scale & transform Y values to take top and bottom of texture, respectively
-				frontPrimVars[i] = usdPoint{X: mul.X, Y: mul.Y*0.5 + 0.5}
-				backPrimVars[i] = usdPoint{X: mul.X, Y: mul.Y * 0.5}
-			default:
-				backPoints[i] = usdPoint{X: mul.X*maxX - maxX/2, Y: mul.Y*maxY - maxY/2}
-				// Scale & transform Y values to take top and bottom of texture, respectively
-				frontPrimVars[i] = usdPoint{X: mul.X, Y: mul.Y*0.5 + 0.5}
-				backPrimVars[i] = usdPoint{X: mul.X, Y: mul.Y * 0.5}
-			}
-		}
+		backPoints := images.Outline(pc.Back, true, true)
+		// Generate triangles on unrotated points
+		bTris := geom3d.Triangulate(backPoints)
+		backPoints = geom3d.RotateForFlip(backPoints, pc.Meta.Flip)
+
+		sTris := geom3d.SideMesh(frontPoints, backPoints)
 
 		params := usdParams{
-			Creator: fmt.Sprintf("postcards v%s (https://dotpostcard.org)", postcards.Version),
+			Creator:   fmt.Sprintf("postcards v%s (https://dotpostcard.org)", postcards.Version),
+			CardColor: pc.Meta.Physical.CardColor.RGBA(),
 
 			MaxX:   maxX,
 			MaxY:   maxY,
 			MaxZ:   pcThickCm,
 			MassKg: (postcardGSM * maxX * maxY) * gsmToKgscm,
 
-			FrontPoints:   frontPoints,
-			BackPoints:    backPoints,
-			FrontPrimVars: frontPrimVars,
-			BackPrimVars:  backPrimVars,
+			FrontPoints:    frontPoints,
+			BackPoints:     backPoints,
+			FrontTriangles: fTris,
+			BackTriangles:  bTris,
+			SideTriangles:  sTris,
 
 			SidesFilename: sideFilename,
 		}

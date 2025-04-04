@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -29,6 +30,22 @@ func (d Date) MarshalJSON() ([]byte, error) {
 	return []byte(d.Time.Format(`"2006-01-02"`)), nil
 }
 
+func (c Color) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf(`"#%02X%02X%02X"`, c.R, c.G, c.B)), nil
+}
+
+func (c *Color) UnmarshalJSON(bb []byte) error {
+	r, g, b, err := colorFromString(string(bb))
+	if err != nil {
+		return err
+	}
+
+	c.R, c.G, c.B = r, g, b
+	return nil
+}
+
 var _ json.Marshaler = (*Date)(nil)
 var _ json.Unmarshaler = (*Date)(nil)
 var _ json.Unmarshaler = (*Polygon)(nil)
+var _ json.Marshaler = (*Color)(nil)
+var _ json.Unmarshaler = (*Color)(nil)
