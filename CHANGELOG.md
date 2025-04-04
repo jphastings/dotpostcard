@@ -383,6 +383,13 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.14.2 (2025-04-04)
+
+### Fix
+
+- Treat edges of image as transparent
+- Support card colour and thickness in 3D models
+
 ## v0.14.1 (2025-04-04)
 
 ### Fix
