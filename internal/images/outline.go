@@ -17,25 +17,19 @@ func Outline(im image.Image, invertX, invertY bool) ([]geom3d.Point, error) {
 
 	// Find a starting black pixel
 	var start image.Point
-	found := false
-	for y := b.Min.Y; y < b.Max.Y && !found; y++ {
+	hasOpaquePixel := false
+	for y := b.Min.Y; y < b.Max.Y && !hasOpaquePixel; y++ {
 		for x := b.Min.X; x < b.Max.X; x++ {
 			if isOpaque(im.At(x, y)) {
 				start = image.Pt(x, y)
-				found = true
+				hasOpaquePixel = true
 				break
 			}
 		}
 	}
 
-	// There's no transparency here
-	if !found {
-		return []geom3d.Point{
-			{X: 0, Y: 1},
-			{X: 0, Y: 0},
-			{X: 1, Y: 0},
-			{X: 1, Y: 1},
-		}, nil
+	if !hasOpaquePixel {
+		return nil, fmt.Errorf("the image appears to be fully transparent")
 	}
 
 	var outline []rdp.Point
@@ -98,10 +92,12 @@ var directions = []image.Point{
 
 // nextEdgePixel finds the next edge pixel by checking neighbors in order
 func nextEdgePixel(im image.Image, pos image.Point, startDir int) (image.Point, int) {
+	bounds := im.Bounds()
+
 	for i := 0; i < 8; i++ { // Check all 8 directions
 		dir := (startDir + i) % 8 // Rotate direction
 		next := pos.Add(directions[dir])
-		if isOpaque(im.At(next.X, next.Y)) {
+		if next.In(bounds) && isOpaque(im.At(next.X, next.Y)) {
 			return next, (dir + 6) % 8 // Move to this pixel and adjust direction
 		}
 	}
