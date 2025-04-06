@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.14.4 (2025-04-06)
+
+### Fix
+
+- :recycle: Prevent panic when encode opts are nil
+
 ## v0.14.3 (2025-04-04)
 
 ### Fix
