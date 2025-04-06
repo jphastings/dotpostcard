@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.14.5 (2025-04-06)
+
+### Fix
+
+- Switches the HTML and CSS "codecs" to be support files of the web output (which they are), so that they can be affected by the choices within it (eg. the image format being used).
+
 ## v0.14.4 (2025-04-06)
 
 ### Fix
