@@ -16,7 +16,7 @@ func main() {
 	codecChoices, err := postoffice.DefaultCodecChoices()
 	check(err, "Unable to load codecs")
 
-	http.HandleFunc("/", postoffice.HTTPFormHander(codecChoices))
+	http.HandleFunc("/compile", postoffice.CompileFromForm(codecChoices))
 	wasmhttp.Serve(nil)
 
 	select {}

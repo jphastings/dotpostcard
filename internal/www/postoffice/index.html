@@ -15,7 +15,7 @@
 
     <a class="button" id="begin" href="#front" data-after-click="Edit your postcard's details">Create your postcard!</a>
 
-    <form id="postcard-input" action="/compile/" method="POST" enctype="multipart/form-data">
+    <form id="postcard-input" action="/api/compile/" method="POST" enctype="multipart/form-data">
       <section id="front">
         <label for="front-image">Choose an image of the front of your postcard</label>
         <input type="file" id="front-image" name="front" accept=".jpg, .jpeg, .png, .webp" required aria-describedby="front-image-tips">

@@ -18,7 +18,7 @@ import (
 
 type CodecChoices map[string][]formats.Codec
 
-func HTTPFormHander(codecChoices CodecChoices) func(http.ResponseWriter, *http.Request) {
+func CompileFromForm(codecChoices CodecChoices) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		pc, codecs, encOpts, err := requestToPostcard(codecChoices, r)
 		if err != nil {
