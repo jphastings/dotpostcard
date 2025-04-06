@@ -104,7 +104,6 @@ changelog:
     - '^style[(\\w)]*:'
     - '^refactor[(\\w)]*:'
     - '^test[(\\w)]*:'
-    - '^build[(\\w)]*:'
     - '^ci[(\\w)]*:'
     - '^chore[(\\w)]*:'
     - '^revert:'
