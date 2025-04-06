@@ -129,7 +129,7 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 	// We can scrub the transparency data (it's represented in mesh points)
 	// And make a significantly smaller (JPEG powered) texture.
 	// We must not do this for archival requests, as it loses the transparency data forever.
-	opts.NoTransparency = !opts.Archival
+	opts.NoTransparency = !opts.WantsLossless()
 	fws, err := webImg.Encode(pc, opts)
 	if err != nil {
 		return nil, err
