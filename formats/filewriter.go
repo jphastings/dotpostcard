@@ -17,6 +17,8 @@ type EncodeOptions struct {
 	MaxDimension int
 	// Forces an encode without transparency — filling ant in with the provided card colour. This destroys information, so it will be ignored if archival==true.
 	NoTransparency bool
+	// Will produce support files alongside the postcard (eg. HTML & CSS with the web file)
+	IncludeSupportFiles bool
 }
 
 func (opts *EncodeOptions) WantsLossless() bool {

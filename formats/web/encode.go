@@ -97,7 +97,12 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 		return err
 	}
 
-	return []formats.FileWriter{formats.NewFileWriter(name, mimetype, writer)}, nil
+	fws := []formats.FileWriter{formats.NewFileWriter(name, mimetype, writer)}
+	if opts != nil && opts.IncludeSupportFiles {
+		fws = append(fws, createCSS(), createHTML(pc, format))
+	}
+
+	return fws, nil
 }
 
 func rotateForWeb(img image.Image, flip types.Flip) (image.Image, image.Rectangle) {

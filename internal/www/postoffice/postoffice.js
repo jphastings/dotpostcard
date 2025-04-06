@@ -82,9 +82,7 @@ function insertPostcardHTML(html, image) {
   document.querySelector('#output .code').classList.toggle('irrelevant', false)
   document.querySelector('#output .code-explain').classList.toggle('irrelevant', false)
 
-  // TODO: fix this hack to replace the filename
-  const toReplace = image.filename.replace(/\.[^/.]+$/, '.jpeg')
-  outHTML.innerHTML = uniqueHTML.replaceAll(toReplace, image.blobURL)
+  outHTML.innerHTML = uniqueHTML.replaceAll(image.filename, image.blobURL)
   outDownload.href = image.blobURL
   outDownload.download = image.filename
 }
@@ -299,9 +297,6 @@ document.addEventListener("DOMContentLoaded", () => {
     output.classList.toggle('irrelevant', true)
     removeError()
   })
-
-  // Now the submit listener is registered, swap to showing the postcard on the page, instead of downloading
-  document.querySelector('input[name="codec-choice"][value="web"]').value = "web-js"
 
   document.querySelectorAll('#front-image,#back-image')
     .forEach((input) => {

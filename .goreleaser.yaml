@@ -42,11 +42,6 @@ builds:
       - wasm
     ldflags:
       - ""
-    hooks:
-      pre:
-        # This dir needs to be made manually because TinyGo doesn't create output directories
-        # like Go does. https://github.com/tinygo-org/tinygo/issues/4687
-        - mkdir -p {{ dir .Path }}
   # It's important the postoffice native binary is built after the WASM blob
   # As the WASM blob is baked into this server as part of an embed directive.
   # This needs to be done by calling goreleaser twice, specifying IDs to build.

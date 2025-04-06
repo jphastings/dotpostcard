@@ -3,12 +3,11 @@ package postcards
 import (
 	"embed"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/formats/component"
-	"github.com/jphastings/dotpostcard/formats/css"
-	"github.com/jphastings/dotpostcard/formats/html"
 	"github.com/jphastings/dotpostcard/formats/metadata"
 	"github.com/jphastings/dotpostcard/formats/usd"
 	"github.com/jphastings/dotpostcard/formats/usdz"
@@ -26,12 +25,13 @@ var codecs = map[string]formats.Codec{
 	"usdz":      usdz.Codec(),
 	"json":      metadata.Codec(metadata.AsJSON),
 	"yaml":      metadata.Codec(metadata.AsYAML),
-	"css":       css.Codec(),
-	"html":      html.Codec(),
 	"xmp":       xmp.Codec(),
 }
 
-var Codecs = []string{"component", "web", "usdz", "usd", "json", "yaml", "css", "html", "xmp"}
+var Codecs = []string{"component", "web", "usdz", "usd", "json", "yaml", "xmp"}
+
+// These 'formats' will trigger the IncludeSupportFiles encoder option instead of a different codec
+var supportFiles = []string{"css", "html"}
 
 func init() {
 	if len(Codecs) != len(codecs) {
@@ -44,19 +44,25 @@ func init() {
 	}
 }
 
-func CodecsByFormat(names []string) ([]formats.Codec, error) {
+func CodecsByFormat(names []string) ([]formats.Codec, bool, error) {
 	var outCodecs []formats.Codec
+	var incSupportFiles bool
 
 	for _, name := range names {
+		if slices.Contains(supportFiles, name) {
+			incSupportFiles = true
+			continue
+		}
+
 		codec, ok := codecs[name]
 		if !ok {
-			return nil, fmt.Errorf("the format '%s' isn't one of those available: %s", name, strings.Join(Codecs, ", "))
+			return nil, false, fmt.Errorf("the format '%s' isn't one of those available: %s", name, strings.Join(Codecs, ", "))
 		}
 
 		outCodecs = append(outCodecs, codec)
 	}
 
-	return outCodecs, nil
+	return outCodecs, incSupportFiles, nil
 }
 
 // Returns markdown docs for the named format

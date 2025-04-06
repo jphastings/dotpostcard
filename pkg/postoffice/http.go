@@ -101,6 +101,8 @@ func requestToPostcard(codecChoices CodecChoices, r *http.Request) (types.Postca
 	}
 	encOpts := formats.EncodeOptions{
 		Archival: checkboxBool(r.FormValue("archival")),
+
+		IncludeSupportFiles: true,
 	}
 
 	var meta types.Metadata

@@ -1,8 +1,10 @@
 # TODO
 
-- [ ] Get HTML format to output the _right_ image extension (fill out ImageExt argument)
-- [ ] Read XMP data from generic JPEG format (eg. with EXIF APP1 chunk before XMP APP1 chunk)
+- [ ] Created USDZs are technically invalid (byte alignment) — can I tweak the output of archive/zip? Or do I need for fork it?
+- [ ] Determine what this `usdchecker` error means & fix it:
+  - `Found material bindings but no MaterialBindingAPI applied on the prim </Postcard/Geom/Front>. (fails 'MaterialBindingAPIAppliedChecker')`
 - [ ] Don't re-encode same-same format. (eg. USDZ to Web(no alpha, lossy); Web to Web)
+- [ ] Read XMP data from generic JPEG format (eg. with EXIF APP1 chunk before XMP APP1 chunk)
 - [ ] Show warning when using fallback size to generate USDZ
 - [ ] Show warning when losing information on conversion (are there any of these cases now?)
 - [ ] Store number of sides in the Metadata
@@ -11,8 +13,10 @@
 - [ ] Coregistration of front and back (slight rotation & translation differences)
 - [ ] Allow uploading/choice of SVGs for the back side, to make a "blank" postcard
   - [ ] Responsive layout for the back — in physical units
+  - [ ] Rendering SVG inside go/wasm
 - [ ] Allow secrets to be unselected in #PostOffice UI
 - [ ] Figure out why secrets dragging is janky #PostOffice
+- [ ] Allow secrets region selection on touch devices #PostOffice
 - [ ] Only one postcards.css per group/directory
 
 ## Done
@@ -50,3 +54,4 @@
 - [x] Show useful errors on build fail #PostOffice
 - [x] Read XMP data from png `web` format
 - [x] Transparent bordered #USD postcards
+- [x] Get HTML format to output the _right_ image extension (fill out ImageExt argument)

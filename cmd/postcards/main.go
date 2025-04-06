@@ -47,13 +47,14 @@ var rootCmd = &cobra.Command{
 		}
 		decOpts := formats.DecodeOptions{RemoveBorder: removeBorder, IgnoreTransparency: ignoreTransparency}
 
-		codecs, err := postcards.CodecsByFormat(formatList)
+		codecs, incSupportFiles, err := postcards.CodecsByFormat(formatList)
 		if err != nil {
 			return err
 		}
 
 		encOpts := formats.EncodeOptions{
-			Archival: archival,
+			Archival:            archival,
+			IncludeSupportFiles: incSupportFiles,
 		}
 
 		bundles, err := postcards.MakeBundles(inputPaths)

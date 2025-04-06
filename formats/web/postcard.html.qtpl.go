@@ -4,7 +4,7 @@
 // Generates the HTML needed to display a web postcard.
 
 //line postcard.html.qtpl:2
-package html
+package web
 
 //line postcard.html.qtpl:2
 import (

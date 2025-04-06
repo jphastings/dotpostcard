@@ -2,8 +2,6 @@ package postoffice
 
 import (
 	"github.com/jphastings/dotpostcard/formats"
-	"github.com/jphastings/dotpostcard/formats/css"
-	"github.com/jphastings/dotpostcard/formats/html"
 	"github.com/jphastings/dotpostcard/formats/usdz"
 	"github.com/jphastings/dotpostcard/formats/web"
 )
@@ -15,8 +13,7 @@ func DefaultCodecChoices() (CodecChoices, error) {
 	}
 
 	return map[string][]formats.Codec{
-		"web-js": {webCodec, html.Codec(), css.Codec()},
-		"web":    {webCodec},
-		"usdz":   {usdz.Codec()},
+		"web":  {webCodec},
+		"usdz": {usdz.Codec()},
 	}, nil
 }
