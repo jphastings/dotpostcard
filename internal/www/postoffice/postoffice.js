@@ -310,6 +310,6 @@ if (navigator.serviceWorker) {
     .then(() => console.log("Service worker loaded: Postcards will be generated locally"))
     .catch(console.error)
 } else {
-  console.warn("Service Workers are not available. You must access this page over HTTPS, or on localhost.")
+  console.warn("Service Workers are not available. This may be because you're accessing this page both without SSL and not from localhost.")
 }
 
