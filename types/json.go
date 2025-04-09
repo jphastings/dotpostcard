@@ -35,7 +35,7 @@ func (c Color) MarshalJSON() ([]byte, error) {
 }
 
 func (c *Color) UnmarshalJSON(bb []byte) error {
-	r, g, b, err := colorFromString(string(bb))
+	r, g, b, err := rgbFromString(string(bb))
 	if err != nil {
 		return err
 	}

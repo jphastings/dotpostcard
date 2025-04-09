@@ -17,6 +17,7 @@ type xmpPostcard struct {
 	TranscriptionFront  types.AnnotatedText `xml:"Postcard:TranscriptionFront,omitempty"`
 	TranscriptionBack   types.AnnotatedText `xml:"Postcard:TranscriptionBack,omitempty"`
 	PhysicalThicknessMM float64             `xml:"Postcard:PhysicalThicknessMM,omitempty"`
+	CardColor           string              `xml:"Postcard:CardColor,omitempty"`
 }
 
 func addPostcardSection(sections []interface{}, meta types.Metadata) []interface{} {
@@ -33,6 +34,7 @@ func addPostcardSection(sections []interface{}, meta types.Metadata) []interface
 		TranscriptionBack:  meta.Back.Transcription,
 
 		PhysicalThicknessMM: meta.Physical.ThicknessMM,
+		CardColor:           meta.Physical.CardColor.String(),
 	}
 
 	if meta.Context.Description != "" || meta.Locale != "" {

@@ -165,7 +165,7 @@ func (c *Color) UnmarshalYAML(y *yaml.Node) error {
 		return fmt.Errorf("invalid color format, expected a string")
 	}
 
-	r, g, b, err := colorFromString(y.Value)
+	r, g, b, err := rgbFromString(y.Value)
 	if err != nil {
 		return err
 	}

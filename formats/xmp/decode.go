@@ -54,6 +54,7 @@ type xmpJSON struct {
 			TranscriptionFront  string     `json:"Postcard:TranscriptionFront"`
 			TranscriptionBack   string     `json:"Postcard:TranscriptionBack"`
 			PhysicalThicknessMM string     `json:"Postcard:PhysicalThicknessMM"`
+			CardColor           string     `json:"Postcard:CardColor"`
 		} `json:"Postcard"`
 		EXIF struct {
 			Date         string `json:"exif:DateTimeOriginal"`
@@ -107,6 +108,9 @@ func MetadataFromXMP(r io.Reader) (types.Metadata, error) {
 	meta.Back.Description = js.Models.Postcard.DescriptionBack
 	if thick, err := strconv.ParseFloat(js.Models.Postcard.PhysicalThicknessMM, 64); err == nil {
 		meta.Physical.ThicknessMM = thick
+	}
+	if c, err := types.ColorFromString(js.Models.Postcard.CardColor); err != nil {
+		meta.Physical.CardColor = c
 	}
 
 	json.Unmarshal([]byte(js.Models.Postcard.TranscriptionFront), &meta.Front.Transcription)
