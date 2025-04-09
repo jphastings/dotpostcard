@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.14.8 (2025-04-09)
+
+### Fix
+
+- :heavy_minus_sign: Remove dependency on deprecated package
+
 ## v0.14.7 (2025-04-09)
 
 ### Fix
