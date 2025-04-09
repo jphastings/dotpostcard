@@ -114,291 +114,297 @@ def Xform "Postcard" (
 
     def Scope "Geom"
     {
-        def Mesh "Front"
+        def Mesh "Front" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
         {
             uniform bool doubleSided = 0
             
             float3[] extent = [(`)
-//line postcard.usda.qtpl:78
+//line postcard.usda.qtpl:80
 	qw422016.N().F(params.MaxX / -2)
-//line postcard.usda.qtpl:78
+//line postcard.usda.qtpl:80
 	qw422016.N().S(`,`)
-//line postcard.usda.qtpl:78
+//line postcard.usda.qtpl:80
 	qw422016.N().F(params.MaxY / -2)
-//line postcard.usda.qtpl:78
+//line postcard.usda.qtpl:80
 	qw422016.N().S(`,`)
-//line postcard.usda.qtpl:78
+//line postcard.usda.qtpl:80
 	qw422016.N().F(params.MaxZ)
-//line postcard.usda.qtpl:78
+//line postcard.usda.qtpl:80
 	qw422016.N().S(`),(`)
-//line postcard.usda.qtpl:78
+//line postcard.usda.qtpl:80
 	qw422016.N().F(params.MaxX / 2)
-//line postcard.usda.qtpl:78
+//line postcard.usda.qtpl:80
 	qw422016.N().S(`,`)
-//line postcard.usda.qtpl:78
+//line postcard.usda.qtpl:80
 	qw422016.N().F(params.MaxY / 2)
-//line postcard.usda.qtpl:78
+//line postcard.usda.qtpl:80
 	qw422016.N().S(`,`)
-//line postcard.usda.qtpl:78
+//line postcard.usda.qtpl:80
 	qw422016.N().F(params.MaxZ)
-//line postcard.usda.qtpl:78
+//line postcard.usda.qtpl:80
 	qw422016.N().S(`)]
             rel material:binding = </Postcard/Materials/sides>
 
             int[] faceVertexCounts = [`)
-//line postcard.usda.qtpl:81
+//line postcard.usda.qtpl:83
 	for i := 0; i < len(params.FrontTriangles)/3; i++ {
-//line postcard.usda.qtpl:81
+//line postcard.usda.qtpl:83
 		qw422016.N().S(`3,`)
-//line postcard.usda.qtpl:81
+//line postcard.usda.qtpl:83
 	}
-//line postcard.usda.qtpl:81
+//line postcard.usda.qtpl:83
 	qw422016.N().S(`]
             int[] primvars:st:indices = [`)
-//line postcard.usda.qtpl:82
+//line postcard.usda.qtpl:84
 	for _, t := range params.FrontTriangles {
-//line postcard.usda.qtpl:82
+//line postcard.usda.qtpl:84
 		qw422016.N().D(t)
-//line postcard.usda.qtpl:82
+//line postcard.usda.qtpl:84
 		qw422016.N().S(`,`)
-//line postcard.usda.qtpl:82
+//line postcard.usda.qtpl:84
 	}
-//line postcard.usda.qtpl:82
+//line postcard.usda.qtpl:84
 	qw422016.N().S(`]
             int[] faceVertexIndices = [`)
-//line postcard.usda.qtpl:83
+//line postcard.usda.qtpl:85
 	for _, t := range params.FrontTriangles {
-//line postcard.usda.qtpl:83
+//line postcard.usda.qtpl:85
 		qw422016.N().D(t)
-//line postcard.usda.qtpl:83
+//line postcard.usda.qtpl:85
 		qw422016.N().S(`,`)
-//line postcard.usda.qtpl:83
+//line postcard.usda.qtpl:85
 	}
-//line postcard.usda.qtpl:83
+//line postcard.usda.qtpl:85
 	qw422016.N().S(`]
 
             point3f[] points = [`)
-//line postcard.usda.qtpl:85
+//line postcard.usda.qtpl:87
 	for _, pt := range params.FrontPoints {
-//line postcard.usda.qtpl:85
+//line postcard.usda.qtpl:87
 		qw422016.N().S(`(`)
-//line postcard.usda.qtpl:85
+//line postcard.usda.qtpl:87
 		qw422016.N().F(pt.X*params.MaxX - params.MaxX/2)
-//line postcard.usda.qtpl:85
+//line postcard.usda.qtpl:87
 		qw422016.N().S(`,`)
-//line postcard.usda.qtpl:85
+//line postcard.usda.qtpl:87
 		qw422016.N().F(pt.Y*params.MaxY - params.MaxY/2)
-//line postcard.usda.qtpl:85
+//line postcard.usda.qtpl:87
 		qw422016.N().S(`,`)
-//line postcard.usda.qtpl:85
+//line postcard.usda.qtpl:87
 		qw422016.N().F(params.MaxZ)
-//line postcard.usda.qtpl:85
+//line postcard.usda.qtpl:87
 		qw422016.N().S(`),`)
-//line postcard.usda.qtpl:85
+//line postcard.usda.qtpl:87
 	}
-//line postcard.usda.qtpl:85
+//line postcard.usda.qtpl:87
 	qw422016.N().S(`]
             texCoord2f[] primvars:st = [`)
-//line postcard.usda.qtpl:86
+//line postcard.usda.qtpl:88
 	for _, v := range params.FrontPoints {
-//line postcard.usda.qtpl:86
+//line postcard.usda.qtpl:88
 		qw422016.N().S(`(`)
-//line postcard.usda.qtpl:86
+//line postcard.usda.qtpl:88
 		qw422016.N().F(v.X)
-//line postcard.usda.qtpl:86
+//line postcard.usda.qtpl:88
 		qw422016.N().S(`,`)
-//line postcard.usda.qtpl:86
+//line postcard.usda.qtpl:88
 		qw422016.N().F(v.Y*0.5 + 0.5)
-//line postcard.usda.qtpl:86
+//line postcard.usda.qtpl:88
 		qw422016.N().S(`),`)
-//line postcard.usda.qtpl:86
+//line postcard.usda.qtpl:88
 	}
-//line postcard.usda.qtpl:86
+//line postcard.usda.qtpl:88
 	qw422016.N().S(`] (
                 interpolation = "faceVarying"
             )
             uniform token subdivisionScheme = "none"
         }
 
-        def Mesh "Back"
+        def Mesh "Back" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
         {
             uniform bool doubleSided = 0
             uniform token orientation = "leftHanded"
     
             float3[] extent = [(`)
-//line postcard.usda.qtpl:97
+//line postcard.usda.qtpl:101
 	qw422016.N().F(params.MaxX / -2)
-//line postcard.usda.qtpl:97
+//line postcard.usda.qtpl:101
 	qw422016.N().S(`, `)
-//line postcard.usda.qtpl:97
+//line postcard.usda.qtpl:101
 	qw422016.N().F(params.MaxY / -2)
-//line postcard.usda.qtpl:97
+//line postcard.usda.qtpl:101
 	qw422016.N().S(`, 0), (`)
-//line postcard.usda.qtpl:97
+//line postcard.usda.qtpl:101
 	qw422016.N().F(params.MaxX / 2)
-//line postcard.usda.qtpl:97
+//line postcard.usda.qtpl:101
 	qw422016.N().S(`, `)
-//line postcard.usda.qtpl:97
+//line postcard.usda.qtpl:101
 	qw422016.N().F(params.MaxY / 2)
-//line postcard.usda.qtpl:97
+//line postcard.usda.qtpl:101
 	qw422016.N().S(`, 0)]
             rel material:binding = </Postcard/Materials/sides>
 
             int[] faceVertexCounts = [`)
-//line postcard.usda.qtpl:100
+//line postcard.usda.qtpl:104
 	for i := 0; i < len(params.BackTriangles)/3; i++ {
-//line postcard.usda.qtpl:100
+//line postcard.usda.qtpl:104
 		qw422016.N().S(`3,`)
-//line postcard.usda.qtpl:100
+//line postcard.usda.qtpl:104
 	}
-//line postcard.usda.qtpl:100
+//line postcard.usda.qtpl:104
 	qw422016.N().S(`]
             int[] primvars:st:indices = [`)
-//line postcard.usda.qtpl:101
+//line postcard.usda.qtpl:105
 	for _, t := range params.BackTriangles {
-//line postcard.usda.qtpl:101
+//line postcard.usda.qtpl:105
 		qw422016.N().D(t)
-//line postcard.usda.qtpl:101
+//line postcard.usda.qtpl:105
 		qw422016.N().S(`,`)
-//line postcard.usda.qtpl:101
+//line postcard.usda.qtpl:105
 	}
-//line postcard.usda.qtpl:101
+//line postcard.usda.qtpl:105
 	qw422016.N().S(`]
             int[] faceVertexIndices = [`)
-//line postcard.usda.qtpl:102
+//line postcard.usda.qtpl:106
 	for _, t := range params.BackTriangles {
-//line postcard.usda.qtpl:102
+//line postcard.usda.qtpl:106
 		qw422016.N().D(t)
-//line postcard.usda.qtpl:102
+//line postcard.usda.qtpl:106
 		qw422016.N().S(`,`)
-//line postcard.usda.qtpl:102
+//line postcard.usda.qtpl:106
 	}
-//line postcard.usda.qtpl:102
+//line postcard.usda.qtpl:106
 	qw422016.N().S(`]
 
             point3f[] points = [`)
-//line postcard.usda.qtpl:104
+//line postcard.usda.qtpl:108
 	for _, pt := range params.BackPoints {
-//line postcard.usda.qtpl:104
+//line postcard.usda.qtpl:108
 		qw422016.N().S(`(`)
-//line postcard.usda.qtpl:104
+//line postcard.usda.qtpl:108
 		qw422016.N().F(pt.X*params.MaxX - params.MaxX/2)
-//line postcard.usda.qtpl:104
+//line postcard.usda.qtpl:108
 		qw422016.N().S(`,`)
-//line postcard.usda.qtpl:104
+//line postcard.usda.qtpl:108
 		qw422016.N().F(pt.Y*params.MaxY - params.MaxY/2)
-//line postcard.usda.qtpl:104
+//line postcard.usda.qtpl:108
 		qw422016.N().S(`,0),`)
-//line postcard.usda.qtpl:104
+//line postcard.usda.qtpl:108
 	}
-//line postcard.usda.qtpl:104
+//line postcard.usda.qtpl:108
 	qw422016.N().S(`]
             texCoord2f[] primvars:st = [`)
-//line postcard.usda.qtpl:105
+//line postcard.usda.qtpl:109
 	for _, v := range params.BackPoints {
-//line postcard.usda.qtpl:105
+//line postcard.usda.qtpl:109
 		qw422016.N().S(`(`)
-//line postcard.usda.qtpl:105
+//line postcard.usda.qtpl:109
 		qw422016.N().F(1 - v.X)
-//line postcard.usda.qtpl:105
+//line postcard.usda.qtpl:109
 		qw422016.N().S(`,`)
-//line postcard.usda.qtpl:105
+//line postcard.usda.qtpl:109
 		qw422016.N().F(v.Y * 0.5)
-//line postcard.usda.qtpl:105
+//line postcard.usda.qtpl:109
 		qw422016.N().S(`),`)
-//line postcard.usda.qtpl:105
+//line postcard.usda.qtpl:109
 	}
-//line postcard.usda.qtpl:105
+//line postcard.usda.qtpl:109
 	qw422016.N().S(`] (
                 interpolation = "faceVarying"
             )
             uniform token subdivisionScheme = "none"
         }
 
-        def Mesh "Paper"
+        def Mesh "Paper" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
         {
             uniform bool doubleSided = 0
             float3[] extent = [(`)
-//line postcard.usda.qtpl:114
+//line postcard.usda.qtpl:120
 	qw422016.N().F(params.MaxX / -2)
-//line postcard.usda.qtpl:114
+//line postcard.usda.qtpl:120
 	qw422016.N().S(`, `)
-//line postcard.usda.qtpl:114
+//line postcard.usda.qtpl:120
 	qw422016.N().F(params.MaxY / -2)
-//line postcard.usda.qtpl:114
+//line postcard.usda.qtpl:120
 	qw422016.N().S(`, 0), (`)
-//line postcard.usda.qtpl:114
+//line postcard.usda.qtpl:120
 	qw422016.N().F(params.MaxX / 2)
-//line postcard.usda.qtpl:114
+//line postcard.usda.qtpl:120
 	qw422016.N().S(`, `)
-//line postcard.usda.qtpl:114
+//line postcard.usda.qtpl:120
 	qw422016.N().F(params.MaxY / 2)
-//line postcard.usda.qtpl:114
+//line postcard.usda.qtpl:120
 	qw422016.N().S(`, `)
-//line postcard.usda.qtpl:114
+//line postcard.usda.qtpl:120
 	qw422016.N().F(params.MaxZ)
-//line postcard.usda.qtpl:114
+//line postcard.usda.qtpl:120
 	qw422016.N().S(`)]
             
             int[] faceVertexCounts = [`)
-//line postcard.usda.qtpl:116
+//line postcard.usda.qtpl:122
 	for i := 0; i < len(params.SideTriangles)/3; i++ {
-//line postcard.usda.qtpl:116
+//line postcard.usda.qtpl:122
 		qw422016.N().S(`3,`)
-//line postcard.usda.qtpl:116
+//line postcard.usda.qtpl:122
 	}
-//line postcard.usda.qtpl:116
+//line postcard.usda.qtpl:122
 	qw422016.N().S(`]
             int[] faceVertexIndices = [`)
-//line postcard.usda.qtpl:117
+//line postcard.usda.qtpl:123
 	for _, t := range params.SideTriangles {
-//line postcard.usda.qtpl:117
+//line postcard.usda.qtpl:123
 		qw422016.N().D(t)
-//line postcard.usda.qtpl:117
+//line postcard.usda.qtpl:123
 		qw422016.N().S(`,`)
-//line postcard.usda.qtpl:117
+//line postcard.usda.qtpl:123
 	}
-//line postcard.usda.qtpl:117
+//line postcard.usda.qtpl:123
 	qw422016.N().S(`]
             rel material:binding = </Postcard/Materials/paper>
             point3f[] points = [
                 `)
-//line postcard.usda.qtpl:120
+//line postcard.usda.qtpl:126
 	for _, pt := range params.FrontPoints {
-//line postcard.usda.qtpl:120
+//line postcard.usda.qtpl:126
 		qw422016.N().S(`(`)
-//line postcard.usda.qtpl:120
+//line postcard.usda.qtpl:126
 		qw422016.N().F(pt.X*params.MaxX - params.MaxX/2)
-//line postcard.usda.qtpl:120
+//line postcard.usda.qtpl:126
 		qw422016.N().S(`,`)
-//line postcard.usda.qtpl:120
+//line postcard.usda.qtpl:126
 		qw422016.N().F(pt.Y*params.MaxY - params.MaxY/2)
-//line postcard.usda.qtpl:120
+//line postcard.usda.qtpl:126
 		qw422016.N().S(`,`)
-//line postcard.usda.qtpl:120
+//line postcard.usda.qtpl:126
 		qw422016.N().F(params.MaxZ)
-//line postcard.usda.qtpl:120
+//line postcard.usda.qtpl:126
 		qw422016.N().S(`),`)
-//line postcard.usda.qtpl:120
+//line postcard.usda.qtpl:126
 	}
-//line postcard.usda.qtpl:120
+//line postcard.usda.qtpl:126
 	qw422016.N().S(`
                 `)
-//line postcard.usda.qtpl:121
+//line postcard.usda.qtpl:127
 	for _, pt := range params.BackPoints {
-//line postcard.usda.qtpl:121
+//line postcard.usda.qtpl:127
 		qw422016.N().S(`(`)
-//line postcard.usda.qtpl:121
+//line postcard.usda.qtpl:127
 		qw422016.N().F(pt.X*params.MaxX - params.MaxX/2)
-//line postcard.usda.qtpl:121
+//line postcard.usda.qtpl:127
 		qw422016.N().S(`,`)
-//line postcard.usda.qtpl:121
+//line postcard.usda.qtpl:127
 		qw422016.N().F(pt.Y*params.MaxY - params.MaxY/2)
-//line postcard.usda.qtpl:121
+//line postcard.usda.qtpl:127
 		qw422016.N().S(`,0),`)
-//line postcard.usda.qtpl:121
+//line postcard.usda.qtpl:127
 	}
-//line postcard.usda.qtpl:121
+//line postcard.usda.qtpl:127
 	qw422016.N().S(`
             ]
             uniform token subdivisionScheme = "none"
@@ -416,34 +422,34 @@ def Xform "Postcard" (
         def RealityKitStruct "Shape"
         {
             float3 extent = (`)
-//line postcard.usda.qtpl:137
+//line postcard.usda.qtpl:143
 	qw422016.N().F(params.MaxX)
-//line postcard.usda.qtpl:137
+//line postcard.usda.qtpl:143
 	qw422016.N().S(`, `)
-//line postcard.usda.qtpl:137
+//line postcard.usda.qtpl:143
 	qw422016.N().F(params.MaxY)
-//line postcard.usda.qtpl:137
+//line postcard.usda.qtpl:143
 	qw422016.N().S(`, `)
-//line postcard.usda.qtpl:137
+//line postcard.usda.qtpl:143
 	qw422016.N().F(params.MaxZ)
-//line postcard.usda.qtpl:137
+//line postcard.usda.qtpl:143
 	qw422016.N().S(`)
             token shapeType = "Box"
 
             def RealityKitStruct "pose"
             {
                 float3 position = (`)
-//line postcard.usda.qtpl:142
+//line postcard.usda.qtpl:148
 	qw422016.N().F(params.MaxX / 2.0)
-//line postcard.usda.qtpl:142
+//line postcard.usda.qtpl:148
 	qw422016.N().S(`, `)
-//line postcard.usda.qtpl:142
+//line postcard.usda.qtpl:148
 	qw422016.N().F(params.MaxY / 2.0)
-//line postcard.usda.qtpl:142
+//line postcard.usda.qtpl:148
 	qw422016.N().S(`, `)
-//line postcard.usda.qtpl:142
+//line postcard.usda.qtpl:148
 	qw422016.N().F(params.MaxZ / 2.0)
-//line postcard.usda.qtpl:142
+//line postcard.usda.qtpl:148
 	qw422016.N().S(`)
             }
         }
@@ -463,25 +469,25 @@ def Xform "Postcard" (
             # Tried calculating some values, not certain this is right
             float3 m_inertia = (0.00008334, 0.00018752, 0.00041667)
             float m_mass = `)
-//line postcard.usda.qtpl:160
+//line postcard.usda.qtpl:166
 	qw422016.N().F(params.MassKg)
-//line postcard.usda.qtpl:160
+//line postcard.usda.qtpl:166
 	qw422016.N().S(`
 
             def RealityKitStruct "m_pose"
             {
                 float3 position = (`)
-//line postcard.usda.qtpl:164
+//line postcard.usda.qtpl:170
 	qw422016.N().F(params.MaxX / 2.0)
-//line postcard.usda.qtpl:164
+//line postcard.usda.qtpl:170
 	qw422016.N().S(`, `)
-//line postcard.usda.qtpl:164
+//line postcard.usda.qtpl:170
 	qw422016.N().F(params.MaxY / 2.0)
-//line postcard.usda.qtpl:164
+//line postcard.usda.qtpl:170
 	qw422016.N().S(`, `)
-//line postcard.usda.qtpl:164
+//line postcard.usda.qtpl:170
 	qw422016.N().F(params.MaxZ / 2.0)
-//line postcard.usda.qtpl:164
+//line postcard.usda.qtpl:170
 	qw422016.N().S(`)
             }
         }
@@ -494,9 +500,9 @@ def Xform "Postcard" (
         }
     }
 `)
-//line postcard.usda.qtpl:175
+//line postcard.usda.qtpl:181
 	if len(params.FlipAxis) != 0 {
-//line postcard.usda.qtpl:175
+//line postcard.usda.qtpl:181
 		qw422016.N().S(`
     def RealityKitComponent "RCP_BehaviorsContainer"
     {
@@ -538,15 +544,15 @@ def Xform "Postcard" (
                 int blendLayer = 400
                 double duration = 0.75
                 float3 localAxis = (`)
-//line postcard.usda.qtpl:215
+//line postcard.usda.qtpl:221
 		for _, axis := range params.FlipAxis {
-//line postcard.usda.qtpl:215
+//line postcard.usda.qtpl:221
 			qw422016.N().F(axis)
-//line postcard.usda.qtpl:215
+//line postcard.usda.qtpl:221
 			qw422016.N().S(`, `)
-//line postcard.usda.qtpl:215
+//line postcard.usda.qtpl:221
 		}
-//line postcard.usda.qtpl:215
+//line postcard.usda.qtpl:221
 		qw422016.N().S(`)
                 float revolutions = 0.5
                 double startTime = 0
@@ -560,36 +566,36 @@ def Xform "Postcard" (
         }
     }
 `)
-//line postcard.usda.qtpl:227
+//line postcard.usda.qtpl:233
 	}
-//line postcard.usda.qtpl:227
+//line postcard.usda.qtpl:233
 	qw422016.N().S(`
 }`)
-//line postcard.usda.qtpl:228
+//line postcard.usda.qtpl:234
 }
 
-//line postcard.usda.qtpl:228
+//line postcard.usda.qtpl:234
 func WriteUSDA(qq422016 qtio422016.Writer, params usdParams) {
-//line postcard.usda.qtpl:228
+//line postcard.usda.qtpl:234
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line postcard.usda.qtpl:228
+//line postcard.usda.qtpl:234
 	StreamUSDA(qw422016, params)
-//line postcard.usda.qtpl:228
+//line postcard.usda.qtpl:234
 	qt422016.ReleaseWriter(qw422016)
-//line postcard.usda.qtpl:228
+//line postcard.usda.qtpl:234
 }
 
-//line postcard.usda.qtpl:228
+//line postcard.usda.qtpl:234
 func USDA(params usdParams) string {
-//line postcard.usda.qtpl:228
+//line postcard.usda.qtpl:234
 	qb422016 := qt422016.AcquireByteBuffer()
-//line postcard.usda.qtpl:228
+//line postcard.usda.qtpl:234
 	WriteUSDA(qb422016, params)
-//line postcard.usda.qtpl:228
+//line postcard.usda.qtpl:234
 	qs422016 := string(qb422016.B)
-//line postcard.usda.qtpl:228
+//line postcard.usda.qtpl:234
 	qt422016.ReleaseByteBuffer(qb422016)
-//line postcard.usda.qtpl:228
+//line postcard.usda.qtpl:234
 	return qs422016
-//line postcard.usda.qtpl:228
+//line postcard.usda.qtpl:234
 }

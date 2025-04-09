@@ -71,7 +71,9 @@ def Xform "Postcard" (
 
     def Scope "Geom"
     {
-        def Mesh "Front"
+        def Mesh "Front" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
         {
             uniform bool doubleSided = 0
             
@@ -89,7 +91,9 @@ def Xform "Postcard" (
             uniform token subdivisionScheme = "none"
         }
 
-        def Mesh "Back"
+        def Mesh "Back" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
         {
             uniform bool doubleSided = 0
             uniform token orientation = "leftHanded"
@@ -108,7 +112,9 @@ def Xform "Postcard" (
             uniform token subdivisionScheme = "none"
         }
 
-        def Mesh "Paper"
+        def Mesh "Paper" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
         {
             uniform bool doubleSided = 0
             float3[] extent = [({%f params.MaxX /-2 %}, {%f params.MaxY /-2 %}, 0), ({%f params.MaxX /2 %}, {%f params.MaxY /2 %}, {%f params.MaxZ %})]
