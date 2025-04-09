@@ -83,7 +83,14 @@ const (
 )
 
 func makeExtraBytes(offset int) []byte {
-	paddingNeeded := (usdFileAlignment - offset%usdFileAlignment) % usdFileAlignment
+	paddingNeeded := usdFileAlignment - offset%usdFileAlignment
+
+	switch paddingNeeded {
+	case 64:
+		return []byte{}
+	case 1, 2, 3:
+		paddingNeeded += 64
+	}
 
 	extra := binary.LittleEndian.AppendUint16([]byte{}, usdZipHeaderID)
 	extra = binary.LittleEndian.AppendUint16(extra, uint16(paddingNeeded)-4)
