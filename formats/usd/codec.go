@@ -12,11 +12,11 @@ import (
 	"io"
 	"io/fs"
 
-	"github.com/dotpostcard/postcards-go"
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/formats/web"
 	"github.com/jphastings/dotpostcard/internal/geom3d"
 	"github.com/jphastings/dotpostcard/internal/images"
+	"github.com/jphastings/dotpostcard/internal/version"
 	"github.com/jphastings/dotpostcard/types"
 )
 
@@ -169,7 +169,8 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 		sTris := geom3d.SideMesh(frontPoints, backPoints)
 
 		params := usdParams{
-			Creator:   fmt.Sprintf("postcards v%s (https://dotpostcard.org)", postcards.Version),
+			// TODO: Fix circular import to get to version number here.
+			Creator:   fmt.Sprintf("postcards v%s (https://dotpostcard.org)", version.Version),
 			CardColor: pc.Meta.Physical.GetCardColor(),
 
 			MaxX:   maxX,

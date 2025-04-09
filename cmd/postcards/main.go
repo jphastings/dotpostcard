@@ -12,6 +12,7 @@ import (
 	postcards "github.com/jphastings/dotpostcard"
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/internal/cmdhelp"
+	"github.com/jphastings/dotpostcard/internal/version"
 	"github.com/spf13/cobra"
 )
 
@@ -21,7 +22,7 @@ var rootCmd = &cobra.Command{
 	Example: "  postcards -f web,json postcard1-front.jpg postcard2.webp directory/*\n  postcards -f components --archival --overwrite pc.webp",
 	Short:   "A tool for converting between formats for representing images of postcards",
 	Long:    longMessage(),
-	Version: postcards.Version,
+	Version: version.Version,
 	Args:    cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, inputPaths []string) error {
 		// Grab relevant flags
