@@ -2,6 +2,7 @@ package usdz
 
 import (
 	"archive/zip"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"hash/crc32"
@@ -75,6 +76,21 @@ func usdzToTextureFile(file fs.File) (fs.File, error) {
 	return nil, fmt.Errorf("no postcard texture files found")
 }
 
+const (
+	zipFileHeaderLength = 30
+	usdZipHeaderID      = 0x1986
+	usdFileAlignment    = 64
+)
+
+func makeExtraBytes(offset int) []byte {
+	paddingNeeded := (usdFileAlignment - offset%usdFileAlignment) % usdFileAlignment
+
+	extra := binary.LittleEndian.AppendUint16([]byte{}, usdZipHeaderID)
+	extra = binary.LittleEndian.AppendUint16(extra, uint16(paddingNeeded)-4)
+
+	return append(extra, make([]byte, paddingNeeded-4)...)
+}
+
 func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats.FileWriter, error) {
 	writeUSDZ := func(w io.Writer) error {
 		fws, err := usd.Codec().Encode(pc, opts)
@@ -85,11 +101,15 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 		zw := zip.NewWriter(w)
 		defer zw.Close()
 
+		alignmentOffset := 0
 		for _, fw := range fws {
 			b, err := fw.Bytes()
 			if err != nil {
 				return err
 			}
+
+			// The file header and filename are written before the file
+			alignmentOffset += len(fw.Filename) + zipFileHeaderLength
 
 			zipFileHeader := &zip.FileHeader{
 				Name:               fw.Filename,
@@ -97,6 +117,8 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 				CRC32:              crc32.ChecksumIEEE(b),
 				CompressedSize64:   uint64(len(b)),
 				UncompressedSize64: uint64(len(b)),
+				ReaderVersion:      0x0A,
+				Extra:              makeExtraBytes(alignmentOffset),
 			}
 
 			f, err := zw.CreateRaw(zipFileHeader)
@@ -107,6 +129,9 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 			if _, err := f.Write(b); err != nil {
 				return err
 			}
+
+			// Ensure we know where the next header's position will be
+			alignmentOffset += len(zipFileHeader.Extra) + len(b)
 		}
 
 		return nil
