@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.14.7 (2025-04-09)
+
+### Fix
+
+- Handle USDZ alignment paddings less than 4 bytes long
+
 ## v0.14.6 (2025-04-09)
 
 ### Fix
