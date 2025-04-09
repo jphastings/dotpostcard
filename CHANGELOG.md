@@ -383,6 +383,18 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.14.6 (2025-04-09)
+
+### Fix
+
+- Create fully valid USDZ
+- Correctly offset USDZ file data
+
+### Refactor
+
+- Better error messages on localhost
+- **postoffice**: Allow for other endpoints within wasm
+
 ## v0.14.5 (2025-04-06)
 
 ### Fix
