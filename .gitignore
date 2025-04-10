@@ -1,6 +1,7 @@
 
 dist/
 .vscode/launch.json
+__debug*
 
 # These are downloaded by go generate
 internal/www/postoffice/wasm_exec.js

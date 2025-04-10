@@ -1,8 +1,6 @@
 # TODO
 
-- [ ] Created USDZs are technically invalid (byte alignment) — can I tweak the output of archive/zip? Or do I need for fork it?
-- [ ] Determine what this `usdchecker` error means & fix it:
-  - `Found material bindings but no MaterialBindingAPI applied on the prim </Postcard/Geom/Front>. (fails 'MaterialBindingAPIAppliedChecker')`
+- [ ] Fix XMP inject/extract tests
 - [ ] Don't re-encode same-same format. (eg. USDZ to Web(no alpha, lossy); Web to Web)
 - [ ] Read XMP data from generic JPEG format (eg. with EXIF APP1 chunk before XMP APP1 chunk)
 - [ ] Show warning when using fallback size to generate USDZ
@@ -55,3 +53,6 @@
 - [x] Read XMP data from png `web` format
 - [x] Transparent bordered #USD postcards
 - [x] Get HTML format to output the _right_ image extension (fill out ImageExt argument)
+- [x] Created USDZs are technically invalid (byte alignment) — can I tweak the output of archive/zip? Or do I need for fork it?
+- [x] Determine what this `usdchecker` error means & fix it:
+  - `Found material bindings but no MaterialBindingAPI applied on the prim </Postcard/Geom/Front>. (fails 'MaterialBindingAPIAppliedChecker')`
