@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.14.11 (2025-04-11)
+
+### Fix
+
+- **postoffice**: :bug: Ensure USD only gets texture, not HTML/CSS
+
 ## v0.14.10 (2025-04-10)
 
 ### Fix
