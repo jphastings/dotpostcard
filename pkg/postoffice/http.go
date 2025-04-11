@@ -45,7 +45,9 @@ func CompileFromForm(codecChoices CodecChoices) func(http.ResponseWriter, *http.
 		if len(files) == 1 {
 			w.Header().Add("Content-Type", files[0].Mimetype)
 			w.Header().Add("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, files[0].Filename))
-			files[0].WriteTo(w)
+			if err := files[0].WriteTo(w); err != nil {
+				http.Error(w, "Unable to write file", http.StatusInternalServerError)
+			}
 			return
 		}
 
