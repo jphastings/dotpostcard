@@ -16,7 +16,6 @@ require (
 	github.com/ernyoke/imger v1.0.0
 	github.com/gen2brain/jpegli v0.3.4
 	github.com/nlepage/go-wasm-http-server/v2 v2.1.0
-	github.com/sergi/go-diff v1.4.0
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.9.0
 	github.com/sunshineplan/tiff v0.0.0-20220128141034-29b9d69bd906
