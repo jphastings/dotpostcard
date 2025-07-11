@@ -18,6 +18,7 @@ func ColorFromString(str string) (*Color, error) {
 		R: r,
 		G: g,
 		B: b,
+		A: 0xff,
 	}, nil
 }
 

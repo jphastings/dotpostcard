@@ -109,7 +109,7 @@ func MetadataFromXMP(r io.Reader) (types.Metadata, error) {
 	if thick, err := strconv.ParseFloat(js.Models.Postcard.PhysicalThicknessMM, 64); err == nil {
 		meta.Physical.ThicknessMM = thick
 	}
-	if c, err := types.ColorFromString(js.Models.Postcard.CardColor); err != nil {
+	if c, err := types.ColorFromString(js.Models.Postcard.CardColor); err == nil {
 		meta.Physical.CardColor = c
 	}
 

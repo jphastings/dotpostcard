@@ -157,7 +157,7 @@ func (d Date) MarshalYAML() (interface{}, error) {
 }
 
 func (c Color) MarshalYAML() (interface{}, error) {
-	return fmt.Sprintf(`"#%02X%02X%02X"`, c.R, c.G, c.B), nil
+	return fmt.Sprintf(`#%02X%02X%02X`, c.R, c.G, c.B), nil
 }
 
 func (c *Color) UnmarshalYAML(y *yaml.Node) error {
@@ -171,6 +171,7 @@ func (c *Color) UnmarshalYAML(y *yaml.Node) error {
 	}
 
 	c.R, c.G, c.B = r, g, b
+	c.A = 255
 	return nil
 }
 

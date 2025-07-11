@@ -48,3 +48,4 @@ context:
 physical:
     front_size: 14.80cm x 10.50cm
     thickness_mm: 0.4
+    card_color: '#E6E6D9'
