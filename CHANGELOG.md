@@ -383,6 +383,14 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.14.12 (2025-07-11)
+
+### Fix
+
+- fix failing tests after card colour
+- hacky detection of transparent postcards decoded from web versions
+- fix: speed up secrets processing
+
 ## v0.14.11 (2025-04-11)
 
 ### Fix
