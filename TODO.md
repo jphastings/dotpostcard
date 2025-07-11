@@ -1,5 +1,8 @@
 # TODO
 
+- [ ] JPEGli in SVG with mask smaller than WebP?
+- [ ] Improve HasTransparency detection (for all format decoding)
+- [ ] Move component/decode.go#decodeImage to internal/images/decode.go?
 - [ ] Fix XMP inject/extract tests
 - [ ] Don't re-encode same-same format. (eg. USDZ to Web(no alpha, lossy); Web to Web)
 - [ ] Read XMP data from generic JPEG format (eg. with EXIF APP1 chunk before XMP APP1 chunk)
