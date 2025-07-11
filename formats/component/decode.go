@@ -136,6 +136,10 @@ func hideSecrets(img image.Image, secrets []types.Polygon) (image.Image, []types
 	draw.Copy(overlay, image.Point{}, img, img.Bounds(), draw.Over, nil)
 
 	for i, poly := range secrets {
+		if poly.Prehidden {
+			continue
+		}
+
 		dc := gg.NewContext(w, h)
 
 		x, y := poly.Points[0].ToPixels(w, h)
