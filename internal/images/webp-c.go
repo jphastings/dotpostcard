@@ -17,7 +17,7 @@ func WriteWebP(w io.Writer, img image.Image, xmpData []byte, archival, hasAlpha 
 	if archival {
 		webpOpts = []webp.EncodeOption{webp.Lossless()}
 	} else {
-		webpOpts = []webp.EncodeOption{webp.Quality(70)}
+		webpOpts = []webp.EncodeOption{webp.Quality(0.7)}
 	}
 
 	webpData := new(bytes.Buffer)
