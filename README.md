@@ -21,37 +21,34 @@ WASIp1 compatible WASM executables are also provided with a reduced feature set 
 
 To make your first postcard file you should scan both sides of your postcard, its "components".
 
-> [!NOTE]
-> JPG, PNG and TIFF formats are all supported, but JPG may lose quality, and some scanning software's TIFF format isn't compatible with this software.
+- Use a scanner (for accurate resolution info)
+- Use a black background (as black as possible, to minimise shadows)
+- Save your scan as a PNG (For quality, and because Go doesn't support macOS' TIFF encoding)
 
 > [!TIP]
-> Taking a photo will work, but a scanner won't produce reflections or add perspective to your postcard, and can provide accurate information about its physical size — which you'd have to add manually otherwise.
+> There is an experimental web-based postcard creator at [create.dotpostcard.org](https://create.dotpostcard.org), which you may find easier.
 
-Pick a suitable short name for your postcard, eg. `pyramid`.
+Pick a name for your postcard, eg. `pyramid`, and name your scans `{name}-front.png` and `{name}-back.png` (or `{name}-only.png` if you're only producing a single sided card).
 
-> [!TIP]
-> Using only a-z, 0-9, hyphens, and underscores is smart as this will prevent issues moving your postcard between computers and ecosystems.
-
-Name your two scans `{name}-front.{ext}` and `{name}-back.{ext}` (or `{name}-only.{ext}` if you're only producing a single sided card).
-
-```sh
-$ ls
-pyramid-front.png
-pyramid-back.png
-```
-
-Create a template metadata file & fill it out with the details of your postcard:
+Create a template metadata file & edit it to show the details of your postcard:
 
 ```sh
 $ postcards init pyramid
 ⚙︎ Generating 1 postcard metadata file…
 Template (Metadata) → (Metadata) pyramid-meta.yaml
+
+$ vi pyramid-meta.yaml
+
+$ ls
+pyramid-back.png
+pyramid-front.png
+pyramid-meta.yaml
 ```
 
-Now generate any other postcard format from this "component" format:
+Now you can generate any other postcard format from this "component" format:
 
 ```sh
-$ postcards -f web,usdz,html,css pyramid-meta.yaml
+$ postcards -f usdz,web,html,css pyramid-meta.yaml
 ⚙︎ Converting 1 postcard into 4 different formats…
 pyramid-meta.yaml (Component files) → (USDZ 3D model) pyramid.postcard.usdz
 pyramid-meta.yaml (Component files) → (Web) pyramid.postcard.jpg
@@ -68,7 +65,3 @@ Here we've produced:
 
 > [!IMPORTANT]
 > Most formats can be converted between each other (web, usdz, component). If this is likely use the `--archival` flag to turn on lossless conversion so quality remains high until the final conversion.
-
-## Under construction
-
-This repo is in rapid development (and migration from a previous iteration at [dotpostcard/postcards-go](https://github.com/dotpostcard/postcards-go)) — please bear with me!
