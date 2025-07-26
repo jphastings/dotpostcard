@@ -383,6 +383,19 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.15.0 (2025-07-26)
+
+### Feat
+
+- polish for first pass of svg creator
+- unpolished svg web format (no decode)
+
+### Fix
+
+- set v0.0.0 as version for tests, to prevent flip-flopping on release
+- ensure card colour is used as the background colour for all JPEG images
+- Keep metadata in JPEG
+
 ## v0.14.15 (2025-07-12)
 
 ### Fix
