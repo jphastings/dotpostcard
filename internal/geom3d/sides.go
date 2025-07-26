@@ -79,8 +79,4 @@ func findClosest(target Point, list []Point) int {
 	return closestI
 }
 
-func distance(a, b Point) float64 {
-	dx := b.X - a.X
-	dy := b.Y - a.Y
-	return math.Sqrt(dx*dx + dy*dy)
-}
+func distance(a, b Point) float64 { return math.Hypot(a.X-b.X, a.Y-b.Y) }

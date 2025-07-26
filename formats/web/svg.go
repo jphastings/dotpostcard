@@ -48,7 +48,7 @@ func writeSVG(w io.Writer, pc types.Postcard, combinedImg image.Image, xmpData [
 
 	var buf bytes.Buffer
 	b64W := base64.NewEncoder(base64.StdEncoding, &buf)
-	if err := images.WriteJPEG(b64W, combinedImg, xmpData); err != nil {
+	if err := images.WriteJPEG(b64W, combinedImg, xmpData, pc.Meta.Physical.GetCardColor()); err != nil {
 		return err
 	}
 	v.b64Img = buf.String()

@@ -6,13 +6,14 @@ package images
 import (
 	"bytes"
 	"image"
+	"image/color"
 	"io"
 
 	"github.com/gen2brain/jpegli"
 	"github.com/jphastings/dotpostcard/pkg/xmpinject"
 )
 
-func WriteJPEG(w io.Writer, combinedImg image.Image, xmpData []byte) error {
+func WriteJPEG(w io.Writer, combinedImg image.Image, xmpData []byte, bgColor color.RGBA) error {
 	jpegliOpts := &jpegli.EncodingOptions{
 		Quality:           70,
 		ProgressiveLevel:  2,
@@ -20,7 +21,7 @@ func WriteJPEG(w io.Writer, combinedImg image.Image, xmpData []byte) error {
 	}
 
 	jpgData := new(bytes.Buffer)
-	if err := jpegli.Encode(jpgData, combinedImg, jpegliOpts); err != nil {
+	if err := jpegli.Encode(jpgData, WithBackgroundColor(combinedImg, bgColor), jpegliOpts); err != nil {
 		return err
 	}
 

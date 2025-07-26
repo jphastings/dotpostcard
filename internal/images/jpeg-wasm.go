@@ -8,18 +8,19 @@ import (
 	"image"
 	"io"
 
+	"image/color"
 	"image/jpeg"
 
 	"github.com/jphastings/dotpostcard/pkg/xmpinject"
 )
 
-func WriteJPEG(w io.Writer, combinedImg image.Image, xmpData []byte) error {
+func WriteJPEG(w io.Writer, combinedImg image.Image, xmpData []byte, bgColor color.RGBA) error {
 	jpegOpts := &jpeg.Options{
 		Quality: 75,
 	}
 
 	jpgData := new(bytes.Buffer)
-	if err := jpeg.Encode(jpgData, combinedImg, jpegOpts); err != nil {
+	if err := jpeg.Encode(jpgData, WithBackgroundColor(combinedImg, bgColor), jpegOpts); err != nil {
 		return err
 	}
 

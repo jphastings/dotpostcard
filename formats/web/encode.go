@@ -64,12 +64,6 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 		}
 
 		combinedImg := image.NewRGBA(combinedSize)
-		// Fill the backdrop with the card colour if we're ignoring transparency
-		// or where the transparency is completed as a mask
-		if opts.IgnoreTransparency() || formatCapabilities[format].masking {
-			bg := &image.Uniform{pc.Meta.Physical.GetCardColor()}
-			draw.Draw(combinedImg, combinedImg.Bounds(), bg, image.Point{}, draw.Src)
-		}
 		// Add the front of the postcard
 		draw.CatmullRom.Scale(combinedImg, finalSize, pc.Front, frontSize, draw.Over, nil)
 
@@ -90,7 +84,7 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 		case "png":
 			err = images.WritePNG(w, combinedImg, xmpData, opts.Archival)
 		case "jpeg":
-			err = images.WriteJPEG(w, combinedImg, xmpData)
+			err = images.WriteJPEG(w, combinedImg, xmpData, pc.Meta.Physical.GetCardColor())
 		case "svg":
 			err = writeSVG(w, pc, combinedImg, xmpData, pc.Meta.HasTransparency)
 		default:

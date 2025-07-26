@@ -7,13 +7,8 @@ import (
 )
 
 func DefaultCodecChoices() (CodecChoices, error) {
-	webCodec, err := web.Codec("jpeg", "png")
-	if err != nil {
-		return nil, err
-	}
-
 	return map[string][]formats.Codec{
-		"web":  {webCodec},
+		"web":  {web.DefaultCodec},
 		"usdz": {usdz.Codec()},
 	}, nil
 }

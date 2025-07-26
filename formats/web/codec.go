@@ -79,7 +79,6 @@ func Codec(format string, altFormats ...string) (formats.Codec, error) {
 	return codec{formats: fmts}, nil
 }
 
-var DefaultCodec, _ = Codec("jpeg", "webp", "svg")
 var SVGCodec, _ = Codec("svg")
 
 func (c codec) Name() string { return codecName }
