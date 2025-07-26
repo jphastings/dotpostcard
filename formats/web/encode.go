@@ -65,7 +65,8 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 
 		combinedImg := image.NewRGBA(combinedSize)
 		// Fill the backdrop with the card colour if we're ignoring transparency
-		if opts.IgnoreTransparency() {
+		// or where the transparency is completed as a mask
+		if opts.IgnoreTransparency() || formatCapabilities[format].masking {
 			bg := &image.Uniform{pc.Meta.Physical.GetCardColor()}
 			draw.Draw(combinedImg, combinedImg.Bounds(), bg, image.Point{}, draw.Src)
 		}
@@ -91,7 +92,7 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 		case "jpeg":
 			err = images.WriteJPEG(w, combinedImg, xmpData)
 		case "svg":
-			err = writeSVG(w, pc, combinedImg, xmpData)
+			err = writeSVG(w, pc, combinedImg, xmpData, pc.Meta.HasTransparency)
 		default:
 			err = fmt.Errorf("unsupported output image format: %s", format)
 		}

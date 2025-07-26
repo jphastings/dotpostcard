@@ -23,56 +23,68 @@ func StreamSVG(qw422016 *qt422016.Writer, v svgVars) {
 	qw422016.N().S(`
 <svg
   xmlns="http://www.w3.org/2000/svg"
-  `)
-//line postcard.svg.qtpl:4
-	if v.size.HasPhysical() {
-//line postcard.svg.qtpl:4
-		qw422016.N().S(`
-  `)
-//line postcard.svg.qtpl:6
-		cmW, cmH := v.size.MustPhysical()
+`)
+//line postcard.svg.qtpl:5
+	h := v.size.PxHeight
+	if v.hasBack {
+		h *= 2
+	}
 
-//line postcard.svg.qtpl:7
-		qw422016.N().S(`
-  width="`)
-//line postcard.svg.qtpl:8
+//line postcard.svg.qtpl:10
+	if v.size.HasPhysical() {
+//line postcard.svg.qtpl:12
+		cmW, cmH := v.size.MustPhysical()
+		if v.hasBack {
+			cmH *= 2
+		}
+
+//line postcard.svg.qtpl:16
+		qw422016.N().S(`  width="`)
+//line postcard.svg.qtpl:17
 		qw422016.N().FPrec(cmW, 2)
-//line postcard.svg.qtpl:8
+//line postcard.svg.qtpl:17
 		qw422016.N().S(`cm"
   height="`)
-//line postcard.svg.qtpl:9
-		qw422016.N().FPrec(cmH*2, 2)
-//line postcard.svg.qtpl:9
+//line postcard.svg.qtpl:18
+		qw422016.N().FPrec(cmH, 2)
+//line postcard.svg.qtpl:18
 		qw422016.N().S(`cm"
-  `)
-//line postcard.svg.qtpl:10
+`)
+//line postcard.svg.qtpl:19
 	}
-//line postcard.svg.qtpl:10
-	qw422016.N().S(`
-  viewBox="0 0 `)
-//line postcard.svg.qtpl:11
+//line postcard.svg.qtpl:19
+	qw422016.N().S(`  viewBox="0 0 `)
+//line postcard.svg.qtpl:20
 	qw422016.N().D(v.size.PxWidth)
-//line postcard.svg.qtpl:11
+//line postcard.svg.qtpl:20
 	qw422016.N().S(` `)
-//line postcard.svg.qtpl:11
-	qw422016.N().D(v.size.PxHeight * 2)
-//line postcard.svg.qtpl:11
+//line postcard.svg.qtpl:20
+	qw422016.N().D(h)
+//line postcard.svg.qtpl:20
 	qw422016.N().S(`"
   version="1.1"
 >
   <defs>
     <clipPath id="edge">
       <path d="`)
-//line postcard.svg.qtpl:16
+//line postcard.svg.qtpl:25
 	qw422016.E().S(pointsToPath(v.frontPoints, v.size.PxWidth, v.size.PxHeight, false))
-//line postcard.svg.qtpl:16
+//line postcard.svg.qtpl:25
 	qw422016.N().S(`"/>
-      <path d="`)
-//line postcard.svg.qtpl:17
-	qw422016.E().S(pointsToPath(v.backPoints, v.size.PxWidth, v.size.PxHeight, true))
-//line postcard.svg.qtpl:17
-	qw422016.N().S(`"/>
-    </clipPath>
+`)
+//line postcard.svg.qtpl:26
+	if v.hasBack {
+//line postcard.svg.qtpl:26
+		qw422016.N().S(`      <path d="`)
+//line postcard.svg.qtpl:27
+		qw422016.E().S(pointsToPath(v.backPoints, v.size.PxWidth, v.size.PxHeight, true))
+//line postcard.svg.qtpl:27
+		qw422016.N().S(`"/>
+`)
+//line postcard.svg.qtpl:28
+	}
+//line postcard.svg.qtpl:28
+	qw422016.N().S(`    </clipPath>
   </defs>
   <image
     x="0"
@@ -82,38 +94,38 @@ func StreamSVG(qw422016 *qt422016.Writer, v svgVars) {
     preserveAspectRatio="none"
     clip-path="url(#edge)"
     href="data:image/jpeg;base64,`)
-//line postcard.svg.qtpl:27
+//line postcard.svg.qtpl:38
 	qw422016.E().S(v.b64Img)
-//line postcard.svg.qtpl:27
+//line postcard.svg.qtpl:38
 	qw422016.N().S(`"
   />
 </svg>
 `)
-//line postcard.svg.qtpl:30
+//line postcard.svg.qtpl:41
 }
 
-//line postcard.svg.qtpl:30
+//line postcard.svg.qtpl:41
 func WriteSVG(qq422016 qtio422016.Writer, v svgVars) {
-//line postcard.svg.qtpl:30
+//line postcard.svg.qtpl:41
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line postcard.svg.qtpl:30
+//line postcard.svg.qtpl:41
 	StreamSVG(qw422016, v)
-//line postcard.svg.qtpl:30
+//line postcard.svg.qtpl:41
 	qt422016.ReleaseWriter(qw422016)
-//line postcard.svg.qtpl:30
+//line postcard.svg.qtpl:41
 }
 
-//line postcard.svg.qtpl:30
+//line postcard.svg.qtpl:41
 func SVG(v svgVars) string {
-//line postcard.svg.qtpl:30
+//line postcard.svg.qtpl:41
 	qb422016 := qt422016.AcquireByteBuffer()
-//line postcard.svg.qtpl:30
+//line postcard.svg.qtpl:41
 	WriteSVG(qb422016, v)
-//line postcard.svg.qtpl:30
+//line postcard.svg.qtpl:41
 	qs422016 := string(qb422016.B)
-//line postcard.svg.qtpl:30
+//line postcard.svg.qtpl:41
 	qt422016.ReleaseByteBuffer(qb422016)
-//line postcard.svg.qtpl:30
+//line postcard.svg.qtpl:41
 	return qs422016
-//line postcard.svg.qtpl:30
+//line postcard.svg.qtpl:41
 }

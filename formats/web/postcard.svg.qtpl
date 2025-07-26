@@ -1,20 +1,31 @@
 {% func SVG(v svgVars) %}
 <svg
   xmlns="http://www.w3.org/2000/svg"
-  {% if v.size.HasPhysical() %}
-  {% code
+  {%- code
+    h := v.size.PxHeight
+    if v.hasBack {
+      h *= 2
+    }
+  -%}
+  {%- if v.size.HasPhysical() -%}
+  {%- code
     cmW, cmH := v.size.MustPhysical()
-  %}
+    if v.hasBack {
+      cmH *= 2
+    }
+  -%}
   width="{%f.2 cmW %}cm"
-  height="{%f.2 cmH * 2 %}cm"
-  {% endif %}
-  viewBox="0 0 {%d v.size.PxWidth %} {%d v.size.PxHeight * 2 %}"
+  height="{%f.2 cmH %}cm"
+  {%- endif -%}
+  viewBox="0 0 {%d v.size.PxWidth %} {%d h %}"
   version="1.1"
 >
   <defs>
     <clipPath id="edge">
       <path d="{%s pointsToPath(v.frontPoints, v.size.PxWidth, v.size.PxHeight, false) %}"/>
+      {%- if v.hasBack -%}
       <path d="{%s pointsToPath(v.backPoints, v.size.PxWidth, v.size.PxHeight, true) %}"/>
+      {%- endif -%}
     </clipPath>
   </defs>
   <image

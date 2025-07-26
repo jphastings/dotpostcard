@@ -56,6 +56,7 @@ var rootCmd = &cobra.Command{
 		encOpts := formats.EncodeOptions{
 			Archival:            archival,
 			IncludeSupportFiles: incSupportFiles,
+			NoTransparency:      ignoreTransparency && !removeBorder,
 		}
 
 		bundles, err := postcards.MakeBundles(inputPaths)

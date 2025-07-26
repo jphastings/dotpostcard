@@ -32,6 +32,7 @@ type codec struct {
 type capabilities struct {
 	lossless     bool
 	transparency bool
+	masking      bool
 }
 
 func (c capabilities) String() string {
@@ -57,7 +58,7 @@ var formatCapabilities = map[string]capabilities{
 	"jpeg": {},
 	"webp": {lossless: true, transparency: true},
 	"png":  {lossless: true, transparency: true},
-	"svg":  {transparency: true},
+	"svg":  {transparency: true, masking: true},
 }
 
 // Only returns true if the capabilities on struct owning this method meet the needs of the provided capabilities object.
@@ -78,7 +79,7 @@ func Codec(format string, altFormats ...string) (formats.Codec, error) {
 	return codec{formats: fmts}, nil
 }
 
-var DefaultCodec, _ = Codec("jpeg", "webp")
+var DefaultCodec, _ = Codec("jpeg", "webp", "svg")
 var SVGCodec, _ = Codec("svg")
 
 func (c codec) Name() string { return codecName }
