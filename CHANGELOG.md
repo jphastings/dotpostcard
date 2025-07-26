@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.15.1 (2025-07-26)
+
+### Fix
+
+- allow one-sided postcards in usdz files
+
 ## v0.15.0 (2025-07-26)
 
 ### Feat
