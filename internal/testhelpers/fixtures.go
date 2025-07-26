@@ -1,7 +1,6 @@
 package testhelpers
 
 import (
-	"bytes"
 	"embed"
 	"fmt"
 	"image"
@@ -9,7 +8,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/jphastings/dotpostcard/internal/version"
 	"github.com/jphastings/dotpostcard/types"
 )
 
@@ -125,13 +123,3 @@ var SampleXMP []byte
 
 //go:embed sample-meta.yaml
 var SampleYAML []byte
-
-func init() {
-	// Ensure the sample XMP has the correct version number in it
-	SampleXMP = bytes.Replace(
-		SampleXMP,
-		[]byte("postcards/v0.0.0"),
-		[]byte(fmt.Sprintf("postcards/v%s", version.Version)),
-		-1,
-	)
-}

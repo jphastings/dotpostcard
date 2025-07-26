@@ -19,6 +19,10 @@ func TestXMPintoPNG(t *testing.T) {
 	var b bytes.Buffer
 	assert.NoError(t, xmpinject.XMPintoPNG(&b, original, testhelpers.SampleXMP))
 
+	// It's not ideal; but if I need to recreate the fixture data I use this
+	// f, _ := os.OpenFile("1px-xmp.png", os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0644)
+	// _ = xmpinject.XMPintoPNG(f, original, testhelpers.SampleXMP)
+
 	assert.Equal(t, want, b.Bytes())
 }
 

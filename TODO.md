@@ -1,16 +1,15 @@
 # TODO
 
-- [ ] Coregistration of front and back (slight rotation & translation differences)
-- [x] JPEGli in SVG with mask smaller than PNG?
+- [ ] Coregistration of front and back on USD (slight rotation & translation differences)
+- [ ] Can I detect that the output files are present (and can't be overwritten) faster?
 - [ ] Improve HasTransparency detection (for all format decoding)
 - [ ] Move component/decode.go#decodeImage to internal/images/decode.go?
-- [ ] Fix XMP inject/extract tests
 - [ ] Don't re-encode same-same format. (eg. USDZ to Web(no alpha, lossy); Web to Web)
 - [ ] Read XMP data from generic JPEG format (eg. with EXIF APP1 chunk before XMP APP1 chunk)
 - [ ] Show warning when using fallback size to generate USDZ
 - [ ] Show warning when losing information on conversion (are there any of these cases now?)
 - [ ] Store number of sides in the Metadata
-- [ ] Validate the number of sides in the metadata with the number of images provided
+  - [ ] Validate the number of sides in the metadata with the number of images provided
 - [ ] Allow conversion of postcard files on PostOffice
 - [ ] Allow uploading/choice of SVGs for the back side, to make a "blank" postcard
   - [ ] Responsive layout for the back — in physical units
@@ -22,6 +21,8 @@
 
 ## Done
 
+- [x] Fix tests around version number in XMP
+- [x] JPEGli in SVG with mask smaller than PNG?
 - [x] Auto-transparency
 - [x] Add thickness & paper colour to Metadata
 - [x] Align YAML & JSON formats

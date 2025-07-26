@@ -20,6 +20,10 @@ func TestXMPintoWebP(t *testing.T) {
 	var b bytes.Buffer
 	assert.NoError(t, xmpinject.XMPintoWebP(&b, original, testhelpers.SampleXMP, image.Rect(0, 0, 1, 1), false))
 
+	// It's not ideal; but if I need to recreate the fixture data I use this
+	// f, _ := os.OpenFile("1px-xmp.webp", os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0644)
+	// _ = xmpinject.XMPintoWebP(f, original, testhelpers.SampleXMP, image.Rect(0, 0, 1, 1), false)
+
 	assert.Equal(t, want, b.Bytes())
 }
 

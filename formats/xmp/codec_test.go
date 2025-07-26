@@ -7,6 +7,7 @@ import (
 
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/internal/testhelpers"
+	"github.com/jphastings/dotpostcard/internal/version"
 	"github.com/jphastings/dotpostcard/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -40,7 +41,10 @@ func TestEncode(t *testing.T) {
 	content, err := fws[0].Bytes()
 	assert.NoError(t, err)
 
-	assert.Equal(t, string(testhelpers.SampleXMP), string(content))
+	// Possibly not set to v0.0.0 here because this test file is "whitebox" — (ie. not in the xmp_test package)
+	content = bytes.Replace(content, []byte("postcards/v"+version.Version), []byte("postcards/v0.0.0"), -1)
+
+	assert.Equal(t, testhelpers.SampleXMP, content)
 }
 
 func TestDecode(t *testing.T) {
