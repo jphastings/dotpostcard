@@ -60,22 +60,17 @@ func StreamSVG(qw422016 *qt422016.Writer, v svgVars) {
 	qw422016.N().S(`"
   version="1.1"
 >
-  <metadata>`)
-//line postcard.svg.qtpl:14
-	qw422016.N().S(string(v.metadata))
-//line postcard.svg.qtpl:14
-	qw422016.N().S(`</metadata>
   <defs>
     <clipPath id="edge">
       <path d="`)
-//line postcard.svg.qtpl:17
+//line postcard.svg.qtpl:16
 	qw422016.E().S(pointsToPath(v.frontPoints, v.size.PxWidth, v.size.PxHeight, false))
-//line postcard.svg.qtpl:17
+//line postcard.svg.qtpl:16
 	qw422016.N().S(`"/>
       <path d="`)
-//line postcard.svg.qtpl:18
+//line postcard.svg.qtpl:17
 	qw422016.E().S(pointsToPath(v.backPoints, v.size.PxWidth, v.size.PxHeight, true))
-//line postcard.svg.qtpl:18
+//line postcard.svg.qtpl:17
 	qw422016.N().S(`"/>
     </clipPath>
   </defs>
@@ -87,38 +82,38 @@ func StreamSVG(qw422016 *qt422016.Writer, v svgVars) {
     preserveAspectRatio="none"
     clip-path="url(#edge)"
     href="data:image/jpeg;base64,`)
-//line postcard.svg.qtpl:28
+//line postcard.svg.qtpl:27
 	qw422016.E().S(v.b64Img)
-//line postcard.svg.qtpl:28
+//line postcard.svg.qtpl:27
 	qw422016.N().S(`"
   />
 </svg>
 `)
-//line postcard.svg.qtpl:31
+//line postcard.svg.qtpl:30
 }
 
-//line postcard.svg.qtpl:31
+//line postcard.svg.qtpl:30
 func WriteSVG(qq422016 qtio422016.Writer, v svgVars) {
-//line postcard.svg.qtpl:31
+//line postcard.svg.qtpl:30
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line postcard.svg.qtpl:31
+//line postcard.svg.qtpl:30
 	StreamSVG(qw422016, v)
-//line postcard.svg.qtpl:31
+//line postcard.svg.qtpl:30
 	qt422016.ReleaseWriter(qw422016)
-//line postcard.svg.qtpl:31
+//line postcard.svg.qtpl:30
 }
 
-//line postcard.svg.qtpl:31
+//line postcard.svg.qtpl:30
 func SVG(v svgVars) string {
-//line postcard.svg.qtpl:31
+//line postcard.svg.qtpl:30
 	qb422016 := qt422016.AcquireByteBuffer()
-//line postcard.svg.qtpl:31
+//line postcard.svg.qtpl:30
 	WriteSVG(qb422016, v)
-//line postcard.svg.qtpl:31
+//line postcard.svg.qtpl:30
 	qs422016 := string(qb422016.B)
-//line postcard.svg.qtpl:31
+//line postcard.svg.qtpl:30
 	qt422016.ReleaseByteBuffer(qb422016)
-//line postcard.svg.qtpl:31
+//line postcard.svg.qtpl:30
 	return qs422016
-//line postcard.svg.qtpl:31
+//line postcard.svg.qtpl:30
 }

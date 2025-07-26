@@ -11,7 +11,6 @@
   viewBox="0 0 {%d v.size.PxWidth %} {%d v.size.PxHeight * 2 %}"
   version="1.1"
 >
-  <metadata>{%s= string(v.metadata) %}</metadata>
   <defs>
     <clipPath id="edge">
       <path d="{%s pointsToPath(v.frontPoints, v.size.PxWidth, v.size.PxHeight, false) %}"/>
