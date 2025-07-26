@@ -1,6 +1,7 @@
 # TODO
 
-- [ ] JPEGli in SVG with mask smaller than WebP?
+- [ ] Coregistration of front and back (slight rotation & translation differences)
+- [x] JPEGli in SVG with mask smaller than PNG?
 - [ ] Improve HasTransparency detection (for all format decoding)
 - [ ] Move component/decode.go#decodeImage to internal/images/decode.go?
 - [ ] Fix XMP inject/extract tests
@@ -11,7 +12,6 @@
 - [ ] Store number of sides in the Metadata
 - [ ] Validate the number of sides in the metadata with the number of images provided
 - [ ] Allow conversion of postcard files on PostOffice
-- [ ] Coregistration of front and back (slight rotation & translation differences)
 - [ ] Allow uploading/choice of SVGs for the back side, to make a "blank" postcard
   - [ ] Responsive layout for the back — in physical units
   - [ ] Rendering SVG inside go/wasm

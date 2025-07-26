@@ -90,6 +90,8 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 			err = images.WritePNG(w, combinedImg, xmpData, opts.Archival)
 		case "jpeg":
 			err = images.WriteJPEG(w, combinedImg, xmpData)
+		case "svg":
+			err = writeSVG(w, pc, combinedImg, xmpData)
 		default:
 			err = fmt.Errorf("unsupported output image format: %s", format)
 		}

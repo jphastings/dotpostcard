@@ -57,6 +57,7 @@ var formatCapabilities = map[string]capabilities{
 	"jpeg": {},
 	"webp": {lossless: true, transparency: true},
 	"png":  {lossless: true, transparency: true},
+	"svg":  {transparency: true},
 }
 
 // Only returns true if the capabilities on struct owning this method meet the needs of the provided capabilities object.
@@ -78,5 +79,6 @@ func Codec(format string, altFormats ...string) (formats.Codec, error) {
 }
 
 var DefaultCodec, _ = Codec("jpeg", "webp")
+var SVGCodec, _ = Codec("svg")
 
 func (c codec) Name() string { return codecName }

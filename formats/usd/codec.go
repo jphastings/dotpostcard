@@ -159,7 +159,6 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 		maxX, maxY := pc.Meta.Physical.FrontDimensions.MustPhysical()
 
 		// TODO: Coregister front & back?
-		// TODO: Handle no back
 
 		frontPoints, err := images.Outline(pc.Front, false, true)
 		if err != nil {
@@ -167,6 +166,7 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 		}
 		fTris := geom3d.Triangulate(frontPoints)
 
+		// TODO: Handle no back
 		backPoints, err := images.Outline(pc.Back, true, true)
 		if err != nil {
 			return fmt.Errorf("back image can't be outlined: %w", err)

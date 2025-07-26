@@ -11,6 +11,9 @@ import (
 	"github.com/jphastings/dotpostcard/internal/geom3d"
 )
 
+// const linePrecision = 0.0022
+const linePrecision = 0.0012
+
 // Returns the outline of the image's transparency as an _anticlockwise_ series of X/Y points
 func Outline(im image.Image, invertX, invertY bool) ([]geom3d.Point, error) {
 	b := im.Bounds()
@@ -49,8 +52,7 @@ func Outline(im image.Image, invertX, invertY bool) ([]geom3d.Point, error) {
 		pos, dir = nextPos, nextDir
 	}
 
-	ep := 0.0022
-	path := rdp.SimplifyPath(outline, ep)
+	path := rdp.SimplifyPath(outline, linePrecision)
 
 	geomPath := make([]geom3d.Point, len(path))
 	for i, p := range path {
