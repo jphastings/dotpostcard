@@ -2,6 +2,7 @@
 
 - [ ] Decode SVGs
 - [ ] Embed outline in JPEGs as APP13/IRB "clipping path"??
+- [ ] Extract path from USDZ when converting to eg. Web
 - [ ] Coregistration of front and back on USD (slight rotation & translation differences)
 - [ ] Can I detect that the output files are present (and can't be overwritten) faster?
 - [ ] Improve HasTransparency detection (for all format decoding)

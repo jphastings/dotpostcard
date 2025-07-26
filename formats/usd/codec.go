@@ -103,6 +103,7 @@ func usdaToTextureFile(file fs.File, dir fs.FS) (fs.File, string, error) {
 type usdParams struct {
 	Creator   string
 	CardColor color.RGBA
+	OneSided  bool
 
 	MaxX float64
 	MaxY float64
@@ -166,21 +167,27 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 		}
 		fTris := geom3d.Triangulate(frontPoints)
 
-		// TODO: Handle no back
-		backPoints, err := images.Outline(pc.Back, true, true)
-		if err != nil {
-			return fmt.Errorf("back image can't be outlined: %w", err)
+		var backPoints []geom3d.Point
+		var bTris []int
+		if pc.Back != nil {
+			backPoints, err = images.Outline(pc.Back, true, true)
+			if err != nil {
+				return fmt.Errorf("back image can't be outlined: %w", err)
+			}
+			// Generate triangles on unrotated points
+			bTris = geom3d.Triangulate(backPoints)
+			backPoints = geom3d.RotateForFlip(backPoints, pc.Meta.Flip)
+		} else {
+			backPoints = frontPoints
+			bTris = fTris
 		}
-		// Generate triangles on unrotated points
-		bTris := geom3d.Triangulate(backPoints)
-		backPoints = geom3d.RotateForFlip(backPoints, pc.Meta.Flip)
 
 		sTris := geom3d.SideMesh(frontPoints, backPoints)
 
 		params := usdParams{
-			// TODO: Fix circular import to get to version number here.
 			Creator:   fmt.Sprintf("postcards v%s (https://dotpostcard.org)", version.Version),
 			CardColor: pc.Meta.Physical.GetCardColor(),
+			OneSided:  pc.Meta.Flip == types.FlipNone,
 
 			MaxX:   maxX,
 			MaxY:   maxY,

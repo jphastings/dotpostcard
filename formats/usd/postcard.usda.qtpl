@@ -83,9 +83,16 @@ def Xform "Postcard" (
             int[] faceVertexCounts = [{% for i := 0; i < len(params.FrontTriangles) / 3; i++ %}3,{% endfor %}]
             int[] primvars:st:indices = [{% for _, t := range params.FrontTriangles %}{%d t %},{% endfor %}]
             int[] faceVertexIndices = [{% for _, t := range params.FrontTriangles %}{%d t %},{% endfor %}]
-
+            {% code
+                var textureMapY func(y float64) float64
+                if params.OneSided {
+                    textureMapY = func(y float64) float64 { return y }
+                } else {
+                    textureMapY = func(y float64) float64 { return y * 0.5 + 0.5 }
+                }
+            %}
             point3f[] points = [{% for _, pt := range params.FrontPoints %}({%f pt.X * params.MaxX - params.MaxX/2 %},{%f pt.Y * params.MaxY - params.MaxY/2 %},{%f params.MaxZ %}),{% endfor %}]
-            texCoord2f[] primvars:st = [{% for _, v := range params.FrontPoints %}({%f v.X %},{%f v.Y * 0.5 + 0.5 %}),{% endfor %}] (
+            texCoord2f[] primvars:st = [{% for _, v := range params.FrontPoints %}({%f v.X %},{%f textureMapY(v.Y) %}),{% endfor %}] (
                 interpolation = "faceVarying"
             )
             uniform token subdivisionScheme = "none"
@@ -99,16 +106,23 @@ def Xform "Postcard" (
             uniform token orientation = "leftHanded"
     
             float3[] extent = [({%f params.MaxX /-2 %}, {%f params.MaxY /-2 %}, 0), ({%f params.MaxX /2 %}, {%f params.MaxY /2 %}, 0)]
-            rel material:binding = </Postcard/Materials/sides>
 
             int[] faceVertexCounts = [{% for i := 0; i < len(params.BackTriangles) / 3; i++ %}3,{% endfor %}]
-            int[] primvars:st:indices = [{% for _, t := range params.BackTriangles %}{%d t %},{% endfor %}]
             int[] faceVertexIndices = [{% for _, t := range params.BackTriangles %}{%d t %},{% endfor %}]
 
-            point3f[] points = [{% for _, pt := range params.BackPoints %}({%f pt.X * params.MaxX - params.MaxX/2 %},{%f pt.Y * params.MaxY - params.MaxY/2 %},0),{% endfor %}]
+            {% if params.OneSided %}
+            rel material:binding = </Postcard/Materials/paper>
+            {% else %}
+            rel material:binding = </Postcard/Materials/sides>
+            int[] primvars:st:indices = [{% for _, t := range params.BackTriangles %}{%d t %},{% endfor %}]
+
             texCoord2f[] primvars:st = [{% for _, v := range params.BackPoints %}({%f 1 - v.X %},{%f v.Y * 0.5 %}),{% endfor %}] (
                 interpolation = "faceVarying"
             )
+            uniform token subsetFamily:materialBind:familyType = "nonOverlapping"
+            {% endif %}
+
+            point3f[] points = [{% for _, pt := range params.BackPoints %}({%f pt.X * params.MaxX - params.MaxX/2 %},{%f pt.Y * params.MaxY - params.MaxY/2 %},0),{% endfor %}]
             uniform token subdivisionScheme = "none"
         }
 
