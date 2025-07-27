@@ -29,6 +29,7 @@ var formats = []format{
 	{"\xff\xd8", ReadJPEG},
 	{"\x89PNG\r\n\x1a\n", ReadPNG},
 	{"RIFF????WEBPVP8", ReadWebP},
+	{"<svg", ReadSVG},
 }
 
 type readPeeker interface {

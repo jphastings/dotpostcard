@@ -20,8 +20,7 @@ var (
 //line postcard.svg.qtpl:1
 func StreamSVG(qw422016 *qt422016.Writer, v svgVars) {
 //line postcard.svg.qtpl:1
-	qw422016.N().S(`
-<svg
+	qw422016.N().S(`<svg
   xmlns="http://www.w3.org/2000/svg"
 `)
 //line postcard.svg.qtpl:5

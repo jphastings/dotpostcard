@@ -1,4 +1,4 @@
-{% func SVG(v svgVars) %}
+{%- func SVG(v svgVars) -%}
 <svg
   xmlns="http://www.w3.org/2000/svg"
   {%- code
