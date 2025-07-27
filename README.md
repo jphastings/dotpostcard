@@ -23,7 +23,7 @@ To make your first postcard file you should scan both sides of your postcard, it
 
 - Use a scanner (for accurate resolution info)
 - Use a black background (as black as possible, to minimise shadows)
-- Save your scan as a PNG (For quality, and because Go doesn't support macOS' TIFF encoding)
+- Save your scan as a TIFF or PNG (for high, lossless quality)
 
 > [!TIP]
 > There is an experimental web-based postcard creator at [create.dotpostcard.org](https://create.dotpostcard.org), which you may find easier.

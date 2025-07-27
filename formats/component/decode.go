@@ -10,10 +10,10 @@ import (
 	"io"
 
 	"git.sr.ht/~sbinet/gg"
+	_ "github.com/hhrutter/tiff"
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/internal/resolution"
 	"github.com/jphastings/dotpostcard/types"
-	_ "github.com/sunshineplan/tiff"
 	"golang.org/x/image/draw"
 )
 
