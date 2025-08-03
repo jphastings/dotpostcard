@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.15.5 (2025-08-03)
+
+### Fix
+
+- expose the postcard css, so it can be grabbed programatically
+
 ## v0.15.4 (2025-07-27)
 
 ### Fix
