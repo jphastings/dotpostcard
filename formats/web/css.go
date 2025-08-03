@@ -8,11 +8,11 @@ import (
 )
 
 //go:embed postcards.css
-var postcardCSS string
+var PostcardCSS string
 
 func createCSS() formats.FileWriter {
 	writer := func(w io.Writer) error {
-		_, err := w.Write([]byte(postcardCSS))
+		_, err := w.Write([]byte(PostcardCSS))
 		return err
 	}
 
