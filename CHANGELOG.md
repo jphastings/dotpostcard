@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.15.7 (2025-11-02)
+
+### Fix
+
+- increase quality of non-archival webp images
+
 ## v0.15.6 (2025-11-02)
 
 ### Refactor
