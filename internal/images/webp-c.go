@@ -12,12 +12,14 @@ import (
 	"github.com/jphastings/dotpostcard/pkg/xmpinject"
 )
 
+const quality = 0.8
+
 func WriteWebP(w io.Writer, img image.Image, xmpData []byte, archival, hasAlpha bool) error {
 	var webpOpts []webp.EncodeOption
 	if archival {
 		webpOpts = []webp.EncodeOption{webp.Lossless()}
 	} else {
-		webpOpts = []webp.EncodeOption{webp.Quality(0.7)}
+		webpOpts = []webp.EncodeOption{webp.Quality(quality)}
 	}
 
 	webpData := new(bytes.Buffer)
