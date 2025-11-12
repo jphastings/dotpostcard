@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.15.8 (2025-11-12)
+
+### Fix
+
+- bump libwebp version, fix webp quality
+
 ## v0.15.7 (2025-11-02)
 
 ### Fix
