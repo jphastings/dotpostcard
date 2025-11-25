@@ -8,7 +8,7 @@ import (
 	"image"
 	"io"
 
-	"git.sr.ht/~jackmordaunt/go-libwebp/webp"
+	"git.sr.ht/~jackmordaunt/go-libwebp/v2/webp"
 	"github.com/jphastings/dotpostcard/pkg/xmpinject"
 )
 

@@ -3,7 +3,7 @@ module github.com/jphastings/dotpostcard
 go 1.24.3
 
 require (
-	git.sr.ht/~jackmordaunt/go-libwebp v2.3.0+incompatible
+	git.sr.ht/~jackmordaunt/go-libwebp/v2 v2.3.1
 	git.sr.ht/~sbinet/gg v0.7.0
 	github.com/calvinfeng/rdp-path-simplification v0.0.0-20180903222510-ae464721f91c
 	github.com/charmbracelet/glamour v0.10.0
@@ -23,15 +23,11 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-replace git.sr.ht/~jackmordaunt/go-libwebp => ./internal/go-libwebp
-
 require (
-	github.com/PuerkitoBio/goquery v1.10.3 // indirect
+	git.sr.ht/~jackmordaunt/go-libwebp v1.8.0 // indirect
 	github.com/alecthomas/chroma/v2 v2.20.0 // indirect
-	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
-	github.com/campoy/embedmd v1.0.0 // indirect
 	github.com/charmbracelet/colorprofile v0.3.3 // indirect
 	github.com/charmbracelet/lipgloss v1.1.1-0.20250404203927-76690c660834 // indirect
 	github.com/charmbracelet/x/ansi v0.11.0 // indirect
@@ -61,7 +57,6 @@ require (
 	github.com/hhrutter/lzw v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
-	github.com/kr/text v0.2.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.3.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.19 // indirect
