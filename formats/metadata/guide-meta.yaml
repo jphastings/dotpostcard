@@ -50,13 +50,14 @@ recipient:
 # Required. Details about the 'front' of the postcard, the one shown by default (usually the photo/image side, but can be either — whichever is named name-front.jpg, or name-only.jpg if making a single sided postcard)
 front:
   # Recommended. A description of the front of the postcard, used for creating a search index of your postcards, for use as alt-text in formats that support it (eg. for blind accessibility).
-  description:
+  description: A blue sky with fluffy white clouds, with Princess Peach (of Mario fame) in her pink dress on the right.
   # A transcription and/or secrets can be present here, but these are often only useful on the *back* of a postcard.
+  # transcription: 
 
 # Details about the 'back' of the postcard, the one which is seen when it's flipped over (usually the message/address side, but can be either — whichever is named name-back.jpg. )
 back:
-  # A description of the back of the postcard — may be empty if there isn't anything interesting on the back except the message. See front.description for more info.
-  description:
+  # A description of the back of the postcard can be absent if there isn't anything interesting on the back except the message. See front.description for more info.
+  # description:
   
   # Recommended. Any content message written on this side of the card — often this will be the postcard's actual message.
   transcription:
