@@ -1,3 +1,5 @@
+# yaml-language-server: $schema=https://create.dotpostcard.org/metadata.schema.json
+
 ## This is an example postcard metadata YAML file
 #
 # Naming this pyramids-giza-meta.yaml, and putting it next to pyramids-giza-front.jpg

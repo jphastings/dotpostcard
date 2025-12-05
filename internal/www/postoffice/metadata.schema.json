@@ -1,0 +1,289 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://create.dotpostcard.org/metadata.schema.json",
+  "title": "Postcard metadata",
+  "description": "Postcard metadata schema for dotpostcard files",
+  "type": "object",
+  "required": ["locale", "flip", "front"],
+  "properties": {
+    "locale": {
+      "type": "string",
+      "description": "BCP-47 language tag for the text content (e.g., en-GB, es-VE)",
+      "pattern": "^[a-zA-Z]{2,3}(-[a-zA-Z]{4})?(-[a-zA-Z]{2}|[0-9]{3})?(-([a-zA-Z0-9]{5,8}|[0-9][a-zA-Z0-9]{3}))*(-[a-zA-Z](-[a-zA-Z0-9]{2,8})+)*(-x(-[a-zA-Z0-9]{1,8})+)?$"
+    },
+    "flip": {
+      "type": "string",
+      "description": "How the postcard flips over to reveal the other side.",
+      "enum": ["book", "calendar", "left-hand", "right-hand", "none"]
+    },
+    "location": {
+      "description": "Where the postcard was sent from.",
+      "$ref": "#/$defs/location"
+    },
+    "sent_on": {
+      "type": "string",
+      "description": "The (best guess of the) date the postcard was sent, in YYYY-MM-DD format.",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "format": "date"
+    },
+    "sender": {
+      "description": "Details of who the postcard was sent by.",
+      "$ref": "#/$defs/person"
+    },
+    "recipient": {
+      "description": "Details of who the postcard was addressed to",
+      "$ref": "#/$defs/person"
+    },
+    "front": {
+      "description": "Details of the side of the postcard that should be shown by default",
+      "$ref": "#/$defs/side"
+    },
+    "back": {
+      "description": "Details of the side of the postcard that will be shown after it is flipped. Omit for single sided postcards.",
+      "$ref": "#/$defs/side"
+    },
+    "context": {
+      "description": "Additional information about the postcard, eg. a story of how it was received or found.",
+      "$ref": "#/$defs/context"
+    },
+    "physical": {
+      "description": "Information about the physical properties of the postcard.",
+      "$ref": "#/$defs/physical"
+    }
+  },
+  "$defs": {
+    "location": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "A name describing the location (can be fine-grained like 'Stan's Diner' or broad like 'Ohio, USA')."
+        },
+        "latitude": {
+          "type": "number",
+          "description": "The latitude (North/South) of the location.",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "longitude": {
+          "type": "number",
+          "description": "The longitude (East/West) of the location.",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "countrycode": {
+          "type": "string",
+          "description": "ISO 3166-1 alpha-3 country code of the location (e.g., GBR for United Kingdom, ITA for Italy).",
+          "pattern": "^[A-Z]{3}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "person": {
+      "type": "object",
+      "description": "A person (or people) connected to the postcard.",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Their name or identifier"
+        },
+        "link": {
+          "type": "string",
+          "description": "A URI that identifies this person, eg. mail:person@example.com, or https://www.byjp.me",
+          "format": "uri"
+        }
+      },
+      "additionalProperties": false
+    },
+    "side": {
+      "type": "object",
+      "description": "Details about one side of the postcard.",
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "A description of this side of the postcard, used for search indexing and alt-text."
+        },
+        "transcription": {
+          "description": "Any message text that's on this side (eg. the handwritten message on the back).",
+          "$ref": "#/$defs/annotatedText"
+        },
+        "secrets": {
+          "type": "array",
+          "description": "Regions of the postcard that have been, or should be, blanked out (e.g. addresses).",
+          "items": {
+            "$ref": "#/$defs/secret"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "annotatedText": {
+      "description": "Text content with optional annotations (or 'facets').",
+      "type": "object",
+      "required": ["text"],
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "The unannotated text."
+        },
+        "annotations": {
+          "type": "array",
+          "description": "Markup annotations for the text (uses byte offsets assuming the text is UTF-8, not character offsets).",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/annotation"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "annotation": {
+      "type": "object",
+      "description": "A text annotation with byte-offset positioning",
+      "required": ["type", "start", "end"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "The type of annotation",
+          "enum": ["locale", "em", "strong", "underline"]
+        },
+        "value": {
+          "type": "string",
+          "description": "The value for the annotation (e.g. a BCP-47 code for the 'locale' type)"
+        },
+        "start": {
+          "type": "integer",
+          "description": "The byte offset just before this annotation starts, assuming the text is UTF-8 encoded.",
+          "minimum": 0
+        },
+        "end": {
+          "type": "integer",
+          "description": "The byte offset just after this annotation ends, assuming the text is UTF-8 encoded.",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "secret": {
+      "description": "A region of the postcard that has been, or should be blanked out/censored",
+      "oneOf": [
+        { "$ref": "#/$defs/secretBox" },
+        { "$ref": "#/$defs/secretPolygon" }
+      ]
+    },
+    "secretBox": {
+      "type": "object",
+      "description": "A rectangular secret region",
+      "required": ["type", "width", "height", "left", "top"],
+      "properties": {
+        "type": { "type": "string", "const": "box" },
+        "prehidden": {
+          "type": "boolean",
+          "description": "Whether this region was already hidden in the source image",
+          "default": false
+        },
+        "width": {
+          "type": "number",
+          "description": "Width of the region as a fraction of the image width (0.0-1.0)",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "height": {
+          "type": "number",
+          "description": "Height of the region as a fraction of the image height (0.0-1.0)",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "left": {
+          "type": "number",
+          "description": "Distance from left edge of the postcard to the left edge of the region as a fraction of image width (0.0-1.0)",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "top": {
+          "type": "number",
+          "description": "Distance from top edge of the postcard to the top edge of the region as a fraction of image height (0.0-1.0)",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "secretPolygon": {
+      "type": "object",
+      "description": "A polygon-shaped secret region",
+      "required": ["type", "points"],
+      "properties": {
+        "type": { "type": "string", "const": "polygon" },
+        "prehidden": {
+          "type": "boolean",
+          "description": "Whether this region was already hidden in the source image",
+          "default": false
+        },
+        "points": {
+          "type": "array",
+          "description": "The vertices of the polygon",
+          "items": {
+            "$ref": "#/$defs/point"
+          },
+          "minItems": 3
+        }
+      },
+      "additionalProperties": false
+    },
+    "point": {
+      "type": "array",
+      "description": "A point on the postcard (x, y) where values are fractions (0.0-1.0) of width/height",
+      "items": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "context": {
+      "type": "object",
+      "description": "Additional context about the postcard (provenance, meaning, etc.)",
+      "required": ["author", "description"],
+      "properties": {
+        "author": {
+          "$ref": "#/$defs/person",
+          "description": "Who is providing this context"
+        },
+        "description": {
+          "type": "string",
+          "description": "The contextual information being provided"
+        }
+      },
+      "additionalProperties": false
+    },
+    "physical": {
+      "type": "object",
+      "description": "Physical attributes of the postcard",
+      "properties": {
+        "front_size": {
+          "type": "string",
+          "description": "The width and height of the postcard (e.g., '12.33cm x 7.89cm'). If not specified, it'll be assumed to have the same surface area as an A6 postcard.",
+          "pattern": "^[0-9]+\\.?[0-9]*cm [x×] [0-9]+\\.?[0-9]*cm$"
+        },
+        "thickness_mm": {
+          "type": "number",
+          "description": "Thickness of the postcard, in millimetres.",
+          "default": 0.4,
+          "exclusiveMinimum": 0
+        },
+        "card_color": {
+          "type": "string",
+          "description": "The colour of the card stock as a hex colour code (e.g., '#DFD1C4')",
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "default": "#E6E6D9"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

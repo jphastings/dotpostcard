@@ -111,7 +111,7 @@ func similar(a, b *big.Rat) bool {
 }
 
 func (s Size) String() string {
-	pxSize := fmt.Sprintf("%dpx x %dpx", s.PxWidth, s.PxHeight)
+	pxSize := fmt.Sprintf("%dpx × %dpx", s.PxWidth, s.PxHeight)
 	if !s.HasPhysical() {
 		return pxSize
 	}
@@ -120,7 +120,7 @@ func (s Size) String() string {
 	fh, _ := s.CmHeight.Float64()
 
 	return fmt.Sprintf(
-		"%.1fcm x %.1fcm (%dpx x %dpx)",
+		"%.1fcm × %.1fcm (%dpx × %dpx)",
 		fw, fh,
 		s.PxWidth, s.PxHeight,
 	)

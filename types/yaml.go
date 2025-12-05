@@ -104,7 +104,7 @@ func (p *Point) UnmarshalYAML(y *yaml.Node) error {
 func (s Size) MarshalYAML() (interface{}, error) {
 	w, _ := s.CmWidth.Float64()
 	h, _ := s.CmHeight.Float64()
-	return fmt.Sprintf("%.2fcm x %.2fcm", w, h), nil
+	return fmt.Sprintf("%.2fcm × %.2fcm", w, h), nil
 }
 
 func (s *Size) UnmarshalYAML(y *yaml.Node) error {
@@ -113,7 +113,8 @@ func (s *Size) UnmarshalYAML(y *yaml.Node) error {
 	}
 
 	var w, h big.Rat
-	_, err := fmt.Sscanf(y.Value, "%fcm x %fcm", &w, &h)
+	val := strings.Replace(y.Value, "×", "x", -1)
+	_, err := fmt.Sscanf(val, "%fcm x %fcm", &w, &h)
 	if err != nil {
 		return err
 	}
