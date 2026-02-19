@@ -19,7 +19,7 @@ func Outdir(cmd *cobra.Command, therePath string) (string, error) {
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return "", err
 		}
-		if !fi.IsDir() {
+		if fi != nil && !fi.IsDir() {
 			return "", fmt.Errorf("outdir %s is a regular file", outdir)
 		}
 		return outdir, os.MkdirAll(outdir, 0700)
