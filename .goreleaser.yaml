@@ -112,6 +112,8 @@ homebrew_casks:
     owner: jphastings
     name: homebrew-tools
     token: "{{ .Env.GITHUB_TOKEN }}"
-  homepage: "https://dotpostcards.org/cli/postcards"
+  homepage: "https://dotpostcard.org/cli/postcards"
+  url:
+    verified: github.com/jphastings/dotpostcard
   description: "Tool for creating digital versions of physical postcards"
   license: "MIT"
