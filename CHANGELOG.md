@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.17.3 (2026-02-19)
+
+### Fix
+
+- prevents panic when out-there dir doesn't exist
+
 ## v0.17.2 (2026-02-19)
 
 ### Fix
