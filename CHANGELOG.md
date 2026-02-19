@@ -383,6 +383,16 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.17.0 (2026-02-19)
+
+### Feat
+
+- add image outline to IPTC data for web format
+
+### Fix
+
+- no tap-flash on mobile safari
+
 ## v0.16.1 (2025-12-05)
 
 ### Fix
