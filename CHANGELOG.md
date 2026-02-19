@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.17.1 (2026-02-19)
+
+### Fix
+
+- iptc outline was incorrectly flipped
+
 ## v0.17.0 (2026-02-19)
 
 ### Feat
