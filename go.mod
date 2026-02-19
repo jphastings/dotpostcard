@@ -15,6 +15,7 @@ require (
 	github.com/gen2brain/jpegli v0.3.4
 	github.com/hhrutter/tiff v1.0.2
 	github.com/nlepage/go-wasm-http-server/v2 v2.2.1
+	github.com/qmuntal/gltf v0.28.0
 	github.com/spf13/cobra v1.10.1
 	github.com/stretchr/testify v1.11.1
 	github.com/trimmer-io/go-xmp v1.0.0

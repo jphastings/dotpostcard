@@ -17,7 +17,7 @@ func (c codec) Encode(pc types.Postcard, _ *formats.EncodeOptions) ([]formats.Fi
 	filename := fmt.Sprintf("%s-meta.xmp", pc.Name)
 	writer := func(w io.Writer) error {
 		// Don't write pixel & physical size information to an XMP which isn't embedded
-		if xmp, err := MetadataToXMP(pc.Meta, nil); err == nil {
+		if xmp, err := MetadataToXMP(pc.Meta, nil, nil); err == nil {
 			_, writeErr := w.Write(xmp)
 			return writeErr
 		} else {
@@ -29,13 +29,13 @@ func (c codec) Encode(pc types.Postcard, _ *formats.EncodeOptions) ([]formats.Fi
 	return []formats.FileWriter{fw}, nil
 }
 
-func MetadataToXMP(meta types.Metadata, dims *types.Size) ([]byte, error) {
+func MetadataToXMP(meta types.Metadata, dims *types.Size, outlines *Outlines) ([]byte, error) {
 	var sections []interface{}
 	if dims != nil {
 		sections = addTIFFSection(sections, *dims)
 	}
 	sections = addIPTCCoreSection(sections, meta)
-	sections = addIPTCExtSection(sections, meta)
+	sections = addIPTCExtSection(sections, meta, outlines)
 	sections = addExifSection(sections, meta)
 	sections = addDCSection(sections, meta)
 	sections = addPostcardSection(sections, meta)

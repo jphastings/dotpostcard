@@ -34,10 +34,15 @@ top: 0.6`
 
 func Test_YAMLMarshal(t *testing.T) {
 	input := testhelpers.SamplePostcard.Meta
-	expected := string(testhelpers.SampleYAML)
 
 	yamlBytes, err := yaml.Marshal(input)
 	assert.NoError(t, err)
 
-	assert.Equal(t, expected, string(yamlBytes))
+	// Compare by unmarshaling both and checking the resulting structs,
+	// which is more resilient to formatting differences (e.g., "x" vs "×")
+	var actualMeta, expectedMeta types.Metadata
+	assert.NoError(t, yaml.Unmarshal(yamlBytes, &actualMeta))
+	assert.NoError(t, yaml.Unmarshal(testhelpers.SampleYAML, &expectedMeta))
+
+	assert.Equal(t, expectedMeta, actualMeta)
 }

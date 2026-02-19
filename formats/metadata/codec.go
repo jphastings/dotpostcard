@@ -100,7 +100,7 @@ func (c codec) Encode(pc types.Postcard, _ *formats.EncodeOptions) ([]formats.Fi
 		case AsYAML:
 			return yaml.NewEncoder(w).Encode(pc.Meta)
 		case AsXMP:
-			xmp, err := xmp.MetadataToXMP(pc.Meta, nil)
+			xmp, err := xmp.MetadataToXMP(pc.Meta, nil, nil)
 			if err != nil {
 				return err
 			}

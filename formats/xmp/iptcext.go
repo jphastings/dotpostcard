@@ -8,7 +8,20 @@ var (
 	privateExplainer = map[string]string{
 		"en": "Private information",
 	}
+	outlineFrontExplainer = map[string]string{
+		"en": "Postcard outline (front)",
+	}
+	outlineBackExplainer = map[string]string{
+		"en": "Postcard outline (back)",
+	}
 )
+
+// Outlines holds the computed outlines for front and back of a postcard.
+// These are generated from transparency detection and stored as IPTC regions.
+type Outlines struct {
+	Front []types.Point
+	Back  []types.Point
+}
 
 type xmpIptc4xmpExt struct {
 	Namespace string       `xml:"xmlns:Iptc4xmpExt,attr"`
@@ -34,11 +47,12 @@ type iptcRegionVertex struct {
 	Y         float64 `xml:"Iptc4xmpExt:rbY"`
 }
 
-func addIPTCExtSection(sections []interface{}, meta types.Metadata) []interface{} {
+func addIPTCExtSection(sections []interface{}, meta types.Metadata, outlines *Outlines) []interface{} {
 	hasSecrets := len(meta.Front.Secrets)+len(meta.Back.Secrets) > 0
 	hasMessage := len(meta.Front.Transcription.Text)+len(meta.Back.Transcription.Text) > 0
+	hasOutlines := outlines != nil && (len(outlines.Front) > 0 || len(outlines.Back) > 0)
 
-	if !hasSecrets && !hasMessage {
+	if !hasSecrets && !hasMessage && !hasOutlines {
 		return sections
 	}
 
@@ -53,6 +67,27 @@ func addIPTCExtSection(sections []interface{}, meta types.Metadata) []interface{
 	var regions []iptcRegion
 	regions = append(regions, regionsForSide(prvExp, true, meta.Flip, meta.Front.Secrets)...)
 	regions = append(regions, regionsForSide(prvExp, false, meta.Flip, meta.Back.Secrets)...)
+
+	if hasOutlines {
+		frontOutExp := langText{Lang: meta.Locale}
+		if text, ok := outlineFrontExplainer[frontOutExp.Lang]; ok {
+			frontOutExp.Text = text
+		} else {
+			frontOutExp.Lang = "en"
+			frontOutExp.Text = outlineFrontExplainer["en"]
+		}
+
+		backOutExp := langText{Lang: meta.Locale}
+		if text, ok := outlineBackExplainer[backOutExp.Lang]; ok {
+			backOutExp.Text = text
+		} else {
+			backOutExp.Lang = "en"
+			backOutExp.Text = outlineBackExplainer["en"]
+		}
+
+		regions = append(regions, outlineRegionsForSide(frontOutExp, true, meta.Flip, outlines.Front)...)
+		regions = append(regions, outlineRegionsForSide(backOutExp, false, meta.Flip, outlines.Back)...)
+	}
 
 	return append(sections, xmpIptc4xmpExt{
 		Namespace: "http://iptc.org/std/Iptc4xmpExt/2008-02-29/",
@@ -83,4 +118,27 @@ func regionsForSide(prvExp langText, onFront bool, flip types.Flip, secrets []ty
 	}
 
 	return regions
+}
+
+func outlineRegionsForSide(outExp langText, onFront bool, flip types.Flip, outline []types.Point) []iptcRegion {
+	if len(outline) == 0 {
+		return nil
+	}
+
+	var vertices []iptcRegionVertex
+	for _, point := range outline {
+		p := point.TransformToDoubleSided(onFront, flip)
+		vertices = append(vertices, iptcRegionVertex{ParseType: "Resource", X: p.X, Y: p.Y})
+	}
+
+	return []iptcRegion{{
+		ParseType: "Resource",
+		Name:      outExp,
+		Boundary: iptcRegionBoundary{
+			ParseType: "Resource",
+			Unit:      "relative",
+			Shape:     "polygon",
+			Vertices:  vertices,
+		},
+	}}
 }

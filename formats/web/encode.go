@@ -11,6 +11,7 @@ import (
 
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/formats/xmp"
+	"github.com/jphastings/dotpostcard/internal/geom3d"
 	"github.com/jphastings/dotpostcard/internal/images"
 	"github.com/jphastings/dotpostcard/types"
 )
@@ -73,7 +74,10 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 			draw.CatmullRom.Scale(combinedImg, lowerSize, backImg, backSize, draw.Over, nil)
 		}
 
-		xmpData, err := xmp.MetadataToXMP(pc.Meta, &outputImageSize)
+		// Compute outlines for IPTC region metadata
+		outlines := computeOutlines(pc)
+
+		xmpData, err := xmp.MetadataToXMP(pc.Meta, &outputImageSize, outlines)
 		if err != nil {
 			return fmt.Errorf("couldn't generate XMP metadata for postcard: %w", err)
 		}
@@ -100,6 +104,33 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 	}
 
 	return fws, nil
+}
+
+func computeOutlines(pc types.Postcard) *xmp.Outlines {
+	outlines := &xmp.Outlines{}
+
+	frontPoints, err := images.Outline(pc.Front, false, false)
+	if err == nil {
+		outlines.Front = geomPointsToTypes(frontPoints)
+	}
+
+	if pc.Back != nil {
+		backImg, _ := rotateForWeb(pc.Back, pc.Meta.Flip)
+		backPoints, err := images.Outline(backImg, false, false)
+		if err == nil {
+			outlines.Back = geomPointsToTypes(backPoints)
+		}
+	}
+
+	return outlines
+}
+
+func geomPointsToTypes(points []geom3d.Point) []types.Point {
+	result := make([]types.Point, len(points))
+	for i, p := range points {
+		result[i] = types.Point{X: p.X, Y: p.Y}
+	}
+	return result
 }
 
 func rotateForWeb(img image.Image, flip types.Flip) (image.Image, image.Rectangle) {
