@@ -115,8 +115,7 @@ func computeOutlines(pc types.Postcard) *xmp.Outlines {
 	}
 
 	if pc.Back != nil {
-		backImg, _ := rotateForWeb(pc.Back, pc.Meta.Flip)
-		backPoints, err := images.Outline(backImg, false, false)
+		backPoints, err := images.Outline(pc.Back, false, false)
 		if err == nil {
 			outlines.Back = geomPointsToTypes(backPoints)
 		}
