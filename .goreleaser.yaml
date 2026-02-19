@@ -106,19 +106,12 @@ changelog:
 release:
   prerelease: auto
   draft: false
-brews:
+homebrew_casks:
 - name: postcards
   repository:
     owner: jphastings
     name: homebrew-tools
     token: "{{ .Env.GITHUB_TOKEN }}"
-  directory: Formula
   homepage: "https://dotpostcards.org/cli/postcards"
   description: "Tool for creating digital versions of physical postcards"
   license: "MIT"
-  test: |
-    resource("hello.postcard").stage do
-      expected_start = "Convert digital representations of postcards between various formats.\n"
-      actual_output = shell_output("#{bin}/postcards help")
-      assert actual_output.start_with?(expected_start)
-    end
