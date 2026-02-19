@@ -2,6 +2,10 @@ input[id^=postcard-]:checked ~ label.postcard  {
   --flip: 180deg;
 }
 
+label:has(.postcard) {
+  -webkit-tap-highlight-color: transparent;
+}
+
 .postcard {
   aspect-ratio: var(--aspect-ratio);
   position: relative;
