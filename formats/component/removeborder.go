@@ -46,6 +46,64 @@ var rotation = map[int]func(image.Rectangle, int, int) (int, int){
 // and mattes it away with soft alpha. pxPerCm may be 0 when the scan's
 // resolution is unknown.
 func removeBorder(img image.Image, pxPerCm float64) (image.Image, error) {
+	edges, err := detectBorderEdges(img, pxPerCm)
+	if err != nil {
+		return nil, err
+	}
+	return matteWithEdges(img, edges, pxPerCm)
+}
+
+// removeBorderPair mattes both sides of the same physical card. The two
+// scans must show (near-)identical card dimensions, so each side's detected
+// geometry corrects the other's: where a low-contrast region (a photo close
+// to the backboard colour) pulls one side's border inward, the other side's
+// card size pins it back.
+func removeBorderPair(front, back image.Image, heteroriented bool, pxPerCmF, pxPerCmB float64) (image.Image, image.Image, error) {
+	fEdges, err := detectBorderEdges(front, pxPerCmF)
+	if err != nil {
+		return nil, nil, err
+	}
+	bEdges, err := detectBorderEdges(back, pxPerCmB)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	fw, fh := front.Bounds().Dx(), front.Bounds().Dy()
+	bw, bh := back.Bounds().Dx(), back.Bounds().Dy()
+
+	scale := 1.0 // front pixels per back pixel
+	if pxPerCmF > 0 && pxPerCmB > 0 {
+		scale = pxPerCmF / pxPerCmB
+	}
+
+	fWidths, fHeights := widthProfile(fEdges, fw, fh), heightProfile(fEdges, fw, fh)
+	bWidths, bHeights := widthProfile(bEdges, bw, bh), heightProfile(bEdges, bw, bh)
+	if heteroriented { // the back is scanned rotated 90°
+		bWidths, bHeights = bHeights, bWidths
+	}
+
+	reconcileWidths(&fEdges, fw, fh, expectation(bWidths, scale, pxPerCmF))
+	reconcileHeights(&fEdges, fw, fh, expectation(bHeights, scale, pxPerCmF))
+	if heteroriented {
+		reconcileWidths(&bEdges, bw, bh, expectation(fHeights, 1/scale, pxPerCmB))
+		reconcileHeights(&bEdges, bw, bh, expectation(fWidths, 1/scale, pxPerCmB))
+	} else {
+		reconcileWidths(&bEdges, bw, bh, expectation(fWidths, 1/scale, pxPerCmB))
+		reconcileHeights(&bEdges, bw, bh, expectation(fHeights, 1/scale, pxPerCmB))
+	}
+
+	frontOut, err := matteWithEdges(front, fEdges, pxPerCmF)
+	if err != nil {
+		return nil, nil, err
+	}
+	backOut, err := matteWithEdges(back, bEdges, pxPerCmB)
+	if err != nil {
+		return nil, nil, err
+	}
+	return frontOut, backOut, nil
+}
+
+func detectBorderEdges(img image.Image, pxPerCm float64) ([4][]int, error) {
 	bounds := img.Bounds()
 	w, h := bounds.Dx(), bounds.Dy()
 
@@ -71,10 +129,16 @@ func removeBorder(img image.Image, pxPerCm float64) (image.Image, error) {
 
 		edge, err := findBorderEdge(fImg, maxDeviation)
 		if err != nil {
-			return nil, err
+			return edges, err
 		}
 		edges[side] = edge
 	}
+	return edges, nil
+}
+
+func matteWithEdges(img image.Image, edges [4][]int, pxPerCm float64) (image.Image, error) {
+	bounds := img.Bounds()
+	w, h := bounds.Dx(), bounds.Dy()
 
 	// The card is the intersection of the four "inside this side's border"
 	// half-regions. Corners emerge from the two adjacent sides' genuine
@@ -217,9 +281,10 @@ const (
 	backboardRun = 4
 )
 
-// voidRows counts synthetic fill rows at the outer edge: rows whose values
-// are near-constant across the full width, which scanner noise never
-// produces. At most the outermost eighth is considered.
+// voidRows counts synthetic fill rows at the outer edge: crop/deskew tools
+// pad with pure white or black, so a fill row is near-constant across the
+// full width at an extreme value — real backboard rows are neither. At most
+// the outermost eighth is considered.
 func voidRows(img *image.Gray) int {
 	bounds := img.Bounds()
 	w := bounds.Dx()
@@ -231,6 +296,9 @@ func voidRows(img *image.Gray) int {
 			if hi-lo > 4 {
 				return y
 			}
+		}
+		if lo > 5 && hi < 250 {
+			return y // uniform but not fill-coloured: real backboard
 		}
 	}
 	return bounds.Dy() / 8

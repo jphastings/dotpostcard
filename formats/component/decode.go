@@ -34,14 +34,50 @@ func (b bundle) Decode(opts formats.DecodeOptions) (types.Postcard, error) {
 
 	pc.Name = b.name
 
-	img, frontSize, hasTransparency, err := decodeImage(b.frontFile, opts)
+	front, frontSize, hasTransparency, ppcFront, err := decodeImage(b.frontFile, opts)
 	if err != nil {
 		return types.Postcard{}, fmt.Errorf("couldn't decode postcard's front image: %w", err)
 	}
 	pc.Meta.Physical.FrontDimensions = frontSize
+
+	var back image.Image
+	var backSize types.Size
+	var hasTransparencyBack bool
+	var ppcBack float64
+	if b.backFile != nil {
+		back, backSize, hasTransparencyBack, ppcBack, err = decodeImage(b.backFile, opts)
+		if err != nil {
+			return types.Postcard{}, fmt.Errorf("couldn't decode postcard's back image: %w", err)
+		}
+	}
+
+	if opts.RemoveBorder {
+		// Both sides show the same physical card, so when both need their
+		// borders removed each side's detected geometry corrects the other's
+		if back != nil && !hasTransparency && !hasTransparencyBack {
+			front, back, err = removeBorderPair(front, back, pc.Meta.Flip.IsHeteroriented(), ppcFront, ppcBack)
+			if err != nil {
+				return types.Postcard{}, fmt.Errorf("couldn't remove borders: %w", err)
+			}
+			hasTransparency, hasTransparencyBack = true, true
+		} else if !hasTransparency {
+			front, err = removeBorder(front, ppcFront)
+			if err != nil {
+				return types.Postcard{}, fmt.Errorf("couldn't remove front border: %w", err)
+			}
+			hasTransparency = true
+		} else if back != nil && !hasTransparencyBack {
+			back, err = removeBorder(back, ppcBack)
+			if err != nil {
+				return types.Postcard{}, fmt.Errorf("couldn't remove back border: %w", err)
+			}
+			hasTransparencyBack = true
+		}
+	}
+
 	pc.Meta.HasTransparency = hasTransparency
 
-	pc.Front, pc.Meta.Front.Secrets, err = hideSecrets(img, pc.Meta.Front.Secrets)
+	pc.Front, pc.Meta.Front.Secrets, err = hideSecrets(front, pc.Meta.Front.Secrets)
 	if err != nil {
 		return types.Postcard{}, fmt.Errorf("couldn't hide secrets on front: %w", err)
 	}
@@ -49,10 +85,6 @@ func (b bundle) Decode(opts formats.DecodeOptions) (types.Postcard, error) {
 	if b.backFile == nil {
 		pc.Meta.Flip = types.FlipNone
 	} else {
-		img, backSize, hasTransparencyBack, err := decodeImage(b.backFile, opts)
-		if err != nil {
-			return types.Postcard{}, fmt.Errorf("couldn't decode postcard's back image: %w", err)
-		}
 		// With Heterorientation cards it's possible one corner has transparency and the other doesn't
 		pc.Meta.HasTransparency = pc.Meta.HasTransparency || hasTransparencyBack
 
@@ -64,7 +96,7 @@ func (b bundle) Decode(opts formats.DecodeOptions) (types.Postcard, error) {
 			return types.Postcard{}, err
 		}
 
-		pc.Back, pc.Meta.Back.Secrets, err = hideSecrets(img, pc.Meta.Back.Secrets)
+		pc.Back, pc.Meta.Back.Secrets, err = hideSecrets(back, pc.Meta.Back.Secrets)
 		if err != nil {
 			return types.Postcard{}, fmt.Errorf("couldn't hide secrets on back: %w", err)
 		}
@@ -82,13 +114,13 @@ func (b bundle) Decode(opts formats.DecodeOptions) (types.Postcard, error) {
 	return pc, nil
 }
 
-func decodeImage(r io.Reader, decOpts formats.DecodeOptions) (image.Image, types.Size, bool, error) {
+func decodeImage(r io.Reader, decOpts formats.DecodeOptions) (image.Image, types.Size, bool, float64, error) {
 	var dataCopy bytes.Buffer
 	t := io.TeeReader(r, &dataCopy)
 
 	img, _, err := image.Decode(t)
 	if err != nil {
-		return nil, types.Size{}, false, err
+		return nil, types.Size{}, false, 0, err
 	}
 	bounds := img.Bounds()
 	size := types.Size{
@@ -99,27 +131,16 @@ func decodeImage(r io.Reader, decOpts formats.DecodeOptions) (image.Image, types
 	hasTransparency := images.HasTransparency(img) && !decOpts.IgnoreTransparency
 
 	// Invalid physical dimensions just get ignored
+	var pxPerCm float64
 	xRes, yRes, resErr := resolution.Decode(dataCopy.Bytes())
-	hasResolution := resErr == nil && xRes != nil && yRes != nil && xRes.Sign() != 0 && yRes.Sign() != 0
-	if hasResolution {
+	if resErr == nil && xRes != nil && yRes != nil && xRes.Sign() != 0 && yRes.Sign() != 0 {
 		size.SetResolution(xRes, yRes)
+		x, _ := xRes.Float64()
+		y, _ := yRes.Float64()
+		pxPerCm = (x + y) / 2
 	}
 
-	if decOpts.RemoveBorder && !hasTransparency {
-		var pxPerCm float64
-		if hasResolution {
-			x, _ := xRes.Float64()
-			y, _ := yRes.Float64()
-			pxPerCm = (x + y) / 2
-		}
-		img, err = removeBorder(img, pxPerCm)
-		if err != nil {
-			return nil, types.Size{}, hasTransparency, err
-		}
-		hasTransparency = true
-	}
-
-	return img, size, hasTransparency, nil
+	return img, size, hasTransparency, pxPerCm, nil
 }
 
 func hideSecrets(img image.Image, secrets []types.Polygon) (image.Image, []types.Polygon, error) {
