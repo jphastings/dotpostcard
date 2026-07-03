@@ -50,10 +50,10 @@ func Apply(img image.Image, mask []bool, opts Options) (*image.NRGBA, error) {
 		return nil, fmt.Errorf("BandHalfWidthPx must be positive")
 	}
 	if opts.GuidedRadiusPx <= 0 {
-		// ~⅔ of the band width recovers hand-mask-level fibre softness on
+		// ~¼ of the band width recovers hand-mask-level fibre softness on
 		// torn edges without over-feathering die-cut ones (tuned against the
 		// ground-truth fixtures; see sweep_test.go).
-		opts.GuidedRadiusPx = max(2, opts.BandHalfWidthPx*2/3)
+		opts.GuidedRadiusPx = max(2, opts.BandHalfWidthPx/4)
 	}
 	if opts.Eps <= 0 {
 		opts.Eps = defaultEps
@@ -105,6 +105,8 @@ func Apply(img image.Image, mask []bool, opts Options) (*image.NRGBA, error) {
 			matteTile(src, out, tm, mask, core, padded, opts, bgRadius, bgMean, debugAlpha)
 		}
 	}
+
+	fillInteriorHoles(out, src)
 
 	if debugDir != "" {
 		if err := dumpDebug(debugDir, tm, debugAlpha, out); err != nil {
