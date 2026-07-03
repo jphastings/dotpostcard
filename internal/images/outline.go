@@ -3,70 +3,62 @@ package images
 import (
 	"fmt"
 	"image"
-	"image/color"
 	"slices"
-	"sort"
 
-	rdp "github.com/calvinfeng/rdp-path-simplification"
 	"github.com/jphastings/dotpostcard/internal/geom3d"
 )
 
-// const linePrecision = 0.0022
-const linePrecision = 0.0012
+const (
+	defaultThreshold = 128
+	defaultEpsilonPx = 1.5
+)
+
+type OutlineOpts struct {
+	// Pixels with alpha >= Threshold are treated as part of the postcard. The
+	// zero value means 128 (half opacity).
+	Threshold uint8
+	// EpsilonPx is the simplification tolerance, in pixels. The zero value
+	// means 1.5px.
+	EpsilonPx float64
+}
 
 // Returns the outline of the image's transparency as an _anticlockwise_ series of X/Y points
 func Outline(im image.Image, invertX, invertY bool) ([]geom3d.Point, error) {
-	b := im.Bounds()
+	return OutlineWithOpts(im, invertX, invertY, OutlineOpts{})
+}
 
-	// Find a starting black pixel
-	var start image.Point
-	hasOpaquePixel := false
-	for y := b.Min.Y; y < b.Max.Y && !hasOpaquePixel; y++ {
-		for x := b.Min.X; x < b.Max.X; x++ {
-			if isOpaque(im.At(x, y)) {
-				start = image.Pt(x, y)
-				hasOpaquePixel = true
-				break
-			}
-		}
+// OutlineWithOpts traces the largest opaque region's outline along pixel
+// boundaries, so coordinates span the full [0,1] range and a fully opaque
+// image outlines to exactly the unit square.
+func OutlineWithOpts(im image.Image, invertX, invertY bool, opts OutlineOpts) ([]geom3d.Point, error) {
+	if opts.Threshold == 0 {
+		opts.Threshold = defaultThreshold
+	}
+	if opts.EpsilonPx == 0 {
+		opts.EpsilonPx = defaultEpsilonPx
 	}
 
-	if !hasOpaquePixel {
+	alpha := toAlpha(im)
+	contour := traceLargestContour(alpha, opts.Threshold)
+	if contour == nil {
 		return nil, fmt.Errorf("the image appears to be fully transparent")
 	}
 
-	var outline []rdp.Point
-
-	// Contour tracing using Moore Neighbour Tracing
-	pos := start
-	dir := 0 // Initial direction (left)
-	for {
-		outline = append(outline, rdp.Point{
-			X: float64(pos.X+b.Min.X) / float64(b.Max.X-b.Min.X),
-			Y: float64(pos.Y+b.Min.Y) / float64(b.Max.Y-b.Min.Y),
-		})
-		nextPos, nextDir := nextEdgePixel(im, pos, dir)
-		if nextPos == start { // Loop complete
-			break
-		}
-		pos, dir = nextPos, nextDir
+	path := simplifyClosed(contour, opts.EpsilonPx)
+	if len(path) < 3 {
+		return nil, fmt.Errorf("the outline of the image is only %d points; it doesn't enclose any area", len(path))
 	}
 
-	path := rdp.SimplifyPath(outline, linePrecision)
-
+	w, h := float64(alpha.Rect.Dx()), float64(alpha.Rect.Dy())
 	geomPath := make([]geom3d.Point, len(path))
 	for i, p := range path {
-		geomPath[i] = geom3d.Point{X: p.X, Y: p.Y}
+		geomPath[i] = geom3d.Point{X: float64(p.x) / w, Y: float64(p.y) / h}
 		if invertX {
 			geomPath[i].X = 1 - geomPath[i].X
 		}
 		if invertY {
 			geomPath[i].Y = 1 - geomPath[i].Y
 		}
-	}
-
-	if len(geomPath) < 3 {
-		return nil, fmt.Errorf("the outline of the image is only %d points; this probably means there's a non-transparent spec somewhere near its top left corner", len(geomPath))
 	}
 
 	return ensureDirection(geomPath), nil
@@ -76,77 +68,6 @@ func ensureDirection(points []geom3d.Point) []geom3d.Point {
 	if geom3d.Area(points) > 0 {
 		slices.Reverse(points)
 	}
-
-	return points
-}
-
-var directions = []image.Point{
-	{-1, 0}, {-1, -1}, {0, -1}, {1, -1}, // Left, Top-Left, Up, Top-Right
-	{1, 0}, {1, 1}, {0, 1}, {-1, 1}, // Right, Bottom-Right, Down, Bottom-Left
-}
-
-// nextEdgePixel finds the next edge pixel by checking neighbors in order
-func nextEdgePixel(im image.Image, pos image.Point, startDir int) (image.Point, int) {
-	bounds := im.Bounds()
-
-	for i := 0; i < 8; i++ { // Check all 8 directions
-		dir := (startDir + i) % 8 // Rotate direction
-		next := pos.Add(directions[dir])
-		if next.In(bounds) && isOpaque(im.At(next.X, next.Y)) {
-			return next, (dir + 6) % 8 // Move to this pixel and adjust direction
-		}
-	}
-	return pos, startDir // No movement (shouldn't happen in a valid outline)
-}
-
-func isOpaque(c color.Color) bool {
-	_, _, _, a := c.RGBA()
-	return a > 0x8000 // Threshold at midpoint
-}
-
-// Sort
-
-// crossProduct calculates the cross product of vectors (p1 -> p2) and (p1 -> p3)
-func crossProduct(p1, p2, p3 rdp.Point) float64 {
-	return (p2.X-p1.X)*(p3.Y-p1.Y) - (p2.Y-p1.Y)*(p3.X-p1.X)
-}
-
-// distanceSquared computes the squared distance between two points (to break ties)
-func distanceSquared(p1, p2 rdp.Point) float64 {
-	dx, dy := p1.X-p2.X, p1.Y-p2.Y
-	return dx*dx + dy*dy
-}
-
-// findLeftmostPoint finds the point with the smallest X (and Y tie-break)
-func findLeftmostPoint(points []rdp.Point) int {
-	minIdx := 0
-	for i, p := range points {
-		if p.X < points[minIdx].X || (p.X == points[minIdx].X && p.Y < points[minIdx].Y) {
-			minIdx = i
-		}
-	}
-	return minIdx
-}
-
-// sortCounterClockwise sorts points in counterclockwise order
-func sortCounterClockwise(points []rdp.Point) []rdp.Point {
-	if len(points) < 3 {
-		return points // No need to sort if < 3 points
-	}
-
-	// Find the leftmost (or bottom-most) point as pivot
-	pivotIdx := findLeftmostPoint(points)
-	pivot := points[pivotIdx]
-
-	// Sort points by polar angle relative to pivot
-	sort.SliceStable(points, func(i, j int) bool {
-		// Compute cross product to determine order
-		cross := crossProduct(pivot, points[i], points[j])
-		if cross == 0 { // Collinear points - sort by distance
-			return distanceSquared(pivot, points[i]) < distanceSquared(pivot, points[j])
-		}
-		return cross > 0 // Counterclockwise order
-	})
 
 	return points
 }

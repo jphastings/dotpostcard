@@ -23,5 +23,5 @@ func TestOutline(t *testing.T) {
 
 	area := geom3d.Area(points)
 	assert.Negativef(t, area, "the outline is not wound anticlockwise")
-	assert.InDelta(t, -1.55, area, 0.02, "the produced outline points produce an unexpected shape")
+	assert.InDelta(t, -0.776, area, 0.02, "the produced outline points produce an unexpected shape")
 }

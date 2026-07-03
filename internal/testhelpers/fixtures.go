@@ -4,6 +4,7 @@ import (
 	"embed"
 	"fmt"
 	"image"
+	_ "image/jpeg"
 	_ "image/png"
 	"math/big"
 	"time"
@@ -12,7 +13,7 @@ import (
 )
 
 var (
-	//go:embed *.png
+	//go:embed *.png *.jpeg
 	testImagesData embed.FS
 
 	TestImages = make(map[string]image.Image)

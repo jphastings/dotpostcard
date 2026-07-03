@@ -31,14 +31,19 @@ func writeSVG(w io.Writer, pc types.Postcard, combinedImg image.Image, xmpData [
 	}
 
 	if hasTransparency {
-		frontPoints, err := images.Outline(pc.Front, false, false)
+		// The SVG's raster is a flattened JPEG, so this clip path is its only
+		// transparency: clip generously (low alpha threshold) so faint fibrous
+		// edge detail isn't amputated.
+		opts := images.OutlineOpts{Threshold: 64}
+
+		frontPoints, err := images.OutlineWithOpts(pc.Front, false, false, opts)
 		if err != nil {
 			return fmt.Errorf("front image can't be outlined: %w", err)
 		}
 		v.frontPoints = frontPoints
 
 		if v.hasBack {
-			backPoints, err := images.Outline(pc.Back, false, false)
+			backPoints, err := images.OutlineWithOpts(pc.Back, false, false, opts)
 			if err != nil {
 				return fmt.Errorf("back image can't be outlined: %w", err)
 			}

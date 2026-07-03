@@ -12,6 +12,7 @@ import (
 	"git.sr.ht/~sbinet/gg"
 	_ "github.com/hhrutter/tiff"
 	"github.com/jphastings/dotpostcard/formats"
+	"github.com/jphastings/dotpostcard/internal/images"
 	"github.com/jphastings/dotpostcard/internal/resolution"
 	"github.com/jphastings/dotpostcard/types"
 	"golang.org/x/image/draw"
@@ -95,25 +96,27 @@ func decodeImage(r io.Reader, decOpts formats.DecodeOptions) (image.Image, types
 		PxHeight: bounds.Dy(),
 	}
 
-	_, _, _, a := img.At(0, 0).RGBA()
-	hasTransparency := (a != 65535) && !decOpts.IgnoreTransparency
+	hasTransparency := images.HasTransparency(img) && !decOpts.IgnoreTransparency
+
+	// Invalid physical dimensions just get ignored
+	xRes, yRes, resErr := resolution.Decode(dataCopy.Bytes())
+	hasResolution := resErr == nil && xRes != nil && yRes != nil && xRes.Sign() != 0 && yRes.Sign() != 0
+	if hasResolution {
+		size.SetResolution(xRes, yRes)
+	}
 
 	if decOpts.RemoveBorder && !hasTransparency {
-		img, err = removeBorder(img)
+		var pxPerCm float64
+		if hasResolution {
+			x, _ := xRes.Float64()
+			y, _ := yRes.Float64()
+			pxPerCm = (x + y) / 2
+		}
+		img, err = removeBorder(img, pxPerCm)
 		if err != nil {
 			return nil, types.Size{}, hasTransparency, err
 		}
 		hasTransparency = true
-	}
-
-	xRes, yRes, err := resolution.Decode(dataCopy.Bytes())
-	if err != nil {
-		// Invalid physical dimensions just get ignored
-		return img, size, hasTransparency, nil
-	}
-
-	if xRes != nil && yRes != nil && xRes.Sign() != 0 && yRes.Sign() != 0 {
-		size.SetResolution(xRes, yRes)
 	}
 
 	return img, size, hasTransparency, nil

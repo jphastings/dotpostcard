@@ -28,9 +28,7 @@ func (b bundle) Decode(decOpts formats.DecodeOptions) (types.Postcard, error) {
 	}
 	pc.Name = b.name
 
-	// TODO: migrate this into internal/images/decode.go
-	_, _, _, a := img.At(0, 0).RGBA()
-	pc.Meta.HasTransparency = (a != 65535) && !decOpts.IgnoreTransparency
+	pc.Meta.HasTransparency = images.HasTransparency(img) && !decOpts.IgnoreTransparency
 
 	if pc.Meta.Flip == types.FlipNone {
 		pc.Front = img
