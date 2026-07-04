@@ -57,8 +57,8 @@ def Xform "Postcard" (
                 uniform token info:id = "UsdPreviewSurface"
                 color3f inputs:diffuseColor.connect = </Postcard/Materials/sides/diffuseColor_texture.outputs:rgb>
                 float inputs:metallic = 0
-                float inputs:roughness = 0.8
-                float inputs:specular = 0.1
+                float inputs:roughness = 0.9
+                float inputs:specular = 0.03
                 token outputs:surface
             }
 
@@ -105,8 +105,8 @@ def Xform "Postcard" (
 //line postcard.usda.qtpl:63
 	qw422016.N().S(`)
                 float inputs:metallic = 0
-                float inputs:roughness = 0.8
-                float inputs:specular = 0.1
+                float inputs:roughness = 0.97
+                float inputs:specular = 0.02
                 token outputs:surface
             }
         }

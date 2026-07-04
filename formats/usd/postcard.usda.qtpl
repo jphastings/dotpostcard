@@ -30,8 +30,8 @@ def Xform "Postcard" (
                 uniform token info:id = "UsdPreviewSurface"
                 color3f inputs:diffuseColor.connect = </Postcard/Materials/sides/diffuseColor_texture.outputs:rgb>
                 float inputs:metallic = 0
-                float inputs:roughness = 0.8
-                float inputs:specular = 0.1
+                float inputs:roughness = 0.9
+                float inputs:specular = 0.03
                 token outputs:surface
             }
 
@@ -62,8 +62,8 @@ def Xform "Postcard" (
                 uniform token info:id = "UsdPreviewSurface"
                 color3f inputs:diffuseColor = ({%f float64(params.CardColor.R) / 255 %}, {%f float64(params.CardColor.G) / 255 %}, {%f float64(params.CardColor.B) / 255 %})
                 float inputs:metallic = 0
-                float inputs:roughness = 0.8
-                float inputs:specular = 0.1
+                float inputs:roughness = 0.97
+                float inputs:specular = 0.02
                 token outputs:surface
             }
         }
