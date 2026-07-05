@@ -103,6 +103,30 @@ func TestOpenCollectionListJSON(t *testing.T) {
 	assert.Greater(t, summaries[0].FrontPxW, 0)
 }
 
+func TestOpenCollectionListJSONEmpty(t *testing.T) {
+	path := buildCollection(t)
+
+	c, err := OpenCollection(path)
+	assert.NoError(t, err)
+	defer c.Close()
+
+	listJSON, err := c.ListJSON()
+	assert.NoError(t, err)
+	assert.Equal(t, "[]", listJSON, "an empty collection's card list must encode as [], not null, so Swift's non-optional array decode doesn't fail")
+}
+
+func TestCollectionSearchJSONNoMatch(t *testing.T) {
+	path := buildCollection(t, "card-one")
+
+	c, err := OpenCollection(path)
+	assert.NoError(t, err)
+	defer c.Close()
+
+	searchJSON, err := c.SearchJSON("thiswordisnotinanycard")
+	assert.NoError(t, err)
+	assert.Equal(t, "[]", searchJSON, "a no-hit search must encode as [], not null, so Swift's non-optional array decode doesn't fail")
+}
+
 func TestCollectionSearchJSON(t *testing.T) {
 	path := buildCollection(t, "card-one")
 
@@ -308,6 +332,7 @@ func TestLibrarySearchNoMatch(t *testing.T) {
 
 	resultsJSON, err := lib.SearchJSON("thiswordisnotinanycard")
 	assert.NoError(t, err)
+	assert.Equal(t, "[]", resultsJSON, "a no-hit library search must encode as [], not null, so Swift's non-optional array decode doesn't fail")
 
 	var hits []libraryHit
 	assert.NoError(t, json.Unmarshal([]byte(resultsJSON), &hits))

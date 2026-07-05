@@ -102,3 +102,30 @@ func OpenReadOnly(path string) (*Collection, error) {
 func (c *Collection) Close() error {
 	return c.db.Close()
 }
+
+// Title returns the collection's user-set title, or "" if none has been set.
+// There's no filename-derived fallback here; presenting one is the caller's job.
+func (c *Collection) Title() (string, error) {
+	var title sql.NullString
+	if err := c.db.QueryRow(`SELECT title FROM meta`).Scan(&title); err != nil {
+		return "", fmt.Errorf("reading collection title: %w", err)
+	}
+	return title.String, nil
+}
+
+// SetTitle sets the collection's title; an empty string clears it.
+func (c *Collection) SetTitle(title string) error {
+	if c.readOnly {
+		return errReadOnly
+	}
+
+	var arg any
+	if title != "" {
+		arg = title
+	}
+
+	if _, err := c.db.Exec(`UPDATE meta SET title = ?`, arg); err != nil {
+		return fmt.Errorf("setting collection title: %w", err)
+	}
+	return nil
+}

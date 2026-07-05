@@ -21,3 +21,15 @@ func marshalJSON(v any) (string, error) {
 	}
 	return string(b), nil
 }
+
+// marshalJSONArray is marshalJSON for slice-shaped results. Every appcore
+// method returning a JSON array must go through this rather than
+// marshalJSON, so a nil slice (no cards, no search hits) encodes as "[]"
+// rather than "null" — Swift decodes these as non-optional arrays, and a
+// bare "null" fails to decode.
+func marshalJSONArray[T any](items []T) (string, error) {
+	if items == nil {
+		items = []T{}
+	}
+	return marshalJSON(items)
+}

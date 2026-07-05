@@ -108,7 +108,7 @@ func (c *Collection) AddWebPostcard(filename string, data []byte) (CardSummary, 
 		return CardSummary{}, fmt.Errorf("encoding metadata for %s: %w", filename, err)
 	}
 
-	thumb, err := makeThumbnail(pc.Front)
+	thumb, err := makeThumbnail(pc.Front, pc.Meta.HasTransparency)
 	if err != nil {
 		return CardSummary{}, fmt.Errorf("generating thumbnail for %s: %w", filename, err)
 	}

@@ -14,7 +14,13 @@ import (
 // step, also update schemaStatements in schema.go to describe the resulting
 // schema: newly-Created collections are built directly at the current
 // version and never run this ladder.
-var migrations []func(*sql.Tx) error
+var migrations = []func(*sql.Tx) error{
+	// v1 -> v2: add an optional, user-editable collection title.
+	func(tx *sql.Tx) error {
+		_, err := tx.Exec(`ALTER TABLE meta ADD COLUMN title TEXT`)
+		return err
+	},
+}
 
 func schemaVersion() int { return 1 + len(migrations) }
 

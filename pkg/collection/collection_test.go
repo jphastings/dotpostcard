@@ -192,3 +192,39 @@ func TestOpenReadOnly(t *testing.T) {
 
 	assert.ErrorIs(t, ro.Remove(list[0].Name), errReadOnly)
 }
+
+func TestTitle(t *testing.T) {
+	col := mustCreate(t)
+
+	title, err := col.Title()
+	assert.NoError(t, err)
+	assert.Empty(t, title, "a freshly created collection has no title")
+
+	assert.NoError(t, col.SetTitle("Grand Tour 1907"))
+	title, err = col.Title()
+	assert.NoError(t, err)
+	assert.Equal(t, "Grand Tour 1907", title)
+
+	assert.NoError(t, col.SetTitle(""))
+	title, err = col.Title()
+	assert.NoError(t, err)
+	assert.Empty(t, title, "setting an empty title clears it")
+}
+
+func TestTitleReadOnly(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "test.postcards")
+	col, err := Create(path)
+	assert.NoError(t, err)
+	assert.NoError(t, col.SetTitle("Grand Tour 1907"))
+	assert.NoError(t, col.Close())
+
+	ro, err := OpenReadOnly(path)
+	assert.NoError(t, err)
+	defer ro.Close()
+
+	title, err := ro.Title()
+	assert.NoError(t, err)
+	assert.Equal(t, "Grand Tour 1907", title)
+
+	assert.ErrorIs(t, ro.SetTitle("New Title"), errReadOnly)
+}

@@ -148,7 +148,7 @@ func (l *Library) SearchJSON(query string) (string, error) {
 		}
 	}
 
-	return marshalJSON(hits)
+	return marshalJSONArray(hits)
 }
 
 func sortedKeys(m map[string]*collection.Collection) []string {

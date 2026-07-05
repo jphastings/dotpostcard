@@ -22,6 +22,8 @@ var collectionCmd = &cobra.Command{
 	Short: "Manage *.postcards collection files",
 }
 
+var collectionCreateTitle string
+
 var collectionCreateCmd = &cobra.Command{
 	Use:     "create <collection.postcards> [card files/dirs...]",
 	Example: "  postcards collection create trip.postcards pyramids.postcard.webp\n  postcards collection create trip.postcards ./scanned",
@@ -35,6 +37,12 @@ var collectionCreateCmd = &cobra.Command{
 			return fmt.Errorf("creating collection: %w", err)
 		}
 		defer c.Close()
+
+		if collectionCreateTitle != "" {
+			if err := c.SetTitle(collectionCreateTitle); err != nil {
+				return fmt.Errorf("setting title: %w", err)
+			}
+		}
 
 		fmt.Printf("Created collection %s\n", dbPath)
 
@@ -98,6 +106,14 @@ var collectionLsCmd = &cobra.Command{
 		}
 		defer c.Close()
 
+		title, err := c.Title()
+		if err != nil {
+			return fmt.Errorf("reading title: %w", err)
+		}
+		if title != "" {
+			fmt.Println(title)
+		}
+
 		cards, err := c.List()
 		if err != nil {
 			return fmt.Errorf("listing cards: %w", err)
@@ -108,6 +124,41 @@ var collectionLsCmd = &cobra.Command{
 		}
 
 		fmt.Printf("%s\n", count(len(cards), "card"))
+		return nil
+	},
+}
+
+var collectionTitleCmd = &cobra.Command{
+	Use:     "title <collection.postcards> [new-title]",
+	Example: "  postcards collection title trip.postcards\n  postcards collection title trip.postcards \"Summer in Italy\"",
+	Short:   "Show or set a collection's title",
+	Args:    cobra.RangeArgs(1, 2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) == 1 {
+			c, err := collection.OpenReadOnly(args[0])
+			if err != nil {
+				return fmt.Errorf("opening collection: %w", err)
+			}
+			defer c.Close()
+
+			title, err := c.Title()
+			if err != nil {
+				return fmt.Errorf("reading title: %w", err)
+			}
+			fmt.Println(title)
+			return nil
+		}
+
+		c, err := collection.Open(args[0])
+		if err != nil {
+			return fmt.Errorf("opening collection: %w", err)
+		}
+		defer c.Close()
+
+		if err := c.SetTitle(args[1]); err != nil {
+			return fmt.Errorf("setting title: %w", err)
+		}
+		fmt.Println(args[1])
 		return nil
 	},
 }
@@ -140,7 +191,8 @@ var collectionSearchCmd = &cobra.Command{
 }
 
 func init() {
-	collectionCmd.AddCommand(collectionCreateCmd, collectionAddCmd, collectionRemoveCmd, collectionLsCmd, collectionSearchCmd)
+	collectionCreateCmd.Flags().StringVar(&collectionCreateTitle, "title", "", "Title to give the new collection")
+	collectionCmd.AddCommand(collectionCreateCmd, collectionAddCmd, collectionRemoveCmd, collectionLsCmd, collectionSearchCmd, collectionTitleCmd)
 	rootCmd.AddCommand(collectionCmd)
 }
 

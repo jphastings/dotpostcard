@@ -33,6 +33,15 @@ func (c *Collection) Path() string {
 	return c.path
 }
 
+// Title returns the collection's user-set title, or "" if none has been set.
+func (c *Collection) Title() (string, error) {
+	title, err := c.col.Title()
+	if err != nil {
+		return "", fmt.Errorf("reading collection title: %w", err)
+	}
+	return title, nil
+}
+
 // CardCount returns the number of cards in the collection.
 func (c *Collection) CardCount() (int64, error) {
 	count, err := c.col.Count()
@@ -48,7 +57,7 @@ func (c *Collection) ListJSON() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("listing cards: %w", err)
 	}
-	return marshalJSON(summaries)
+	return marshalJSONArray(summaries)
 }
 
 // SearchJSON runs a full-text search and returns the results as a JSON array
@@ -58,7 +67,7 @@ func (c *Collection) SearchJSON(query string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("searching collection: %w", err)
 	}
-	return marshalJSON(results)
+	return marshalJSONArray(results)
 }
 
 // CardMetaJSON returns the full postcard metadata (types.Metadata) for a

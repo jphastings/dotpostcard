@@ -10,7 +10,8 @@ const ftsColumns = `name, sender_name, recipient_name, location_name, front_desc
 var schemaStatements = []string{
 	`CREATE TABLE meta (
 		schema_version INTEGER NOT NULL,
-		created_by TEXT NOT NULL
+		created_by TEXT NOT NULL,
+		title TEXT
 	)`,
 	`CREATE TABLE cards (
 		id INTEGER PRIMARY KEY,

@@ -71,6 +71,36 @@ func encodeNamed(t *testing.T, name string, sentOn *types.Date) (data []byte, fi
 	return data, fws[0].Filename
 }
 
+// encodeTransparentSample encodes a single-sided postcard from
+// testhelpers' transparency sample, flagged as having transparency, so
+// tests can exercise the thumbnail's alpha-preserving path.
+func encodeTransparentSample(t *testing.T) (data []byte, filename string) {
+	t.Helper()
+
+	pc := testhelpers.SamplePostcard
+	pc.Name = "transparent-postcard"
+	pc.Front = testhelpers.TestImages["sample-transparency-front.png"]
+	pc.Back = nil
+	pc.Meta.Flip = types.FlipNone
+	pc.Meta.HasTransparency = true
+	assert.NotNil(t, pc.Front)
+
+	// A non-nil, zero-value EncodeOptions is used (rather than nil, as the
+	// other encode* helpers pass) because formats/web.codec.Encode
+	// dereferences opts.Archival directly for the webp/png cases without the
+	// nil-safe handling its other opts accesses use; that's a latent,
+	// pre-existing bug only reachable when encoding a transparent postcard
+	// with nil options, which no production call site does.
+	fws, err := web.DefaultCodec.Encode(pc, &formats.EncodeOptions{})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, fws)
+
+	data, err = fws[0].Bytes()
+	assert.NoError(t, err)
+
+	return data, fws[0].Filename
+}
+
 func mustCreate(t *testing.T) *Collection {
 	t.Helper()
 
