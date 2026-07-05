@@ -7,7 +7,7 @@ import (
 )
 
 // Collection is a read-only, gomobile-bindable handle onto an open
-// *.postcard.db collection file.
+// *.postcards collection file.
 type Collection struct {
 	path string
 	col  *collection.Collection

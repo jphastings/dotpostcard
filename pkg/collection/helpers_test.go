@@ -74,7 +74,7 @@ func encodeNamed(t *testing.T, name string, sentOn *types.Date) (data []byte, fi
 func mustCreate(t *testing.T) *Collection {
 	t.Helper()
 
-	col, err := Create(filepath.Join(t.TempDir(), "test.postcard.db"))
+	col, err := Create(filepath.Join(t.TempDir(), "test.postcards"))
 	assert.NoError(t, err)
 	t.Cleanup(func() { col.Close() })
 

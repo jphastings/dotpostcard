@@ -19,12 +19,12 @@ var webFileSuffixes = []string{".postcard.webp", ".postcard.jpg", ".postcard.jpe
 
 var collectionCmd = &cobra.Command{
 	Use:   "collection",
-	Short: "Manage *.postcard.db collection files",
+	Short: "Manage *.postcards collection files",
 }
 
 var collectionCreateCmd = &cobra.Command{
-	Use:     "create <collection.postcard.db> [card files/dirs...]",
-	Example: "  postcards collection create trip.postcard.db pyramids.postcard.webp\n  postcards collection create trip.postcard.db ./scanned",
+	Use:     "create <collection.postcards> [card files/dirs...]",
+	Example: "  postcards collection create trip.postcards pyramids.postcard.webp\n  postcards collection create trip.postcards ./scanned",
 	Short:   "Create a new, empty collection, optionally adding cards to it",
 	Args:    cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -47,8 +47,8 @@ var collectionCreateCmd = &cobra.Command{
 }
 
 var collectionAddCmd = &cobra.Command{
-	Use:     "add <collection.postcard.db> <files-or-dirs...>",
-	Example: "  postcards collection add trip.postcard.db pyramids.postcard.webp\n  postcards collection add trip.postcard.db ./scanned",
+	Use:     "add <collection.postcards> <files-or-dirs...>",
+	Example: "  postcards collection add trip.postcards pyramids.postcard.webp\n  postcards collection add trip.postcards ./scanned",
 	Short:   "Add web-format postcard files to a collection",
 	Args:    cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -63,8 +63,8 @@ var collectionAddCmd = &cobra.Command{
 }
 
 var collectionRemoveCmd = &cobra.Command{
-	Use:     "remove <collection.postcard.db> <card-name...>",
-	Example: "  postcards collection remove trip.postcard.db pyramids",
+	Use:     "remove <collection.postcards> <card-name...>",
+	Example: "  postcards collection remove trip.postcards pyramids",
 	Short:   "Remove cards from a collection",
 	Args:    cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -87,8 +87,8 @@ var collectionRemoveCmd = &cobra.Command{
 }
 
 var collectionLsCmd = &cobra.Command{
-	Use:     "ls <collection.postcard.db>",
-	Example: "  postcards collection ls trip.postcard.db",
+	Use:     "ls <collection.postcards>",
+	Example: "  postcards collection ls trip.postcards",
 	Short:   "List the cards in a collection",
 	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -113,8 +113,8 @@ var collectionLsCmd = &cobra.Command{
 }
 
 var collectionSearchCmd = &cobra.Command{
-	Use:     "search <collection.postcard.db> <query...>",
-	Example: "  postcards collection search trip.postcard.db pyramids giza",
+	Use:     "search <collection.postcards> <query...>",
+	Example: "  postcards collection search trip.postcards pyramids giza",
 	Short:   "Search the cards in a collection",
 	Args:    cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {

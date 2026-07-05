@@ -46,7 +46,7 @@ func encodePostcard(t *testing.T, name string) (data []byte, filename string) {
 func buildCollection(t *testing.T, cardNames ...string) string {
 	t.Helper()
 
-	path := filepath.Join(t.TempDir(), "test.postcard.db")
+	path := filepath.Join(t.TempDir(), "test.postcards")
 	col, err := collection.Create(path)
 	assert.NoError(t, err)
 
@@ -280,7 +280,7 @@ func TestLibrarySearchMergeOrderAcrossCollections(t *testing.T) {
 
 func TestLibrarySetSourcesJSONKeepsOpenablePaths(t *testing.T) {
 	goodPath := buildCollection(t, "card-good")
-	badPath := filepath.Join(t.TempDir(), "missing.postcard.db")
+	badPath := filepath.Join(t.TempDir(), "missing.postcards")
 
 	lib := NewLibrary()
 	defer lib.Close()

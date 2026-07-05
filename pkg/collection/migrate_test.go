@@ -21,7 +21,7 @@ func withTestMigration(t *testing.T, step func(*sql.Tx) error) {
 
 func createOutdatedCollection(t *testing.T) string {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), "old.postcard.db")
+	path := filepath.Join(t.TempDir(), "old.postcards")
 
 	col, err := Create(path)
 	assert.NoError(t, err)
@@ -100,7 +100,7 @@ func TestOpenReadOnlyNeverMigrates(t *testing.T) {
 }
 
 func TestOpenRejectsNewerCollections(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "future.postcard.db")
+	path := filepath.Join(t.TempDir(), "future.postcards")
 
 	col, err := Create(path)
 	assert.NoError(t, err)

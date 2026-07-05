@@ -1,4 +1,4 @@
-// Package collection reads and writes *.postcard.db files: SQLite databases
+// Package collection reads and writes *.postcards files: SQLite databases
 // that hold web-format postcard files as blobs, alongside extracted &
 // FTS5-searchable metadata, for the postcard viewer app.
 package collection
@@ -20,7 +20,7 @@ var ErrNotFound = errors.New("card not found")
 // errReadOnly is returned (wrapped) by mutating methods on a collection opened with OpenReadOnly.
 var errReadOnly = errors.New("collection is read-only")
 
-// Collection is an open *.postcard.db file.
+// Collection is an open *.postcards file.
 type Collection struct {
 	db       *sql.DB
 	readOnly bool

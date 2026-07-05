@@ -11,7 +11,7 @@ import (
 )
 
 func TestCreateOpenLifecycle(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "test.postcard.db")
+	path := filepath.Join(t.TempDir(), "test.postcards")
 
 	col, err := Create(path)
 	assert.NoError(t, err)
@@ -30,7 +30,7 @@ func TestCreateOpenLifecycle(t *testing.T) {
 }
 
 func TestOpenRejectsNonCollectionFiles(t *testing.T) {
-	garbage := filepath.Join(t.TempDir(), "garbage.postcard.db")
+	garbage := filepath.Join(t.TempDir(), "garbage.postcards")
 	assert.NoError(t, os.WriteFile(garbage, []byte("not a sqlite database"), 0644))
 
 	_, err := Open(garbage)
@@ -167,7 +167,7 @@ func TestRemove(t *testing.T) {
 
 func TestOpenReadOnly(t *testing.T) {
 	data, filename, _, _ := encodeSample(t)
-	path := filepath.Join(t.TempDir(), "test.postcard.db")
+	path := filepath.Join(t.TempDir(), "test.postcards")
 
 	col, err := Create(path)
 	assert.NoError(t, err)

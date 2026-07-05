@@ -1,4 +1,4 @@
-// Package sqldb opens the *.postcard.db collection files described in
+// Package sqldb opens the *.postcards collection files described in
 // pkg/collection. It hides the choice of SQLite driver behind a build tag:
 // modernc.org/sqlite (pure Go) for regular builds, and github.com/mattn/go-sqlite3
 // (cgo) for gomobile builds, which need a driver that works on iOS.
