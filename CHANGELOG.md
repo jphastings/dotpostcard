@@ -383,6 +383,18 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.19.0 (2026-07-05)
+
+### Feat
+
+- transient write operations in the app-core facade
+- collection titles and transparency-preserving thumbnails
+- add .postcard.db collection format, CLI, and app-core bindings
+
+### Refactor
+
+- adopt .postcards as the collection file extension
+
 ## v0.18.0 (2026-07-04)
 
 ### Feat
