@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.19.2 (2026-07-06)
+
+### Fix
+
+- discard TinyGo's go.sum mutation before releasing
+
 ## v0.19.1 (2026-07-06)
 
 ### Fix
