@@ -57,6 +57,12 @@ jobs:
       - name: Move Serviceworker WASM ready for postoffice build
         run: |
           mv dist/postoffice-serviceworker_js_wasm/postoffice-serviceworker.wasm internal/www/postoffice/postoffice-serviceworker.wasm
+      # TinyGo mutates go.sum as a build side effect, which goreleaser's
+      # dirty-tree check then refuses. Log the diff for posterity, then drop it.
+      - name: Discard TinyGo's go.sum side effects
+        run: |
+          git diff go.sum || true
+          git checkout -- go.sum
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
