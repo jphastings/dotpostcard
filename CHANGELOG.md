@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.21.0 (2026-07-08)
+
+### Feat
+
+- **web**: add single-extension .postcard output variant
+
 ## v0.20.0 (2026-07-07)
 
 ### Feat
