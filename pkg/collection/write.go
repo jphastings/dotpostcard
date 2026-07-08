@@ -95,7 +95,10 @@ func (c *Collection) AddWebPostcard(filename string, data []byte) (CardSummary, 
 
 	mimetype, err := Mimetype(filename)
 	if err != nil {
-		return CardSummary{}, err
+		mimetype, err = MimetypeFromData(data)
+		if err != nil {
+			return CardSummary{}, err
+		}
 	}
 
 	pc, err := web.BundleFromReader(io.NopCloser(bytes.NewReader(data)), filename).Decode(formats.DecodeOptions{})
@@ -233,5 +236,21 @@ func Mimetype(filename string) (string, error) {
 		return "image/png", nil
 	default:
 		return "", fmt.Errorf("unsupported postcard file extension: %s", filename)
+	}
+}
+
+// MimetypeFromData returns the image mimetype implied by a web-format
+// postcard's leading magic bytes, for files (like `*.postcard`) whose
+// name doesn't reveal the codec.
+func MimetypeFromData(data []byte) (string, error) {
+	switch {
+	case len(data) >= 2 && data[0] == 0xFF && data[1] == 0xD8:
+		return "image/jpeg", nil
+	case len(data) >= 8 && bytes.Equal(data[:8], []byte("\x89PNG\r\n\x1a\n")):
+		return "image/png", nil
+	case len(data) >= 12 && bytes.Equal(data[0:4], []byte("RIFF")) && bytes.Equal(data[8:12], []byte("WEBP")):
+		return "image/webp", nil
+	default:
+		return "", fmt.Errorf("unrecognized image data: unknown magic bytes")
 	}
 }

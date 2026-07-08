@@ -32,7 +32,7 @@ func OpenCardFile(path string) (*CardFile, error) {
 		return nil, fmt.Errorf("reading %s: %w", path, err)
 	}
 
-	mimetype, extractXMP, err := xmpExtractorFor(path)
+	mimetype, extractXMP, err := xmpExtractorFor(path, data)
 	if err != nil {
 		return nil, err
 	}
@@ -122,8 +122,8 @@ func (f *CardFile) searchableText() string {
 	}, " ")
 }
 
-func xmpExtractorFor(path string) (mimetype string, extract func([]byte) ([]byte, error), err error) {
-	mimetype, err = collection.Mimetype(path)
+func xmpExtractorFor(path string, data []byte) (mimetype string, extract func([]byte) ([]byte, error), err error) {
+	mimetype, err = collection.MimetypeFromData(data)
 	if err != nil {
 		return "", nil, err
 	}

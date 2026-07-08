@@ -21,6 +21,7 @@ var formatDocs embed.FS
 var codecs = map[string]formats.Codec{
 	"component": component.Codec(),
 	"web":       web.DefaultCodec,
+	"postcard":  web.PostcardCodec,
 	"svg":       web.SVGCodec,
 	"usd":       usd.Codec(),
 	"usdz":      usdz.Codec(),
@@ -30,7 +31,7 @@ var codecs = map[string]formats.Codec{
 }
 
 // Used for ordering
-var Codecs = []string{"component", "web", "svg", "usdz", "usd", "json", "yaml", "xmp"}
+var Codecs = []string{"component", "web", "postcard", "svg", "usdz", "usd", "json", "yaml", "xmp"}
 
 // These 'formats' will trigger the IncludeSupportFiles encoder option instead of a different codec
 var supportFiles = []string{"css", "html"}

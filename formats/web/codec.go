@@ -27,6 +27,9 @@ type codec struct {
 	// if there is no transparency, and WebP if there is transparency to encode, or if "archival" was
 	// specified (as JPEG can't encode images losslessly).
 	formats []string
+	// When true, the encoder omits the trailing image-format extension so the file is named
+	// `{name}.postcard`, rather than `{name}.postcard.{ext}`.
+	singleExt bool
 }
 
 type capabilities struct {
@@ -77,6 +80,21 @@ func Codec(format string, altFormats ...string) (formats.Codec, error) {
 	}
 
 	return codec{formats: fmts}, nil
+}
+
+// SingleExtCodec behaves exactly like Codec, but the returned codec names its output
+// file `{name}.postcard` instead of `{name}.postcard.{ext}`. This suits contexts (like
+// macOS QuickLook) where a real image extension would let the OS override the preview.
+func SingleExtCodec(format string, altFormats ...string) (formats.Codec, error) {
+	fmts := append([]string{format}, altFormats...)
+
+	for _, f := range fmts {
+		if _, ok := formatCapabilities[f]; !ok {
+			return nil, fmt.Errorf("the format %s is not known", f)
+		}
+	}
+
+	return codec{formats: fmts, singleExt: true}, nil
 }
 
 var SVGCodec, _ = Codec("svg")

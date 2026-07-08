@@ -47,6 +47,9 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 	}
 
 	name := fmt.Sprintf("%s.postcard.%s", pc.Name, format)
+	if c.singleExt {
+		name = pc.Name + ".postcard"
+	}
 
 	writer := func(w io.Writer) error {
 		frontSize, finalSize := formats.DetermineSize(opts, pc.Front, pc.Back)
@@ -100,6 +103,9 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 
 	fws := []formats.FileWriter{formats.NewFileWriter(name, mimetype, writer)}
 	if opts != nil && opts.IncludeSupportFiles {
+		if c.singleExt {
+			return nil, fmt.Errorf("the postcard (single-extension) format does not support --format css/html support files")
+		}
 		fws = append(fws, createCSS(), createHTML(pc, format))
 	}
 
