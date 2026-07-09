@@ -2,6 +2,12 @@ module github.com/jphastings/dotpostcard
 
 go 1.25.0
 
+// Build with 1.26.x: go 1.25.0 miscompiles the gomobile-bound Appcore library,
+// corrupting the heap at runtime (crashes only surfaced in release xcframework
+// builds, never under a locally-run 1.26 toolchain). TinyGo reads the `go` line
+// above and ignores this, so the WASM serviceworker build is unaffected.
+toolchain go1.26.4
+
 require (
 	git.sr.ht/~jackmordaunt/go-libwebp/v2 v2.3.2
 	git.sr.ht/~sbinet/gg v0.7.0
