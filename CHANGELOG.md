@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.21.1 (2026-07-10)
+
+### Fix
+
+- build xcframework with the go 1.26.x toolchain
+
 ## v0.21.0 (2026-07-08)
 
 ### Feat
