@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.21.2 (2026-07-10)
+
+### Fix
+
+- scope the go 1.26 toolchain to the xcframework build
+
 ## v0.21.1 (2026-07-10)
 
 ### Fix
