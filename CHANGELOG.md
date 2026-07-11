@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.23.0 (2026-07-11)
+
+### Feat
+
+- distinct-people listing for search autocomplete
+
 ## v0.22.0 (2026-07-11)
 
 ### Feat
