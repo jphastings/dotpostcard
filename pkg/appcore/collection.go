@@ -87,6 +87,16 @@ func (c *Collection) SearchFilteredJSON(filterJSON string) (string, error) {
 	return marshalJSONArray(results)
 }
 
+// PeopleJSON returns the collection's distinct people as a JSON array of
+// collection.PersonRef.
+func (c *Collection) PeopleJSON() (string, error) {
+	people, err := c.col.People()
+	if err != nil {
+		return "", fmt.Errorf("listing people: %w", err)
+	}
+	return marshalJSONArray(people)
+}
+
 // CardMetaJSON returns the full postcard metadata (types.Metadata) for a
 // card, as JSON.
 func (c *Collection) CardMetaJSON(name string) (string, error) {

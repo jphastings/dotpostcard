@@ -206,6 +206,29 @@ func TestCollectionCardMetaJSON(t *testing.T) {
 	assert.Equal(t, "Bob", meta.Recipient.Name)
 }
 
+func TestCollectionPeopleJSON(t *testing.T) {
+	path := buildCollection(t, "card-one")
+
+	c, err := OpenCollection(path)
+	assert.NoError(t, err)
+	defer c.Close()
+
+	peopleJSON, err := c.PeopleJSON()
+	assert.NoError(t, err)
+
+	var people []collection.PersonRef
+	assert.NoError(t, json.Unmarshal([]byte(peopleJSON), &people))
+	assert.Len(t, people, 3)
+
+	byName := make(map[string]collection.PersonRef)
+	for _, p := range people {
+		byName[p.Name] = p
+	}
+	assert.Equal(t, []string{"from"}, byName["Alice"].Roles)
+	assert.Equal(t, []string{"to"}, byName["Bob"].Roles)
+	assert.Equal(t, []string{"collector"}, byName["Carol"].Roles)
+}
+
 func TestCollectionMissingCardErrors(t *testing.T) {
 	path := buildCollection(t, "card-one")
 
@@ -339,6 +362,33 @@ func TestLibrarySetSourcesJSONKeepsOpenablePaths(t *testing.T) {
 	assert.NoError(t, json.Unmarshal([]byte(resultsJSON), &hits))
 	assert.Len(t, hits, 1)
 	assert.Equal(t, "card-good", hits[0].Card.Name)
+}
+
+func TestLibraryPeopleJSON(t *testing.T) {
+	collectionPath := buildCollection(t, "card-one")
+	data, filename := encodePostcard(t, "card-bare")
+	barePath := writeBareFile(t, filename, data)
+
+	lib := NewLibrary()
+	defer lib.Close()
+
+	sourcesJSON := fmt.Sprintf(`{"collections":[%q],"cards":[%q]}`, collectionPath, barePath)
+	assert.NoError(t, lib.SetSourcesJSON(sourcesJSON))
+
+	peopleJSON, err := lib.PeopleJSON()
+	assert.NoError(t, err)
+
+	var people []collection.PersonRef
+	assert.NoError(t, json.Unmarshal([]byte(peopleJSON), &people))
+	assert.Len(t, people, 3, "the same people appear in both the collection and the bare file, and must be merged rather than duplicated")
+
+	byName := make(map[string]collection.PersonRef)
+	for _, p := range people {
+		byName[p.Name] = p
+	}
+	assert.Equal(t, []string{"from"}, byName["Alice"].Roles)
+	assert.Equal(t, []string{"to"}, byName["Bob"].Roles)
+	assert.Equal(t, []string{"collector"}, byName["Carol"].Roles)
 }
 
 func TestLibrarySearchNoMatch(t *testing.T) {

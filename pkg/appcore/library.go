@@ -189,6 +189,97 @@ func (l *Library) SearchFilteredJSON(filterJSON string) (string, error) {
 	return marshalJSONArray(hits)
 }
 
+// personKey identifies a collection.PersonRef for deduplication across
+// sources: the same name with a different uri (or vice versa) is a different
+// person, mirroring collection.People()'s merge rule.
+type personKey struct {
+	name string
+	uri  string
+}
+
+// personRoleOrder fixes the order roles are appended in when merging, so
+// PersonRef.Roles is deterministic regardless of source iteration order.
+var personRoleOrder = []string{"from", "to", "collector"}
+
+// mergePersonRole folds one (name, uri, role) observation into dedup,
+// skipping rows where both name and uri are empty, and merging Roles when
+// the same (name, uri) pair recurs across sources.
+func mergePersonRole(dedup map[personKey]*collection.PersonRef, name, uri, role string) {
+	if name == "" && uri == "" {
+		return
+	}
+
+	key := personKey{name: name, uri: uri}
+	ref, ok := dedup[key]
+	if !ok {
+		ref = &collection.PersonRef{Name: name, Uri: uri}
+		dedup[key] = ref
+	}
+
+	for _, existing := range ref.Roles {
+		if existing == role {
+			return
+		}
+	}
+	ref.Roles = append(ref.Roles, role)
+	sort.Slice(ref.Roles, func(i, j int) bool {
+		return personRoleIndex(ref.Roles[i]) < personRoleIndex(ref.Roles[j])
+	})
+}
+
+func personRoleIndex(role string) int {
+	for i, r := range personRoleOrder {
+		if r == role {
+			return i
+		}
+	}
+	return len(personRoleOrder)
+}
+
+// PeopleJSON returns the union of distinct people across every open
+// collection and every open bare card file, as a JSON array of
+// collection.PersonRef.
+func (l *Library) PeopleJSON() (string, error) {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
+	dedup := make(map[personKey]*collection.PersonRef)
+
+	for _, p := range sortedKeys(l.collections) {
+		people, err := l.collections[p].People()
+		if err != nil {
+			continue
+		}
+		for _, person := range people {
+			for _, role := range person.Roles {
+				mergePersonRole(dedup, person.Name, person.Uri, role)
+			}
+		}
+	}
+
+	for _, p := range sortedFileKeys(l.files) {
+		cf := l.files[p]
+		mergePersonRole(dedup, cf.meta.Sender.Name, cf.meta.Sender.Uri, "from")
+		mergePersonRole(dedup, cf.meta.Recipient.Name, cf.meta.Recipient.Uri, "to")
+		mergePersonRole(dedup, cf.meta.Context.Author.Name, cf.meta.Context.Author.Uri, "collector")
+	}
+
+	// personKey uniquely determines (Name, Uri), so sorting by those fields
+	// alone is enough for deterministic output.
+	people := make([]collection.PersonRef, 0, len(dedup))
+	for _, ref := range dedup {
+		people = append(people, *ref)
+	}
+	sort.Slice(people, func(i, j int) bool {
+		if people[i].Name != people[j].Name {
+			return people[i].Name < people[j].Name
+		}
+		return people[i].Uri < people[j].Uri
+	})
+
+	return marshalJSONArray(people)
+}
+
 func sortedKeys(m map[string]*collection.Collection) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
