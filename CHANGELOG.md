@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.22.0 (2026-07-11)
+
+### Feat
+
+- field-scoped search filters for the app
+
 ## v0.21.2 (2026-07-10)
 
 ### Fix
