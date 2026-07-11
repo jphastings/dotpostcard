@@ -144,6 +144,25 @@ func TestCollectionSearchJSON(t *testing.T) {
 	assert.NotEmpty(t, results[0].Snippet)
 }
 
+func TestCollectionSearchFilteredJSON(t *testing.T) {
+	path := buildCollection(t, "card-one")
+
+	c, err := OpenCollection(path)
+	assert.NoError(t, err)
+	defer c.Close()
+
+	filterJSON, err := json.Marshal(collection.SearchFilter{From: []string{"Alice"}})
+	assert.NoError(t, err)
+
+	resultsJSON, err := c.SearchFilteredJSON(string(filterJSON))
+	assert.NoError(t, err)
+
+	var results []collection.SearchResult
+	assert.NoError(t, json.Unmarshal([]byte(resultsJSON), &results))
+	assert.Len(t, results, 1)
+	assert.Equal(t, "card-one", results[0].Name)
+}
+
 func TestCollectionCardImageAndMimetype(t *testing.T) {
 	path := buildCollection(t)
 	data, filename := encodePostcard(t, "card-one")

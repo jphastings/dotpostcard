@@ -151,6 +151,44 @@ func (l *Library) SearchJSON(query string) (string, error) {
 	return marshalJSONArray(hits)
 }
 
+// SearchFilteredJSON decodes a collection.SearchFilter from filterJSON and
+// runs a field-scoped search across every open collection (via
+// collection.SearchFiltered) and bare card file (via CardFile.matchesFilter),
+// returning a JSON array of libraryHit in the same order as SearchJSON:
+// collection hits first (in each collection's own rank order), then
+// bare-file hits.
+func (l *Library) SearchFilteredJSON(filterJSON string) (string, error) {
+	var filter collection.SearchFilter
+	if err := json.Unmarshal([]byte(filterJSON), &filter); err != nil {
+		return "", fmt.Errorf("parsing search filter: %w", err)
+	}
+
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
+	var hits []libraryHit
+
+	for _, p := range sortedKeys(l.collections) {
+		results, err := l.collections[p].SearchFiltered(filter)
+		if err != nil {
+			continue
+		}
+		for _, r := range results {
+			hits = append(hits, libraryHit{Source: p, Card: r.CardSummary, Snippet: r.Snippet})
+		}
+	}
+
+	for _, p := range sortedFileKeys(l.files) {
+		cf := l.files[p]
+		if !cf.matchesFilter(filter) {
+			continue
+		}
+		hits = append(hits, libraryHit{Source: p, Card: cf.summary(), Snippet: cf.name})
+	}
+
+	return marshalJSONArray(hits)
+}
+
 func sortedKeys(m map[string]*collection.Collection) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {

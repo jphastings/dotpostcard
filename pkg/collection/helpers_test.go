@@ -101,6 +101,30 @@ func encodeTransparentSample(t *testing.T) (data []byte, filename string) {
 	return data, fws[0].Filename
 }
 
+// encodeCard encodes a copy of testhelpers.SamplePostcard named name, after
+// applying mutate to its metadata, so search-filter tests can craft cards
+// with distinct sender/recipient/location/context-author/sent-on fields.
+func encodeCard(t *testing.T, name string, mutate func(*types.Metadata)) (data []byte, filename string) {
+	t.Helper()
+
+	pc := testhelpers.SamplePostcard
+	pc.Name = name
+	pc.Front = testhelpers.TestImages["sample-front.png"]
+	pc.Back = testhelpers.TestImages["sample-back.png"]
+	assert.NotNil(t, pc.Front)
+	assert.NotNil(t, pc.Back)
+	mutate(&pc.Meta)
+
+	fws, err := web.DefaultCodec.Encode(pc, nil)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, fws)
+
+	data, err = fws[0].Bytes()
+	assert.NoError(t, err)
+
+	return data, fws[0].Filename
+}
+
 func mustCreate(t *testing.T) *Collection {
 	t.Helper()
 

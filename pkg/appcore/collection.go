@@ -1,6 +1,7 @@
 package appcore
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/jphastings/dotpostcard/pkg/collection"
@@ -64,6 +65,22 @@ func (c *Collection) ListJSON() (string, error) {
 // of collection.SearchResult.
 func (c *Collection) SearchJSON(query string) (string, error) {
 	results, err := c.col.Search(query)
+	if err != nil {
+		return "", fmt.Errorf("searching collection: %w", err)
+	}
+	return marshalJSONArray(results)
+}
+
+// SearchFilteredJSON decodes a collection.SearchFilter from filterJSON, runs
+// a field-scoped search, and returns the results as a JSON array of
+// collection.SearchResult (the same shape SearchJSON returns).
+func (c *Collection) SearchFilteredJSON(filterJSON string) (string, error) {
+	var filter collection.SearchFilter
+	if err := json.Unmarshal([]byte(filterJSON), &filter); err != nil {
+		return "", fmt.Errorf("parsing search filter: %w", err)
+	}
+
+	results, err := c.col.SearchFiltered(filter)
 	if err != nil {
 		return "", fmt.Errorf("searching collection: %w", err)
 	}

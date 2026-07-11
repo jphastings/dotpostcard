@@ -107,6 +107,82 @@ func (f *CardFile) summary() collection.CardSummary {
 	}
 }
 
+// matchesFilter reports whether the card file satisfies every populated
+// field of filter, mirroring collection.SearchFiltered's OR-within-a-field,
+// AND-across-fields semantics without a database: name filters
+// case-insensitively substring-match the person's name, URI values
+// exact-match Person.Uri, country exact-matches the location's country code,
+// and text keeps Library.SearchJSON's existing substring behaviour.
+func (f *CardFile) matchesFilter(filter collection.SearchFilter) bool {
+	if text := strings.ToLower(strings.TrimSpace(filter.Text)); text != "" && !strings.Contains(strings.ToLower(f.searchableText()), text) {
+		return false
+	}
+	if len(filter.From) > 0 && !personMatchesAny(f.meta.Sender, filter.From) {
+		return false
+	}
+	if len(filter.To) > 0 && !personMatchesAny(f.meta.Recipient, filter.To) {
+		return false
+	}
+	if len(filter.With) > 0 && !personMatchesAny(f.meta.Sender, filter.With) && !personMatchesAny(f.meta.Recipient, filter.With) {
+		return false
+	}
+	if len(filter.Collector) > 0 && !personMatchesAny(f.meta.Context.Author, filter.Collector) {
+		return false
+	}
+	if len(filter.Country) > 0 && !containsString(filter.Country, f.meta.Location.CountryCode) {
+		return false
+	}
+	if (filter.SentFrom != "" || filter.SentUntil != "") && !sentOnInRange(f.meta.SentOn, filter.SentFrom, filter.SentUntil) {
+		return false
+	}
+	return true
+}
+
+// personMatchesAny reports whether any of values matches p: URI-form values
+// (see collection.IsPersonURI) exact-match p.Uri, name-form values
+// case-insensitively substring-match p.Name.
+func personMatchesAny(p types.Person, values []string) bool {
+	for _, v := range values {
+		if collection.IsPersonURI(v) {
+			if p.Uri == v {
+				return true
+			}
+			continue
+		}
+		if p.Name != "" && strings.Contains(strings.ToLower(p.Name), strings.ToLower(v)) {
+			return true
+		}
+	}
+	return false
+}
+
+func containsString(values []string, s string) bool {
+	for _, v := range values {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
+
+// sentOnInRange reports whether sentOn falls within [from, until) using the
+// same ISO "yyyy-MM-dd" lexicographic comparison collection.SearchFiltered's
+// SQL does; an undated card (sentOn == nil) never matches once either bound
+// is given.
+func sentOnInRange(sentOn *types.Date, from, until string) bool {
+	if sentOn == nil {
+		return false
+	}
+	s := sentOn.Time.Format("2006-01-02")
+	if from != "" && s < from {
+		return false
+	}
+	if until != "" && s >= until {
+		return false
+	}
+	return true
+}
+
 // searchableText concatenates every field a Library substring search should
 // consider for a bare card file.
 func (f *CardFile) searchableText() string {
