@@ -5,13 +5,11 @@ go 1.25.0
 require (
 	git.sr.ht/~jackmordaunt/go-libwebp/v2 v2.3.2
 	git.sr.ht/~sbinet/gg v0.7.0
-	github.com/calvinfeng/rdp-path-simplification v0.0.0-20180903222510-ae464721f91c
 	github.com/charmbracelet/glamour v0.10.0
 	github.com/dsoprea/go-exif/v3 v3.0.1
 	github.com/dsoprea/go-jpeg-image-structure v0.0.0-20221012074422-4f3f7e934102
 	github.com/dsoprea/go-png-image-structure v0.0.0-20210512210324-29b889a6093d
 	github.com/dsoprea/go-tiff-image-structure v0.0.0-20221003165014-8ecc4f52edca
-	github.com/ernyoke/imger v1.0.0
 	github.com/gen2brain/jpegli v0.3.4
 	github.com/hhrutter/tiff v1.0.2
 	github.com/mattn/go-sqlite3 v1.14.47

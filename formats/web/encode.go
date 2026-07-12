@@ -115,13 +115,19 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 func computeOutlines(pc types.Postcard) *xmp.Outlines {
 	outlines := &xmp.Outlines{}
 
-	frontPoints, err := images.Outline(pc.Front, false, false)
+	// These outlines are metadata describing where the card sits, embedded
+	// in the image's XMP — keep them coarse so fibrous edges (which trace to
+	// thousands of points at full fidelity) don't overflow what JPEG XMP
+	// segments can hold.
+	opts := images.OutlineOpts{EpsilonPx: 6}
+
+	frontPoints, err := images.OutlineWithOpts(pc.Front, false, false, opts)
 	if err == nil {
 		outlines.Front = geomPointsToTypes(frontPoints)
 	}
 
 	if pc.Back != nil {
-		backPoints, err := images.Outline(pc.Back, false, false)
+		backPoints, err := images.OutlineWithOpts(pc.Back, false, false, opts)
 		if err == nil {
 			outlines.Back = geomPointsToTypes(backPoints)
 		}
