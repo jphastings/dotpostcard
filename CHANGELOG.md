@@ -383,6 +383,18 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.24.0 (2026-07-12)
+
+### Feat
+
+- two-sided scans correct each other's borders
+- guarantee full opacity inside the card
+- soft alpha matting for border removal, preserving fibrous edges
+
+### Fix
+
+- border detection on low-contrast, flush-edge, and mismatched-resolution scans
+
 ## v0.23.0 (2026-07-11)
 
 ### Feat
