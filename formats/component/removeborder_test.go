@@ -58,6 +58,102 @@ func TestRemoveBorderSyntheticRoundedCard(t *testing.T) {
 	assert.Less(t, alphaAt(got, m+2, m+2), 0.5, "outside the corner arc (a squared corner would cover this)")
 }
 
+// A bright cream card on a near-white backboard is exactly the low-contrast
+// case the brightness-deviation detector must catch (previously invisible to
+// the far-too-strict Sobel threshold). A postmark-like dark strip sits well
+// inside the card, over only a minority of columns; the border scan finds
+// the true (shallow) card edge before ever reaching the (deeper) ink, so it
+// must not distort the detected cut.
+func TestRemoveBorderLowContrastWithPostmark(t *testing.T) {
+	const w, h, m = 400, 300, 30
+	// 245, not 250: voidRows treats a uniform region >=250 as synthetic
+	// fill rather than real backboard, which would sample the wrong rows
+	// for the backboard reference.
+	backboard := color.NRGBA{245, 245, 245, 255}
+	card := color.NRGBA{205, 205, 205, 255}
+	ink := color.NRGBA{80, 80, 80, 255}
+
+	scan := image.NewNRGBA(image.Rect(0, 0, w, h))
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			if x >= m && x < w-m && y >= m && y < h-m {
+				scan.Set(x, y, card)
+			} else {
+				scan.Set(x, y, backboard)
+			}
+		}
+	}
+	// Postmark-like ink, well inside the card (not near any edge) and over a
+	// minority of columns only.
+	for y := m + 15; y < m+19; y++ {
+		for x := m + 60; x < m+120; x++ {
+			scan.Set(x, y, ink)
+		}
+	}
+
+	got, err := removeBorder(scan, 0)
+	require.NoError(t, err)
+
+	// Backboard gone
+	for _, p := range []image.Point{{5, 5}, {w - 6, 5}, {5, h - 6}, {w - 6, h - 6}} {
+		assert.Zerof(t, alphaAt(got, p.X, p.Y), "backboard at %v should be transparent", p)
+	}
+	// Card interior stays opaque, including near the top edge under the
+	// postmark's column range
+	for _, p := range []image.Point{{w / 2, h / 2}, {m + 5, m + 5}, {m + 90, m + 5}} {
+		assert.Equalf(t, 1.0, alphaAt(got, p.X, p.Y), "card interior at %v should be opaque", p)
+	}
+}
+
+// A card scanned flush against one edge has no backboard there — only the
+// synthetic fill added by crop/deskew tools. On that side the detector's
+// reference band is the card itself, so ink inside the card is the first
+// thing that deviates from it; the flush-side check must cut just the fill
+// instead of chasing the ink, while the other three sides still find their
+// real backboard border.
+func TestRemoveBorderFlushTopEdge(t *testing.T) {
+	const w, h, m, fill = 400, 300, 30, 10
+	backboard := color.NRGBA{120, 120, 120, 255}
+	card := color.NRGBA{230, 225, 205, 255}
+	fillWhite := color.NRGBA{250, 250, 250, 255}
+	ink := color.NRGBA{60, 60, 60, 255}
+
+	scan := image.NewNRGBA(image.Rect(0, 0, w, h))
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			switch {
+			case y < fill:
+				scan.Set(x, y, fillWhite)
+			case x >= m && x < w-m && y < h-m: // card flush to the fill at top
+				scan.Set(x, y, card)
+			default:
+				scan.Set(x, y, backboard)
+			}
+		}
+	}
+	// Postmark-like ink band inside the card: without the flush-side check
+	// this is the first deviation from the (card-coloured) reference and
+	// would be mistaken for the border
+	for y := 40; y < 55; y++ {
+		for x := m + 20; x < w-m-20; x++ {
+			scan.Set(x, y, ink)
+		}
+	}
+
+	got, err := removeBorder(scan, 0)
+	require.NoError(t, err)
+
+	// Card content between the fill boundary and the ink stays opaque
+	for _, p := range []image.Point{{w / 2, fill + 15}, {m + 30, fill + 20}} {
+		assert.Equalf(t, 1.0, alphaAt(got, p.X, p.Y), "card at %v should stay opaque", p)
+	}
+	// The other three sides still cut their real backboard
+	assert.Zero(t, alphaAt(got, 5, h/2))
+	assert.Zero(t, alphaAt(got, w-5, h/2))
+	assert.Zero(t, alphaAt(got, w/2, h-5))
+	assert.Equal(t, 1.0, alphaAt(got, w/2, h/2))
+}
+
 func TestRemoveBorderSeattleZigzag(t *testing.T) {
 	scan := testhelpers.TestImages["removeborder-seattle-scan.jpeg"]
 	require.NotNil(t, scan)

@@ -3,7 +3,6 @@ package component
 import (
 	"errors"
 	"image"
-	"image/color"
 	"math"
 
 	"github.com/jphastings/dotpostcard/internal/matting"
@@ -26,12 +25,6 @@ const (
 )
 
 var ErrAlreadyTransparent = errors.New("this image already has transparent pixels, ")
-
-type rollingColor struct {
-	av     float64
-	av2    float64
-	stdDev float64
-}
 
 // rotation maps each side's rotated-frame coordinates onto original image
 // coordinates, so every side can be scanned as if it were the top edge.
@@ -72,24 +65,43 @@ func removeBorderPair(front, back image.Image, heteroriented bool, pxPerCmF, pxP
 	bw, bh := back.Bounds().Dx(), back.Bounds().Dy()
 
 	scale := 1.0 // front pixels per back pixel
-	if pxPerCmF > 0 && pxPerCmB > 0 {
+	scaleKnown := pxPerCmF > 0 && pxPerCmB > 0
+	if scaleKnown {
 		scale = pxPerCmF / pxPerCmB
 	}
 
 	fWidths, fHeights := widthProfile(fEdges, fw, fh), heightProfile(fEdges, fw, fh)
 	bWidths, bHeights := widthProfile(bEdges, bw, bh), heightProfile(bEdges, bw, bh)
+	// bWidths/bHeights are bounded by bw/bh respectively; once swapped for a
+	// heteroriented back, bWidths is bounded by bh and bHeights by bw — the
+	// source frame dims below must track that swap.
+	bWidthSourceDim, bHeightSourceDim := bw, bh
 	if heteroriented { // the back is scanned rotated 90°
 		bWidths, bHeights = bHeights, bWidths
+		bWidthSourceDim, bHeightSourceDim = bh, bw
 	}
 
-	reconcileWidths(&fEdges, fw, fh, expectation(bWidths, scale, pxPerCmF))
-	reconcileHeights(&fEdges, fw, fh, expectation(bHeights, scale, pxPerCmF))
-	if heteroriented {
-		reconcileWidths(&bEdges, bw, bh, expectation(fHeights, 1/scale, pxPerCmB))
-		reconcileHeights(&bEdges, bw, bh, expectation(fWidths, 1/scale, pxPerCmB))
-	} else {
-		reconcileWidths(&bEdges, bw, bh, expectation(fWidths, 1/scale, pxPerCmB))
-		reconcileHeights(&bEdges, bw, bh, expectation(fHeights, 1/scale, pxPerCmB))
+	reconcilable := true
+	if !scaleKnown {
+		// Without resolution metadata the two scans can differ in scale by
+		// an unknown factor, and reconciling across a mismatched scale is
+		// how one bad side mangles a good one. Estimate the scale from the
+		// detected card dimensions themselves; when no trustworthy estimate
+		// exists, skip reconciliation and let each side keep its own edges.
+		scale, reconcilable = estimateScale(fWidths, fHeights, bWidths, bHeights,
+			fw, fh, bWidthSourceDim, bHeightSourceDim)
+	}
+
+	if reconcilable {
+		reconcileWidths(&fEdges, fw, fh, expectation(bWidths, scale, pxPerCmF, bWidthSourceDim))
+		reconcileHeights(&fEdges, fw, fh, expectation(bHeights, scale, pxPerCmF, bHeightSourceDim))
+		if heteroriented {
+			reconcileWidths(&bEdges, bw, bh, expectation(fHeights, 1/scale, pxPerCmB, fh))
+			reconcileHeights(&bEdges, bw, bh, expectation(fWidths, 1/scale, pxPerCmB, fw))
+		} else {
+			reconcileWidths(&bEdges, bw, bh, expectation(fWidths, 1/scale, pxPerCmB, fw))
+			reconcileHeights(&bEdges, bw, bh, expectation(fHeights, 1/scale, pxPerCmB, fh))
+		}
 	}
 
 	frontOut, err := matteWithEdges(front, fEdges, pxPerCmF)
@@ -168,36 +180,17 @@ func bandHalfWidth(pxPerCm float64, w, h int) int {
 	return min(maxMatteBandPx, max(minMatteBandPx, band))
 }
 
-func borderFinder(img *image.Gray, fromRow, rows int) func(color.Color) bool {
-	bounds := img.Bounds()
-	var n uint32
-	var stats rollingColor
-
-	addToStats := func(c color.Color) {
-		n++
-
-		gray, _, _, _ := c.RGBA()
-		stats.av = stats.av + (float64(gray)-float64(stats.av))/float64(n)
-		stats.av2 = stats.av2 + (float64(gray)*float64(gray)-stats.av2)/float64(n)
-	}
-
-	for y := fromRow; y < fromRow+rows; y++ {
-		for x := 0; x < bounds.Dx(); x++ {
-			addToStats(img.At(x, y))
-		}
-	}
-
-	stats.stdDev = math.Sqrt(stats.av2 - (stats.av * stats.av))
-
-	most := stats.av + 2*stats.stdDev
-	thresh := most + (65535-most)*2/3
-
-	return func(c color.Color) bool {
-		gray, _, _, _ := c.RGBA()
-
-		return float64(gray) > thresh
-	}
-}
+const (
+	// A column's candidate edge triggers at the first row whose brightness
+	// deviates from that column's backboard reference by more than this many
+	// gray levels — real card/backboard contrast, even for a cream card on a
+	// white backboard, clears this by a wide margin while scanner/JPEG noise
+	// does not.
+	triggerDelta = 10
+	// The deviation must hold for this many consecutive rows, so a single
+	// noisy pixel can't trigger a false candidate.
+	triggerRun = 3
+)
 
 // findBorderEdge returns, for every column of the (rotated) image, the row
 // at which the scanner backboard ends and the card begins. Columns with no
@@ -216,29 +209,39 @@ func findBorderEdge(img *image.Gray, maxDeviation int) ([]int, error) {
 	// fill rows so backboard references and edge detection see real data.
 	void := voidRows(img)
 
-	bImg := absVerticalSobel(img)
-
-	isEdge := borderFinder(bImg, void+2, borderMinThick)
+	// A card lying flush against the scan edge has no backboard on this
+	// side: the reference band IS the card, and the first deviation from it
+	// would be card content (ink, postmarks) well inside. When the outer
+	// band's brightness matches the interior's, cut only the synthetic fill.
+	if absFloat(bandMedian(img, void, void+borderMinThick)-bandMedian(img, searchDepth-2, searchDepth+3)) <= triggerDelta {
+		return filledEdge(w, void), nil
+	}
 
 	candidates := make([]int, w)
 	modeTrack := make(map[int]int)
 	modeMax, modeY := 0, 0
 	for x := 0; x < w; x++ {
 		candidates[x] = -1
-		// +2 keeps the Sobel response of the fill boundary itself out of view
+		ref := columnBackboardRef(img, x, void)
+		// +2 keeps the fill boundary itself out of view
 		for y := void + 2; y < searchDepth; y++ {
-			if isEdge(bImg.At(x, y)) {
-				// Torn edges fade too gradually for Sobel, so its response
-				// can be well inside the fibre zone; walk back out through
-				// anything brighter than the backboard.
-				ref := columnBackboardRef(img, x, void)
-				candidates[x] = walkOutThroughFibre(img, x, y, ref, void)
-				modeTrack[candidates[x]]++
-				if modeTrack[candidates[x]] > modeMax {
-					modeMax, modeY = modeTrack[candidates[x]], candidates[x]
+			triggered := true
+			for k := 0; k < triggerRun; k++ {
+				yk := y + k
+				if yk >= bounds.Dy() || absFloat(float64(img.GrayAt(x, yk).Y)-ref) <= triggerDelta {
+					triggered = false
+					break
 				}
-				break
 			}
+			if !triggered {
+				continue
+			}
+			candidates[x] = walkOutThroughFibre(img, x, y, ref, void)
+			modeTrack[candidates[x]]++
+			if modeTrack[candidates[x]] > modeMax {
+				modeMax, modeY = modeTrack[candidates[x]], candidates[x]
+			}
+			break
 		}
 	}
 
@@ -250,11 +253,15 @@ func findBorderEdge(img *image.Gray, maxDeviation int) ([]int, error) {
 		}
 	}
 
-	edge := make([]int, w)
-	if len(pts) == 0 {
-		// No detectable border on this side: cut nothing
-		return edge, nil
+	// A real border produces broad, consistent support across the side;
+	// scattered triggers from card content (handwriting, postmarks) don't.
+	// Treat no support or thin support as no border, falling back to the
+	// synthetic-fill row count — fill is by definition not card.
+	if len(pts) < max(1, w/10) {
+		return filledEdge(w, void), nil
 	}
+
+	edge := make([]int, w)
 
 	for x := 0; x < pts[0].x; x++ {
 		edge[x] = pts[0].y
@@ -304,14 +311,37 @@ func voidRows(img *image.Gray) int {
 	return bounds.Dy() / 8
 }
 
-// columnBackboardRef samples the backboard brightness at the outer end of
-// the column, past any synthetic fill.
-func columnBackboardRef(img *image.Gray, x, void int) float64 {
-	var ref float64
-	for y := void; y < void+borderMinThick; y++ {
-		ref += float64(img.GrayAt(x, y).Y)
+// bandMedian is the median brightness of every pixel in rows [from, to),
+// clamped to the image.
+func bandMedian(img *image.Gray, from, to int) float64 {
+	bounds := img.Bounds()
+	vals := make([]int, 0, (to-from)*bounds.Dx())
+	for y := max(from, 0); y < min(to, bounds.Dy()); y++ {
+		for x := 0; x < bounds.Dx(); x++ {
+			vals = append(vals, int(img.GrayAt(x, y).Y))
+		}
 	}
-	return ref / borderMinThick
+	return float64(median(vals))
+}
+
+func filledEdge(w, row int) []int {
+	edge := make([]int, w)
+	for x := range edge {
+		edge[x] = row
+	}
+	return edge
+}
+
+// columnBackboardRef samples the backboard brightness at the outer end of
+// the column, past any synthetic fill. The median of the sampled rows keeps
+// the reference honest when the window is contaminated — by an antialiased
+// fill-boundary pixel, or by card rows where the backboard margin is thin.
+func columnBackboardRef(img *image.Gray, x, void int) float64 {
+	window := make([]int, borderMinThick)
+	for i := range window {
+		window[i] = int(img.GrayAt(x, void+i).Y)
+	}
+	return float64(median(window))
 }
 
 // walkOutThroughFibre walks from a detected edge back toward the image
@@ -336,27 +366,14 @@ func walkOutThroughFibre(img *image.Gray, x, edgeY int, ref float64, void int) i
 	return edge
 }
 
-// absVerticalSobel is the magnitude of the vertical Sobel gradient |Gy|,
-// responding to horizontal edges of either polarity — the border must be
-// found whether the card is lighter or darker than the backboard.
-func absVerticalSobel(img *image.Gray) *image.Gray {
-	b := img.Bounds()
-	w, h := b.Dx(), b.Dy()
-	out := image.NewGray(image.Rect(0, 0, w, h))
-
-	clampX := func(x int) int { return min(w-1, max(0, x)) }
-	for y := 1; y < h-1; y++ {
-		for x := 0; x < w; x++ {
-			x0, x1 := clampX(x-1), clampX(x+1)
-			above := int(img.GrayAt(x0, y-1).Y) + 2*int(img.GrayAt(x, y-1).Y) + int(img.GrayAt(x1, y-1).Y)
-			below := int(img.GrayAt(x0, y+1).Y) + 2*int(img.GrayAt(x, y+1).Y) + int(img.GrayAt(x1, y+1).Y)
-			out.SetGray(x, y, color.Gray{Y: uint8(min(255, absInt(below-above)))})
-		}
+func absInt(v int) int {
+	if v < 0 {
+		return -v
 	}
-	return out
+	return v
 }
 
-func absInt(v int) int {
+func absFloat(v float64) float64 {
 	if v < 0 {
 		return -v
 	}

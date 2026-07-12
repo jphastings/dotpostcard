@@ -45,9 +45,17 @@ type expectedDim struct {
 
 // expectation summarises the other side's dimension profile. scale converts
 // the other side's pixels into this side's; pxPerCm is this side's
-// resolution (0 when unknown).
-func expectation(otherProfile []int, scale, pxPerCm float64) expectedDim {
+// resolution (0 when unknown). sourceFrameDim is the frame dimension, in the
+// SOURCE image's own pixels, that otherProfile's values are bounded by. If
+// the profile's median sits at (near) that full extent or at (near) zero,
+// the source side's own border detection collapsed — found no real border,
+// or almost none — so otherProfile can't be trusted; an expectedDim that
+// plausible() rejects is returned instead of a bogus expectation.
+func expectation(otherProfile []int, scale, pxPerCm float64, sourceFrameDim int) expectedDim {
 	med := median(otherProfile)
+	if !plausibleDim(med, sourceFrameDim) {
+		return expectedDim{}
+	}
 	spread := percentile(otherProfile, 90) - percentile(otherProfile, 10)
 
 	base := 8
@@ -64,6 +72,32 @@ func expectation(otherProfile []int, scale, pxPerCm float64) expectedDim {
 // failed outright (no border found ⇒ near-full-frame, or collapsed).
 func (e expectedDim) plausible(frameDim int) bool {
 	return e.dim > frameDim/5 && e.dim < frameDim*49/50
+}
+
+// plausibleDim reports whether a profile median looks like a genuine card
+// dimension rather than a collapsed detection (near-full-frame or near-zero).
+func plausibleDim(med, frameDim int) bool {
+	return med > frameDim/5 && med < frameDim*24/25
+}
+
+// estimateScale infers the front-pixels-per-back-pixel scale from the two
+// sides' detected card dimensions, for scan pairs without resolution
+// metadata. Each axis gives an independent estimate; a scale is only
+// trustworthy when both derive from plausible (non-collapsed) detections
+// and agree within 5% — then their geometric mean is returned.
+func estimateScale(fWidths, fHeights, bWidths, bHeights []int, fw, fh, bWidthDim, bHeightDim int) (float64, bool) {
+	fW, fH := median(fWidths), median(fHeights)
+	bW, bH := median(bWidths), median(bHeights)
+	if !plausibleDim(fW, fw) || !plausibleDim(bW, bWidthDim) ||
+		!plausibleDim(fH, fh) || !plausibleDim(bH, bHeightDim) {
+		return 0, false
+	}
+	widthScale := float64(fW) / float64(bW)
+	heightScale := float64(fH) / float64(bH)
+	if widthScale > heightScale*1.05 || heightScale > widthScale*1.05 {
+		return 0, false
+	}
+	return math.Sqrt(widthScale * heightScale), true
 }
 
 func reconcileWidths(edges *[4][]int, w, h int, exp expectedDim) {
