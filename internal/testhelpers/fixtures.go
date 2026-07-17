@@ -40,6 +40,18 @@ func init() {
 	}
 }
 
+// RawTestImage returns an embedded fixture image's undecoded file bytes, for
+// tests that need to feed real encoded image data (with its original
+// format-specific metadata, eg. resolution) rather than a decoded
+// image.Image.
+func RawTestImage(filename string) []byte {
+	data, err := testImagesData.ReadFile(filename)
+	if err != nil {
+		panic(fmt.Sprintf("couldn't read '%s' from embedded filesystem: %v", filename, err))
+	}
+	return data
+}
+
 var SamplePostcard = types.Postcard{
 	Name: "some-postcard",
 	Meta: types.Metadata{
