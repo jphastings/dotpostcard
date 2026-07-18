@@ -110,11 +110,11 @@ func TestCompilePostcardOrientationMismatchErrors(t *testing.T) {
 // unhidden box secret and confirms its geometry rides through to the
 // compiled file: the box (left/top/width/height) is converted to a
 // clockwise quad of corner points on the way in (types.SecretBox.intoPolygon),
-// and hideSecrets marks it Prehidden once its pixels are painted over. Since
-// types.Polygon only implements json.Unmarshaler (which requires a "type"
-// discriminator the reflection-based Marshal never writes, see metaProbe's
-// doc comment above), this asserts against the raw "points"/"prehidden"
-// JSON rather than unmarshalling into types.Polygon directly.
+// and hideSecrets marks it Prehidden once its pixels are painted over. This
+// asserts against the raw "points"/"prehidden" JSON — rather than
+// unmarshalling into types.Polygon, which MetaJSON's output now supports,
+// see cardfile.go's jsonSafeMetadata doc comment — to keep this test focused
+// on secret geometry rather than JSON shape.
 func TestCompilePostcardBoxSecretSurvivesRoundTrip(t *testing.T) {
 	front := testhelpers.RawTestImage("sample-front.png")
 	metaJSON := `{"flip":"none","front":{"secrets":[{"type":"box","prehidden":false,"left":0.1,"top":0.2,"width":0.3,"height":0.2}]}}`

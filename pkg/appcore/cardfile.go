@@ -32,19 +32,9 @@ func OpenCardFile(path string) (*CardFile, error) {
 		return nil, fmt.Errorf("reading %s: %w", path, err)
 	}
 
-	mimetype, extractXMP, err := xmpExtractorFor(path, data)
+	meta, mimetype, err := decodeCardMeta(path, data)
 	if err != nil {
 		return nil, err
-	}
-
-	xmpData, err := extractXMP(data)
-	if err != nil {
-		return nil, fmt.Errorf("reading XMP from %s: %w", path, err)
-	}
-
-	pc, err := xmp.BundleFromBytes(xmpData, path).Decode(formats.DecodeOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("decoding metadata from %s: %w", path, err)
 	}
 
 	return &CardFile{
@@ -52,8 +42,33 @@ func OpenCardFile(path string) (*CardFile, error) {
 		name:     nameFromFilename(path),
 		mimetype: mimetype,
 		data:     data,
-		meta:     pc.Meta,
+		meta:     meta,
 	}, nil
+}
+
+// decodeCardMeta extracts and decodes a compiled web-format postcard's
+// embedded XMP metadata straight from its bytes, without ever decoding
+// pixel data. filename drives mimetype sniffing's error context (mimetype
+// itself is sniffed from data, not the name) and is only used in wrapped
+// error messages, so it need not be a real filesystem path — MetaJSONFromCardBytes
+// reuses this to work from raw bytes handed across the gomobile bridge.
+func decodeCardMeta(filename string, data []byte) (types.Metadata, string, error) {
+	mimetype, extractXMP, err := xmpExtractorFor(filename, data)
+	if err != nil {
+		return types.Metadata{}, "", err
+	}
+
+	xmpData, err := extractXMP(data)
+	if err != nil {
+		return types.Metadata{}, "", fmt.Errorf("reading XMP from %s: %w", filename, err)
+	}
+
+	pc, err := xmp.BundleFromBytes(xmpData, filename).Decode(formats.DecodeOptions{})
+	if err != nil {
+		return types.Metadata{}, "", fmt.Errorf("decoding metadata from %s: %w", filename, err)
+	}
+
+	return pc.Meta, mimetype, nil
 }
 
 // Name returns the card's name: the file's basename, with its extension and
@@ -69,7 +84,7 @@ func (f *CardFile) Path() string {
 
 // MetaJSON returns the full postcard metadata (types.Metadata), as JSON.
 func (f *CardFile) MetaJSON() (string, error) {
-	return marshalJSON(f.meta)
+	return metadataJSON(f.meta)
 }
 
 // SummaryJSON returns the card's summary, in the same JSON shape as
@@ -198,7 +213,7 @@ func (f *CardFile) searchableText() string {
 	}, " ")
 }
 
-func xmpExtractorFor(path string, data []byte) (mimetype string, extract func([]byte) ([]byte, error), err error) {
+func xmpExtractorFor(filename string, data []byte) (mimetype string, extract func([]byte) ([]byte, error), err error) {
 	mimetype, err = collection.MimetypeFromData(data)
 	if err != nil {
 		return "", nil, err
@@ -212,8 +227,58 @@ func xmpExtractorFor(path string, data []byte) (mimetype string, extract func([]
 	case "image/png":
 		return mimetype, xmpinject.XMPfromPNG, nil
 	default:
-		return "", nil, fmt.Errorf("unsupported postcard file extension: %s", path)
+		return "", nil, fmt.Errorf("unsupported postcard file extension: %s", filename)
 	}
+}
+
+// jsonSafeMetadata mirrors types.Metadata, but swaps each side's secrets for
+// types.SecretPolygon. types.Polygon only implements json.Unmarshaler, and
+// its UnmarshalJSON requires a "type": "polygon"/"box" discriminator that a
+// bare reflection Marshal of types.Metadata never writes (see
+// pkg/collection/metadata.go's storedMetadata doc comment, which works
+// around the same quirk for on-disk collection storage) — so a bare
+// json.Marshal of types.Metadata can't be fed back into CompilePostcard once
+// secrets are present. Embedding types.Metadata and re-declaring Front/Back
+// here overrides just those two fields in the marshalled output, leaving
+// every other field's encoding untouched.
+type jsonSafeMetadata struct {
+	types.Metadata
+	Front jsonSafeSide `json:"front,omitempty"`
+	Back  jsonSafeSide `json:"back,omitempty"`
+}
+
+type jsonSafeSide struct {
+	Description   string                `json:"description,omitempty"`
+	Transcription types.AnnotatedText   `json:"transcription,omitempty"`
+	Secrets       []types.SecretPolygon `json:"secrets,omitempty"`
+}
+
+func toJSONSafeSide(side types.Side) jsonSafeSide {
+	var secrets []types.SecretPolygon
+	if len(side.Secrets) > 0 {
+		secrets = make([]types.SecretPolygon, len(side.Secrets))
+		for i, p := range side.Secrets {
+			secrets[i] = types.SecretPolygon{Type: "polygon", Prehidden: p.Prehidden, Points: p.Points}
+		}
+	}
+
+	return jsonSafeSide{
+		Description:   side.Description,
+		Transcription: side.Transcription,
+		Secrets:       secrets,
+	}
+}
+
+// metadataJSON marshals meta to the canonical metadata JSON shape every
+// appcore entry point returning types.Metadata uses — CardFile.MetaJSON,
+// MetaJSONFromCardBytes and MetaJSONFromComponentYAML — so its secrets
+// round-trip straight back into CompilePostcard.
+func metadataJSON(meta types.Metadata) (string, error) {
+	return marshalJSON(jsonSafeMetadata{
+		Metadata: meta,
+		Front:    toJSONSafeSide(meta.Front),
+		Back:     toJSONSafeSide(meta.Back),
+	})
 }
 
 // nameFromFilename mirrors formats/web.BundleFromReader's derivation of a
