@@ -383,6 +383,14 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.25.0 (2026-07-19)
+
+### Feat
+
+- generate component YAML sidecars from metadata JSON
+- extract metadata JSON from card bytes and YAML sidecars
+- compile postcards from raw scans via the appcore facade
+
 ## v0.24.0 (2026-07-12)
 
 ### Feat
