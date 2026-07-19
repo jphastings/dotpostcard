@@ -115,6 +115,79 @@ func TestMetaJSONFromComponentYAMLGarbageInputErrors(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestComponentYAMLFromMetaJSONRoundTripsThroughMetaJSONFromComponentYAML(t *testing.T) {
+	metaJSON := `{"locale":"en-GB","location":{"name":"Front, Italy","latitude":45.28,"longitude":7.66,"countrycode":"ITA"},` +
+		`"flip":"book","sentOn":"2006-01-02",` +
+		`"sender":{"name":"Alice","uri":"https://alice.example.com"},` +
+		`"recipient":{"name":"Bob","uri":"https://bob.example.org"},` +
+		`"front":{"description":"The word 'Front' in large blue letters","transcription":{"text":"Front"},` +
+		`"secrets":[{"type":"box","prehidden":true,"left":0.3,"top":0.6,"width":0.1,"height":0.2}]},` +
+		`"back":{"description":"The word 'Back' in large red letters",` +
+		`"transcription":{"text":"Back","annotations":[{"type":"locale","value":"en-GB","start":0,"end":4}]}},` +
+		`"context":{"author":{"name":"Carol","uri":"https://carol.example.net"},"description":"This is a sample postcard, with all fields expressed."},` +
+		// cmW/cmH are given as rationals here (74/5 == 14.8, 21/2 == 10.5) to
+		// exercise the format change through the round trip: YAML always
+		// encodes a decimal-ish "14.80cm x 10.50cm" (types.Size.MarshalYAML),
+		// so the value coming back out is a different *big.Rat representation
+		// of the same number.
+		`"physical":{"frontSize":{"cmW":"74/5","cmH":"21/2"},"thicknessMM":0.4,"cardColor":"#E6E6D9"}}`
+
+	yamlOut, err := ComponentYAMLFromMetaJSON(metaJSON)
+	require.NoError(t, err)
+
+	for _, want := range []string{"front_size:", "sent_on:", "type: polygon", "card_color:"} {
+		assert.Contains(t, string(yamlOut), want)
+	}
+
+	roundTripJSON, err := MetaJSONFromComponentYAML(yamlOut)
+	require.NoError(t, err)
+
+	var want, got types.Metadata
+	require.NoError(t, json.Unmarshal([]byte(metaJSON), &want))
+	require.NoError(t, json.Unmarshal([]byte(roundTripJSON), &got))
+
+	assert.Equal(t, want.Locale, got.Locale)
+	assert.Equal(t, want.Location, got.Location)
+	assert.Equal(t, want.Flip, got.Flip)
+	assert.Equal(t, want.SentOn.Time.Format("2006-01-02"), got.SentOn.Time.Format("2006-01-02"))
+	assert.Equal(t, want.Sender, got.Sender)
+	assert.Equal(t, want.Recipient, got.Recipient)
+	assert.Equal(t, want.Front.Description, got.Front.Description)
+	assert.Equal(t, want.Front.Transcription, got.Front.Transcription)
+	assert.Equal(t, want.Back.Description, got.Back.Description)
+	assert.Equal(t, want.Back.Transcription, got.Back.Transcription)
+	assert.Equal(t, want.Context, got.Context)
+	require.Len(t, got.Front.Secrets, 1)
+	// The box secret becomes a polygon on the way in (types.SecretBox.intoPolygon);
+	// ComponentYAMLFromMetaJSON's output re-marshals it as "type: polygon", so it
+	// comes back out as the equivalent quad rather than the original box shape.
+	assert.Equal(t, want.Front.Secrets[0].Points, got.Front.Secrets[0].Points)
+	assert.Equal(t, want.Front.Secrets[0].Prehidden, got.Front.Secrets[0].Prehidden)
+	// cmW/cmH may round-trip as a differently-formatted rational (eg. "74/5"
+	// in vs. a decimal-ish "14.8" out), so compare parsed float values rather
+	// than the raw *big.Rat representations.
+	wantW, _ := want.Physical.FrontDimensions.CmWidth.Float64()
+	gotW, _ := got.Physical.FrontDimensions.CmWidth.Float64()
+	assert.InDelta(t, wantW, gotW, 0.001)
+	wantH, _ := want.Physical.FrontDimensions.CmHeight.Float64()
+	gotH, _ := got.Physical.FrontDimensions.CmHeight.Float64()
+	assert.InDelta(t, wantH, gotH, 0.001)
+	assert.Equal(t, want.Physical.ThicknessMM, got.Physical.ThicknessMM)
+	assert.Equal(t, want.Physical.CardColor, got.Physical.CardColor)
+}
+
+func TestComponentYAMLFromMetaJSONMinimalInputProducesMinimalYAML(t *testing.T) {
+	yamlOut, err := ComponentYAMLFromMetaJSON(`{"front":{"description":"Just a front description"}}`)
+	require.NoError(t, err)
+
+	assert.Equal(t, "front:\n    description: Just a front description\n", string(yamlOut))
+}
+
+func TestComponentYAMLFromMetaJSONGarbageInputErrors(t *testing.T) {
+	_, err := ComponentYAMLFromMetaJSON("not json{{{")
+	assert.Error(t, err)
+}
+
 // parseRatString parses a JSON-marshalled *big.Rat string (as produced by
 // types.Size.CmWidth/CmHeight's default encoding/json handling) into a
 // stable, human-readable form for comparison, mirroring

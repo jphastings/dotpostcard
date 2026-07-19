@@ -2,8 +2,11 @@ package appcore
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 
+	"github.com/jphastings/dotpostcard/formats"
+	"github.com/jphastings/dotpostcard/formats/metadata"
 	"github.com/jphastings/dotpostcard/types"
 	"gopkg.in/yaml.v3"
 )
@@ -35,4 +38,29 @@ func MetaJSONFromComponentYAML(yamlData []byte) (string, error) {
 	}
 
 	return metadataJSON(meta)
+}
+
+// ComponentYAMLFromMetaJSON is MetaJSONFromComponentYAML's inverse: it takes
+// canonical metadata JSON (the shape CompilePostcard accepts and MetaJSON()
+// emits, secrets carrying their "type" discriminator) and returns the bytes
+// of a "{name}-meta.yaml" component sidecar, encoded via formats/metadata's
+// own YAML codec — the same one the CLI's "-f yaml" output goes through — so
+// the result is indistinguishable from a CLI-written sidecar. The macOS app
+// calls this after compiling a card that originated from component files, to
+// write its (possibly edited) metadata back alongside the source images.
+func ComponentYAMLFromMetaJSON(metaJSON string) ([]byte, error) {
+	var meta types.Metadata
+	if err := json.Unmarshal([]byte(metaJSON), &meta); err != nil {
+		return nil, fmt.Errorf("parsing postcard metadata: %w", err)
+	}
+
+	fws, err := metadata.Codec(metadata.AsYAML).Encode(types.Postcard{Meta: meta}, &formats.EncodeOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("encoding metadata YAML: %w", err)
+	}
+	if len(fws) == 0 {
+		return nil, fmt.Errorf("encoding metadata YAML: codec produced no output file")
+	}
+
+	return fws[0].Bytes()
 }
