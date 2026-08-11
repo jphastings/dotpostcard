@@ -20,6 +20,11 @@ type OutlineOpts struct {
 	// EpsilonPx is the simplification tolerance, in pixels. The zero value
 	// means 1.5px.
 	EpsilonPx float64
+	// MaxPoints caps how many points the returned outline may contain. When the
+	// traced outline exceeds it, the least significant vertices (by
+	// Visvalingam-Whyatt effective area) are dropped until the budget is met.
+	// The zero value means no cap.
+	MaxPoints int
 }
 
 // Returns the outline of the image's transparency as an _anticlockwise_ series of X/Y points
@@ -45,6 +50,7 @@ func OutlineWithOpts(im image.Image, invertX, invertY bool, opts OutlineOpts) ([
 	}
 
 	path := simplifyClosed(contour, opts.EpsilonPx)
+	path = simplifyToBudget(path, opts.MaxPoints)
 	if len(path) < 3 {
 		return nil, fmt.Errorf("the outline of the image is only %d points; it doesn't enclose any area", len(path))
 	}

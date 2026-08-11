@@ -1,6 +1,7 @@
 package images
 
 import (
+	"container/heap"
 	"image"
 	"math"
 )
@@ -216,4 +217,109 @@ func perpDistance(p, a, b ipoint) float64 {
 		return math.Hypot(float64(p.x-a.x), float64(p.y-a.y))
 	}
 	return math.Abs(dx*float64(p.y-a.y)-dy*float64(p.x-a.x)) / math.Sqrt(lenSq)
+}
+
+// triangleArea2 returns twice the unsigned area of the triangle (a,b,c),
+// exact in integer pixel coordinates.
+func triangleArea2(a, b, c ipoint) int64 {
+	return abs64(int64(b.x-a.x)*int64(c.y-a.y) - int64(c.x-a.x)*int64(b.y-a.y))
+}
+
+// vwItem is a candidate vertex removal, ranked by its effective (triangle)
+// area within a min-heap.
+type vwItem struct {
+	idx     int
+	area    int64
+	version int
+}
+
+type vwHeap []vwItem
+
+func (h vwHeap) Len() int           { return len(h) }
+func (h vwHeap) Less(i, j int) bool { return h[i].area < h[j].area }
+func (h vwHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
+
+func (h *vwHeap) Push(x any) {
+	*h = append(*h, x.(vwItem))
+}
+
+func (h *vwHeap) Pop() any {
+	old := *h
+	n := len(old)
+	item := old[n-1]
+	*h = old[:n-1]
+	return item
+}
+
+// simplifyToBudget reduces a closed ring to at most maxPoints vertices using
+// Visvalingam-Whyatt: the vertex contributing the least triangle area to its
+// two neighbours is repeatedly dropped, so the surviving points are those
+// that most affect the traced shape. The ring never shrinks below 3 points.
+func simplifyToBudget(pts []ipoint, maxPoints int) []ipoint {
+	n := len(pts)
+	if maxPoints <= 0 || n <= maxPoints || n <= 3 {
+		return pts
+	}
+	target := maxPoints
+	if target < 3 {
+		target = 3
+	}
+
+	prev := make([]int, n)
+	next := make([]int, n)
+	area := make([]int64, n)
+	version := make([]int, n)
+	alive := make([]bool, n)
+	for i := range pts {
+		prev[i] = (i - 1 + n) % n
+		next[i] = (i + 1) % n
+		alive[i] = true
+	}
+	for i := range pts {
+		area[i] = triangleArea2(pts[prev[i]], pts[i], pts[next[i]])
+	}
+
+	h := make(vwHeap, n)
+	for i := range pts {
+		h[i] = vwItem{idx: i, area: area[i]}
+	}
+	heap.Init(&h)
+
+	count := n
+	for count > target && h.Len() > 0 {
+		item := heap.Pop(&h).(vwItem)
+		i := item.idx
+		// Neighbours change as vertices are removed, so a popped entry may
+		// no longer reflect the vertex's current area; skip stale ones.
+		if !alive[i] || item.version != version[i] {
+			continue
+		}
+		alive[i] = false
+		count--
+
+		p, q := prev[i], next[i]
+		next[p], prev[q] = q, p
+
+		removedArea := area[i]
+		for _, j := range [2]int{p, q} {
+			newArea := triangleArea2(pts[prev[j]], pts[j], pts[next[j]])
+			// Monotonicity fix: never let a surviving vertex look less
+			// significant than one already removed, or later removals
+			// could reorder which detail gets discarded first.
+			if newArea < removedArea {
+				newArea = removedArea
+			}
+			area[j] = newArea
+			version[j]++
+			heap.Push(&h, vwItem{idx: j, area: newArea, version: version[j]})
+		}
+	}
+
+	out := make([]ipoint, 0, count)
+	for i, p := range pts {
+		if alive[i] {
+			out = append(out, p)
+		}
+	}
+	return out
 }

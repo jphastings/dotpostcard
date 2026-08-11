@@ -112,14 +112,19 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 	return fws, nil
 }
 
+const outlineMetadataMaxPoints = 200
+
 func computeOutlines(pc types.Postcard) *xmp.Outlines {
 	outlines := &xmp.Outlines{}
 
 	// These outlines are metadata describing where the card sits, embedded
-	// in the image's XMP — keep them coarse so fibrous edges (which trace to
+	// in the image's XMP — keep them bounded so fibrous edges (which trace to
 	// thousands of points at full fidelity) don't overflow what JPEG XMP
-	// segments can hold.
-	opts := images.OutlineOpts{EpsilonPx: 6}
+	// segments can hold. Budgeting by point count rather than a coarse
+	// epsilon lets high-curvature detail (corners, notches) stay at full
+	// 1.5px accuracy, while flatter runs give up the points instead of
+	// blunting the whole outline uniformly.
+	opts := images.OutlineOpts{MaxPoints: outlineMetadataMaxPoints}
 
 	frontPoints, err := images.OutlineWithOpts(pc.Front, false, false, opts)
 	if err == nil {
