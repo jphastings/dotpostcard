@@ -104,7 +104,11 @@ func (b bundle) RefPath() string {
 	return b.refPath
 }
 
-func (b bundle) Name() string {
+func (b bundle) CardName() string {
+	return b.name
+}
+
+func (b bundle) CodecName() string {
 	return codecName
 }
 

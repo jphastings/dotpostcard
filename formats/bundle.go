@@ -31,6 +31,9 @@ type Bundle interface {
 	Decode(DecodeOptions) (pc types.Postcard, err error)
 	// RefPath is the source path of one of the files in the bundle (for output and reference)
 	RefPath() string
-	// Name returns the name of the codec being used to process this bundle
-	Name() string
+	// CardName is the postcard name this bundle will decode to, known before decoding.
+	// Empty when the bundle has no filesystem origin to derive it from.
+	CardName() string
+	// CodecName is the name of the codec being used to process this bundle.
+	CodecName() string
 }

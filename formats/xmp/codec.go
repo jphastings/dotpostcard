@@ -2,6 +2,7 @@ package xmp
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/fs"
 	"path"
@@ -50,6 +51,20 @@ func (b bundle) RefPath() string {
 	return b.refPath
 }
 
-func (b bundle) Name() string {
+// CardName is always empty: Decode leaves the postcard's name unset (see the TODO in
+// decode.go), so any name derived from refPath here would predict output filenames that
+// Encode never actually writes. Reporting "unknown" instead skips the pre-decode existence
+// check for XMP bundles, leaving WriteFile's O_EXCL as their only guard — the same
+// behaviour they had before that check existed.
+func (b bundle) CardName() string {
+	return ""
+}
+
+func (b bundle) CodecName() string {
 	return codecName
+}
+
+// OutputNames returns the metadata filename Encode would produce for cardName.
+func (c codec) OutputNames(cardName string, _ *formats.EncodeOptions) []string {
+	return []string{fmt.Sprintf("%s-meta.xmp", cardName)}
 }

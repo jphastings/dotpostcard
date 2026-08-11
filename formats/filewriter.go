@@ -53,6 +53,13 @@ type Codec interface {
 	// Encode must produce any files needed to represent postcards in this format.
 	Encode(types.Postcard, *EncodeOptions) ([]FileWriter, error)
 
+	// OutputNames returns every filename Encode might produce for a postcard with this
+	// name and these options. Codecs that choose an extension from decoded pixel data
+	// (eg. transparency) must return every candidate, because callers use this to check
+	// for existing output before paying for a decode. Shared, card-independent support
+	// files are excluded.
+	OutputNames(cardName string, opts *EncodeOptions) []string
+
 	// Name is the human usable name of the codec
 	Name() string
 }
@@ -61,6 +68,9 @@ type FileWriter struct {
 	fn       func(io.Writer) error
 	Filename string
 	Mimetype string
+	// Shared indicates this file is not card-specific and is identical every time it's
+	// produced (eg. postcards.css), rather than being unique to the postcard it came from.
+	Shared bool
 }
 
 // NewFileWriter is a helper function for creating a read stream for the return values of Encoders
@@ -69,6 +79,17 @@ func NewFileWriter(filename, mimetype string, fn func(w io.Writer) error) FileWr
 		Filename: filename,
 		Mimetype: mimetype,
 		fn:       fn,
+	}
+}
+
+// NewSharedFileWriter is like NewFileWriter, but marks the file as Shared: not specific
+// to any one postcard, and identical every time it's produced.
+func NewSharedFileWriter(filename, mimetype string, fn func(w io.Writer) error) FileWriter {
+	return FileWriter{
+		Filename: filename,
+		Mimetype: mimetype,
+		fn:       fn,
+		Shared:   true,
 	}
 }
 

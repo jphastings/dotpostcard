@@ -1,12 +1,15 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	postcards "github.com/jphastings/dotpostcard"
@@ -24,7 +27,13 @@ var rootCmd = &cobra.Command{
 	Long:    longMessage(),
 	Version: version.Version,
 	Args:    cobra.MinimumNArgs(1),
+	// main prints the error itself, so let it be the only one to.
+	SilenceErrors: true,
 	RunE: func(cmd *cobra.Command, inputPaths []string) error {
+		// Reaching RunE means the arguments parsed, so anything that fails from here on is a
+		// conversion problem rather than a usage one — don't bury it under the usage text.
+		cmd.SilenceUsage = true
+
 		// Grab relevant flags
 		formatList, err := cmd.Flags().GetStringSlice("formats")
 		if err != nil {
@@ -37,6 +46,10 @@ var rootCmd = &cobra.Command{
 		overwrite, err := cmd.Flags().GetBool("overwrite")
 		if err != nil {
 			panic("Overwrite flag doesn't seem to be boolean")
+		}
+		skipExisting, err := cmd.Flags().GetBool("skip-existing")
+		if err != nil {
+			panic("Skip-existing flag doesn't seem to be boolean")
 		}
 		removeBorder, err := cmd.Flags().GetBool("remove-border")
 		if err != nil {
@@ -72,6 +85,12 @@ var rootCmd = &cobra.Command{
 
 		sso := &safeWrite{w: os.Stdout}
 		var wg sync.WaitGroup
+		var failures atomic.Int32
+
+		// Shared support files (eg. postcards.css) are identical for every card in the run;
+		// this dispatch loop is single-threaded (only the WriteFile calls it kicks off are
+		// goroutines), so a plain map is enough to write each one at most once.
+		handledShared := make(map[string]bool)
 
 		for _, bundle := range bundles {
 			targetDir, err := cmdhelp.Outdir(cmd, path.Dir(bundle.RefPath()))
@@ -79,6 +98,18 @@ var rootCmd = &cobra.Command{
 				return err
 			}
 			filename := path.Base(bundle.RefPath())
+
+			if !overwrite {
+				if existing := postcards.ExistingOutputs(bundle, codecs, &encOpts, targetDir); len(existing) > 0 {
+					if skipExisting {
+						fmt.Fprintf(sso, "⤼ %s: already converted, skipping\n", filename)
+					} else {
+						fmt.Fprintf(sso, "✗ %s: %s already exists (pass --overwrite to replace it, or --skip-existing to ignore)\n", filename, existing[0])
+						failures.Add(1)
+					}
+					continue
+				}
+			}
 
 			pc, err := bundle.Decode(decOpts)
 			if err != nil {
@@ -91,6 +122,21 @@ var rootCmd = &cobra.Command{
 					return err
 				}
 				for _, fw := range fws {
+					if fw.Shared {
+						dst := path.Join(targetDir, fw.Filename)
+						if handledShared[dst] {
+							continue
+						}
+						handledShared[dst] = true
+
+						if !overwrite {
+							if _, err := os.Stat(dst); err == nil {
+								// A hand-edited shared file is deliberately left alone.
+								continue
+							}
+						}
+					}
+
 					wg.Add(1)
 					go func(filename, bundleName, codecName string, fw formats.FileWriter) {
 						defer wg.Done()
@@ -98,18 +144,27 @@ var rootCmd = &cobra.Command{
 						fileStartT := time.Now()
 						dst, err := fw.WriteFile(targetDir, overwrite)
 						if err != nil {
-							fmt.Fprintf(sso, "⚠︎ %s: %v\n", filename, err)
+							if errors.Is(err, fs.ErrExist) {
+								fmt.Fprintf(sso, "✗ %s: %s already exists (pass --overwrite to replace it, or --skip-existing to ignore)\n", filename, path.Join(targetDir, fw.Filename))
+							} else {
+								fmt.Fprintf(sso, "⚠︎ %s: %v\n", filename, err)
+							}
+							failures.Add(1)
 							return
 						}
 
 						fileDur := time.Since(fileStartT)
 						fmt.Fprintf(sso, "%s (%s) → (%s) %s (%s)\n", filename, bundleName, codecName, dst, fileDur)
-					}(filename, bundle.Name(), codec.Name(), fw)
+					}(filename, bundle.CodecName(), codec.Name(), fw)
 				}
 			}
 		}
 
 		wg.Wait()
+
+		if n := failures.Load(); n > 0 {
+			return fmt.Errorf("%s while converting; see above for details", count(int(n), "failure"))
+		}
 
 		return nil
 	},
@@ -133,7 +188,13 @@ func count(n int, singular string) string {
 	return fmt.Sprintf("%d %ss", n, singular)
 }
 
-func main() {
+func init() {
+	registerRootFlags()
+}
+
+// registerRootFlags attaches rootCmd's flags. It's called from init() for normal use; tests
+// that need a clean flag state between rootCmd.Execute() calls pair it with rootCmd.ResetFlags().
+func registerRootFlags() {
 	rootCmd.Flags().Bool("out-here", false, "Output files in the current working directory (default)")
 	rootCmd.Flags().Bool("out-there", true, "Output files in the same directory as the source data")
 	rootCmd.Flags().String("out-dir", "", "Output files to the given directory")
@@ -145,7 +206,11 @@ func main() {
 	rootCmd.Flags().BoolP("remove-border", "B", false, "Attempts to turn the border around a postcard scan transparent (experimental; component input only)")
 	rootCmd.Flags().BoolP("ignore-transparency", "T", false, "Ignores any transparency in the source images")
 	rootCmd.Flags().Bool("overwrite", false, "Overwrite output files")
+	rootCmd.Flags().Bool("skip-existing", false, "Skip postcards whose output files already exist, instead of failing")
+	rootCmd.MarkFlagsMutuallyExclusive("overwrite", "skip-existing")
+}
 
+func main() {
 	err := rootCmd.Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)

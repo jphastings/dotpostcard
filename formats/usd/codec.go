@@ -37,6 +37,8 @@ var (
 
 func Codec() formats.Codec { return codec{} }
 
+var _ formats.Codec = codec{}
+
 type codec struct{}
 
 func (c codec) Name() string { return codecName }
@@ -222,4 +224,27 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 		formats.NewFileWriter(usdFilename, "model/vnd.usda", writeUSD),
 		formats.NewFileWriter(sideFilename, imageMimetype, writeImage),
 	}, nil
+}
+
+// OutputNames returns the USDA filename and its texture filename(s) Encode would produce
+// for cardName. The texture name(s) are derived from the same inner web.Codec("jpeg", "png")
+// that Encode delegates to, with the identical opts munging Encode applies, so this tracks
+// Encode's behaviour even if that inner format list changes.
+func (c codec) OutputNames(cardName string, opts *formats.EncodeOptions) []string {
+	names := []string{cardName + extension}
+
+	textureOpts := formats.EncodeOptions{}
+	if opts != nil {
+		textureOpts = *opts
+	}
+	textureOpts.NoTransparency = !textureOpts.WantsLossless()
+	textureOpts.IncludeSupportFiles = false
+
+	webImg, _ := web.Codec("jpeg", "png")
+	for _, name := range webImg.OutputNames(cardName, &textureOpts) {
+		ext := path.Ext(name)
+		names = append(names, strings.TrimSuffix(name, ext)+"-texture"+ext)
+	}
+
+	return names
 }

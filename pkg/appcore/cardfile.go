@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/jphastings/dotpostcard/formats"
+	"github.com/jphastings/dotpostcard/formats/web"
 	"github.com/jphastings/dotpostcard/formats/xmp"
 	"github.com/jphastings/dotpostcard/pkg/collection"
 	"github.com/jphastings/dotpostcard/pkg/xmpinject"
@@ -39,7 +40,7 @@ func OpenCardFile(path string) (*CardFile, error) {
 
 	return &CardFile{
 		path:     path,
-		name:     nameFromFilename(path),
+		name:     web.CardNameFromPath(path),
 		mimetype: mimetype,
 		data:     data,
 		meta:     meta,
@@ -279,11 +280,4 @@ func metadataJSON(meta types.Metadata) (string, error) {
 		Front:    toJSONSafeSide(meta.Front),
 		Back:     toJSONSafeSide(meta.Back),
 	})
-}
-
-// nameFromFilename mirrors formats/web.BundleFromReader's derivation of a
-// card's name from its filename.
-func nameFromFilename(path string) string {
-	base := filepath.Base(path)
-	return strings.TrimSuffix(strings.TrimSuffix(base, filepath.Ext(base)), ".postcard")
 }

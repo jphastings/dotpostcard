@@ -16,5 +16,5 @@ func createCSS() formats.FileWriter {
 		return err
 	}
 
-	return formats.NewFileWriter("postcards.css", "text/css", writer)
+	return formats.NewSharedFileWriter("postcards.css", "text/css", writer)
 }

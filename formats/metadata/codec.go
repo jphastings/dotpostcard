@@ -26,6 +26,7 @@ type bundle struct {
 	mt      MetadataType
 	file    fs.File
 	refPath string
+	name    string
 }
 
 var _ formats.Codec = codec{}
@@ -72,7 +73,8 @@ func BundleFromFile(file fs.File, dirPath string) (formats.Bundle, error) {
 		return nil, fmt.Errorf("unknown metadata extension '%s'", ext)
 	}
 
-	return bundle{file: file, mt: mt, refPath: path.Join(dirPath, filename)}, nil
+	refPath := path.Join(dirPath, filename)
+	return bundle{file: file, mt: mt, refPath: refPath, name: nameFromRefPath(refPath, mt.Extension)}, nil
 }
 
 func (c codec) Bundle(group formats.FileGroup) ([]formats.Bundle, []fs.File, error) {
@@ -81,13 +83,23 @@ func (c codec) Bundle(group formats.FileGroup) ([]formats.Bundle, []fs.File, err
 
 	for _, file := range group.Files {
 		if filename, ok := formats.HasFileSuffix(file, string(c.Extension)); ok {
-			bundles = append(bundles, bundle{file: file, mt: MetadataType(c), refPath: path.Join(group.DirPath, filename)})
+			refPath := path.Join(group.DirPath, filename)
+			bundles = append(bundles, bundle{file: file, mt: MetadataType(c), refPath: refPath, name: nameFromRefPath(refPath, c.Extension)})
 		} else {
 			remaining = append(remaining, file)
 		}
 	}
 
 	return bundles, remaining, nil
+}
+
+func nameFromRefPath(refPath, ext string) string {
+	return strings.TrimSuffix(path.Base(refPath), "-meta"+ext)
+}
+
+// OutputNames returns the metadata filename Encode would produce for cardName.
+func (c codec) OutputNames(cardName string, _ *formats.EncodeOptions) []string {
+	return []string{fmt.Sprintf("%s-meta%s", cardName, c.Extension)}
 }
 
 // The structure information is stored in the internal/types/postcard.go file, because Go.
@@ -128,7 +140,7 @@ func (b bundle) Decode(_ formats.DecodeOptions) (types.Postcard, error) {
 		return types.Postcard{}, fmt.Errorf("cannot decode '%s'", b.mt.HumanName)
 	}
 
-	pc.Name = strings.TrimSuffix(path.Base(b.refPath), "-meta"+string(b.mt.Extension))
+	pc.Name = b.name
 
 	if err != nil {
 		err = fmt.Errorf("error decoding %s: %w", b.refPath, err)
@@ -141,6 +153,10 @@ func (b bundle) RefPath() string {
 	return b.refPath
 }
 
-func (b bundle) Name() string {
+func (b bundle) CardName() string {
+	return b.name
+}
+
+func (b bundle) CodecName() string {
 	return codecName
 }

@@ -53,3 +53,11 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 
 	return []formats.FileWriter{frontW, backW}, nil
 }
+
+// OutputNames returns the front and back filenames Encode would produce for cardName.
+func (c codec) OutputNames(cardName string, _ *formats.EncodeOptions) []string {
+	return []string{
+		fmt.Sprintf("%s-front.webp", cardName),
+		fmt.Sprintf("%s-back.webp", cardName),
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"image"
 	"io"
 	"math/big"
+	"slices"
 	"strings"
 
 	"golang.org/x/image/draw"
@@ -22,6 +23,10 @@ func (c codec) pickFormat(meta types.Metadata, opts *formats.EncodeOptions) (str
 		lossless:     opts.WantsLossless(),
 	}
 
+	return c.formatFor(needs)
+}
+
+func (c codec) formatFor(needs capabilities) (string, string, error) {
 	var format string
 	for _, f := range c.formats {
 		if meetsNeeds(f, needs) {
@@ -38,6 +43,42 @@ func (c codec) pickFormat(meta types.Metadata, opts *formats.EncodeOptions) (str
 	}
 
 	return format, "image/" + format, nil
+}
+
+// OutputNames returns every filename Encode might produce, unioning the format candidates
+// for both transparent and non-transparent postcards — the actual choice depends on
+// decoded pixel data that isn't available yet. postcards.css is deliberately excluded: it's
+// shared across cards, so including it would make every card after the first look
+// already-converted.
+func (c codec) OutputNames(cardName string, opts *formats.EncodeOptions) []string {
+	lossless := opts.WantsLossless()
+
+	var candidateFormats []string
+	if format, _, err := c.formatFor(capabilities{transparency: false, lossless: lossless}); err == nil {
+		candidateFormats = append(candidateFormats, format)
+	}
+	if !opts.IgnoreTransparency() {
+		if format, _, err := c.formatFor(capabilities{transparency: true, lossless: lossless}); err == nil && !slices.Contains(candidateFormats, format) {
+			candidateFormats = append(candidateFormats, format)
+		}
+	}
+
+	var names []string
+	if c.singleExt {
+		if len(candidateFormats) > 0 {
+			names = append(names, cardName+".postcard")
+		}
+	} else {
+		for _, format := range candidateFormats {
+			names = append(names, fmt.Sprintf("%s.postcard.%s", cardName, format))
+		}
+
+		if opts != nil && opts.IncludeSupportFiles {
+			names = append(names, cardName+".html")
+		}
+	}
+
+	return names
 }
 
 func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats.FileWriter, error) {

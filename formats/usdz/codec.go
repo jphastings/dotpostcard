@@ -21,6 +21,8 @@ const codecName = "USDZ 3D model"
 
 func Codec() formats.Codec { return codec{} }
 
+var _ formats.Codec = codec{}
+
 type codec struct{}
 
 func (c codec) Name() string { return codecName }
@@ -148,4 +150,9 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 	return []formats.FileWriter{
 		formats.NewFileWriter(usdzFilename, "model/vnd.usdz+zip", writeUSDZ),
 	}, nil
+}
+
+// OutputNames returns the USDZ filename Encode would produce for cardName.
+func (c codec) OutputNames(cardName string, _ *formats.EncodeOptions) []string {
+	return []string{cardName + ".postcard.usdz"}
 }
