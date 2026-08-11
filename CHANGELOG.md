@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.27.0 (2026-08-11)
+
+### Feat
+
+- fail fast when postcard output files already exist
+
 ## v0.26.0 (2026-08-11)
 
 ### Feat
