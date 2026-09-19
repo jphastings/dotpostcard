@@ -14,15 +14,17 @@ import (
 
 	postcards "github.com/jphastings/dotpostcard"
 	"github.com/jphastings/dotpostcard/formats"
+	"github.com/jphastings/dotpostcard/formats/atproto"
 	"github.com/jphastings/dotpostcard/internal/cmdhelp"
 	"github.com/jphastings/dotpostcard/internal/version"
+	"github.com/jphastings/dotpostcard/types"
 	"github.com/spf13/cobra"
 )
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:     "postcards --formats=output,formats [flags] postcard-file.ext...",
-	Example: "  postcards -f web,json postcard1-front.jpg postcard2.webp directory/*\n  postcards -f components --archival --overwrite pc.webp",
+	Example: "  postcards -f web,json postcard1-front.jpg postcard2.webp directory/*\n  postcards -f components --archival --overwrite pc.webp\n  postcards -f atproto --at-user alice.example --at-password xxxx-xxxx-xxxx-xxxx pc.webp\n  postcards -f web at://alice.example/org.dotpostcard.postcard/3jzfcijpj2z2a",
 	Short:   "A tool for converting between formats for representing images of postcards",
 	Long:    longMessage(),
 	Version: version.Version,
@@ -61,6 +63,8 @@ var rootCmd = &cobra.Command{
 		}
 		decOpts := formats.DecodeOptions{RemoveBorder: removeBorder, IgnoreTransparency: ignoreTransparency}
 
+		formatList, uploadToATProto := stripATProtoFormat(formatList)
+
 		codecs, incSupportFiles, err := postcards.CodecsByFormat(formatList)
 		if err != nil {
 			return err
@@ -72,20 +76,45 @@ var rootCmd = &cobra.Command{
 			NoTransparency:      ignoreTransparency && !removeBorder,
 		}
 
-		bundles, err := postcards.MakeBundles(inputPaths)
-		if err != nil {
-			return err
+		var atClient *atproto.Client
+		if uploadToATProto {
+			user, password, err := atCredentials(cmd)
+			if err != nil {
+				return err
+			}
+			atClient, err = atproto.Login(user, password, atPDSHostOverride(), atPLCHostOverride())
+			if err != nil {
+				return fmt.Errorf("logging in to atproto: %w", err)
+			}
 		}
 
-		if len(bundles) == 0 {
+		sso := &safeWrite{w: os.Stdout}
+
+		localPaths, atURIs := partitionInputs(inputPaths)
+
+		var bundles []formats.Bundle
+		if len(localPaths) > 0 {
+			bundles, err = postcards.MakeBundles(localPaths)
+			if err != nil {
+				return err
+			}
+		}
+		var failures atomic.Int32
+		if len(atURIs) > 0 {
+			atBundles := atBundlesFromURIs(atURIs, atPDSHostOverride(), atPLCHostOverride(), func(uri, msg string) {
+				fmt.Fprintf(sso, "⚠︎ %s: %s\n", uri, msg)
+			})
+			failures.Add(int32(len(atURIs) - len(atBundles)))
+			bundles = append(bundles, atBundles...)
+		}
+
+		if len(bundles) == 0 && failures.Load() == 0 {
 			return cmd.Usage()
 		}
 
-		fmt.Fprintf(os.Stdout, "⚙︎ Converting %s into %s…\n", count(len(bundles), "postcard"), count(len(codecs), "different format"))
+		fmt.Fprintf(os.Stdout, "⚙︎ Converting %s into %s…\n", count(len(bundles), "postcard"), count(formatCount(len(codecs), uploadToATProto), "different format"))
 
-		sso := &safeWrite{w: os.Stdout}
 		var wg sync.WaitGroup
-		var failures atomic.Int32
 
 		// Shared support files (eg. postcards.css) are identical for every card in the run;
 		// this dispatch loop is single-threaded (only the WriteFile calls it kicks off are
@@ -93,7 +122,14 @@ var rootCmd = &cobra.Command{
 		handledShared := make(map[string]bool)
 
 		for _, bundle := range bundles {
-			targetDir, err := cmdhelp.Outdir(cmd, path.Dir(bundle.RefPath()))
+			// path.Dir of an at:// URI is nonsense, so those land in the current directory
+			// unless --out-dir/--out-here says otherwise.
+			therePath := path.Dir(bundle.RefPath())
+			if strings.HasPrefix(bundle.RefPath(), "at://") {
+				therePath = "."
+			}
+
+			targetDir, err := cmdhelp.Outdir(cmd, therePath)
 			if err != nil {
 				return err
 			}
@@ -110,6 +146,10 @@ var rootCmd = &cobra.Command{
 					continue
 				}
 			}
+
+			// atproto's own existing-record check happens inside uploadPostcard below: the
+			// record's key isn't known until the image is encoded (it's derived from the
+			// encoded bytes), so it can't be checked here alongside ExistingOutputs.
 
 			pc, err := bundle.Decode(decOpts)
 			if err != nil {
@@ -158,6 +198,31 @@ var rootCmd = &cobra.Command{
 					}(filename, bundle.CodecName(), codec.Name(), fw)
 				}
 			}
+
+			if uploadToATProto {
+				wg.Add(1)
+				go func(filename, bundleName string, pc types.Postcard) {
+					defer wg.Done()
+
+					fileStartT := time.Now()
+					atURI, skip, err := uploadPostcard(atClient, pc, &encOpts, overwrite, skipExisting)
+					if err != nil {
+						if errors.Is(err, errRecordExists) {
+							fmt.Fprintf(sso, "✗ %s: %v\n", filename, err)
+						} else {
+							fmt.Fprintf(sso, "⚠︎ %s: %v\n", filename, err)
+						}
+						failures.Add(1)
+						return
+					}
+					if skip {
+						fmt.Fprintf(sso, "⤼ %s: already uploaded, skipping\n", filename)
+						return
+					}
+
+					fmt.Fprintf(sso, "%s (%s) → (%s) %s (%s)\n", filename, bundleName, "ATProto", atURI, time.Since(fileStartT))
+				}(filename, bundle.CodecName(), pc)
+			}
 		}
 
 		wg.Wait()
@@ -200,7 +265,7 @@ func registerRootFlags() {
 	rootCmd.Flags().String("out-dir", "", "Output files to the given directory")
 	rootCmd.MarkFlagsMutuallyExclusive("out-here", "out-there", "out-dir")
 
-	formatsExpl := fmt.Sprintf("Formats to convert to (comma separated, any of: %s)", strings.Join(postcards.Codecs, ", "))
+	formatsExpl := fmt.Sprintf("Formats to convert to (comma separated, any of: %s, atproto)", strings.Join(postcards.Codecs, ", "))
 	rootCmd.Flags().StringSliceP("formats", "f", []string{}, formatsExpl)
 	rootCmd.Flags().BoolP("archival", "A", false, "Turn off image resizing, use lossless compression")
 	rootCmd.Flags().BoolP("remove-border", "B", false, "Attempts to turn the border around a postcard scan transparent (experimental; component input only)")
@@ -208,6 +273,9 @@ func registerRootFlags() {
 	rootCmd.Flags().Bool("overwrite", false, "Overwrite output files")
 	rootCmd.Flags().Bool("skip-existing", false, "Skip postcards whose output files already exist, instead of failing")
 	rootCmd.MarkFlagsMutuallyExclusive("overwrite", "skip-existing")
+
+	rootCmd.Flags().String("at-user", "", "atproto handle or DID to upload as (format atproto only; falls back to $GOAT_USERNAME/$ATP_USERNAME/$ATP_AUTH_USERNAME)")
+	rootCmd.Flags().String("at-password", "", "atproto PDS app password (format atproto only; falls back to $GOAT_PASSWORD/$ATP_PASSWORD/$ATP_AUTH_PASSWORD)")
 }
 
 func main() {
@@ -232,5 +300,10 @@ $ postcards -f web,usdz whatever-front.png
 Which will compile your postcard into the "web" format and the "usdz" format.
 Advice on doing this well in this tool's readme at:
   https://github.com/jphastings/dotpostcard
+
+Postcards can also be uploaded to, and downloaded from, an atproto PDS. Use
+"-f atproto" (with --at-user/--at-password, or the same environment variables
+goat uses) to upload, and an at://... record URI in place of a file to
+download.
 `
 }
