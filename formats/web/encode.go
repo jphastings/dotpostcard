@@ -128,9 +128,9 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 
 		switch format {
 		case "webp":
-			err = images.WriteWebP(w, combinedImg, xmpData, opts.Archival, pc.Meta.HasTransparency)
+			err = images.WriteWebP(w, combinedImg, xmpData, opts.WantsLossless(), pc.Meta.HasTransparency)
 		case "png":
-			err = images.WritePNG(w, combinedImg, xmpData, opts.Archival)
+			err = images.WritePNG(w, combinedImg, xmpData, opts.WantsLossless())
 		case "jpeg":
 			err = images.WriteJPEG(w, combinedImg, xmpData, pc.Meta.Physical.GetCardColor())
 		case "svg":

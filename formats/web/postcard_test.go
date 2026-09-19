@@ -58,3 +58,16 @@ func TestBundleRecognisesBareExtension(t *testing.T) {
 
 	assert.Equal(t, []string{"other.json"}, testhelpers.Filenames(remaining))
 }
+
+func TestEncodeTransparentPostcardWithoutOptions(t *testing.T) {
+	pc := testhelpers.SamplePostcard
+	pc.Front = testhelpers.TestImages["sample-front.png"]
+	pc.Back = testhelpers.TestImages["sample-back.png"]
+	pc.Meta.HasTransparency = true
+
+	fws, err := DefaultCodec.Encode(pc, nil)
+	assert.NoError(t, err)
+
+	_, err = fws[0].Bytes()
+	assert.NoError(t, err)
+}
