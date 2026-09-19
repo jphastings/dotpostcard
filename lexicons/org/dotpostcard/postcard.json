@@ -1,0 +1,203 @@
+{
+  "lexicon": 1,
+  "id": "org.dotpostcard.postcard",
+  "description": "A digitised physical postcard: an image of its side(s), and the metadata describing it.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A postcard. The record key is a TID whose timestamp is the date the postcard was sent (or the date it was uploaded, if that's unknown; 1970-01-01 if it was sent before then), with its remaining bits taken from the image's own hash.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["image", "flip", "sides", "frontSize"],
+        "properties": {
+          "image": {
+            "type": "blob",
+            "description": "A 'web' format postcard image: the front of the postcard above the back (rotated so the specified flip works), with the postcard's XMP metadata embedded.",
+            "accept": ["image/*"]
+          },
+          "flip": {
+            "type": "string",
+            "description": "The axis the physical postcard flips about, to keep both sides upright.",
+            "knownValues": [
+              "org.dotpostcard.postcard#flipBook",
+              "org.dotpostcard.postcard#flipLeftHand",
+              "org.dotpostcard.postcard#flipCalendar",
+              "org.dotpostcard.postcard#flipRightHand",
+              "org.dotpostcard.postcard#flipNone"
+            ]
+          },
+          "sides": {
+            "type": "array",
+            "description": "The sides of the postcard, front first. One-sided postcards (flipNone) have a single side.",
+            "minLength": 1,
+            "maxLength": 2,
+            "items": { "type": "ref", "ref": "#side" }
+          },
+          "frontSize": { "type": "ref", "ref": "#size" },
+          "locale": {
+            "type": "string",
+            "format": "language",
+            "description": "The language the descriptions and transcriptions are written in, unless annotated otherwise."
+          },
+          "sentOn": {
+            "type": "string",
+            "description": "The date the postcard was sent, as YYYY-MM-DD.",
+            "minLength": 10,
+            "maxLength": 10
+          },
+          "sender": { "type": "ref", "ref": "#person" },
+          "recipient": { "type": "ref", "ref": "#person" },
+          "location": { "type": "ref", "ref": "#location" },
+          "context": { "type": "ref", "ref": "#context" },
+          "thicknessUm": {
+            "type": "integer",
+            "description": "The thickness of the postcard, in micrometres.",
+            "minimum": 1
+          },
+          "cardColor": {
+            "type": "string",
+            "description": "The colour of the card the postcard is made from, as #RRGGBB.",
+            "minLength": 7,
+            "maxLength": 7
+          }
+        }
+      }
+    },
+    "flipBook": {
+      "type": "token",
+      "description": "Flips about a vertical axis, like a book."
+    },
+    "flipLeftHand": {
+      "type": "token",
+      "description": "Flips about the up-right diagonal axis, as if flipped with your left hand. The sides have different orientations."
+    },
+    "flipCalendar": {
+      "type": "token",
+      "description": "Flips about a horizontal axis, like a calendar."
+    },
+    "flipRightHand": {
+      "type": "token",
+      "description": "Flips about the down-right diagonal axis, as if flipped with your right hand. The sides have different orientations."
+    },
+    "flipNone": {
+      "type": "token",
+      "description": "The postcard has only one side."
+    },
+    "side": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "A description of what this side depicts, suitable for use as alt text."
+        },
+        "transcription": { "type": "ref", "ref": "#annotatedText" },
+        "secrets": {
+          "type": "array",
+          "description": "Regions of this side which hold private information, and should be obscured.",
+          "items": { "type": "ref", "ref": "#secret" }
+        }
+      }
+    },
+    "annotatedText": {
+      "type": "object",
+      "required": ["text"],
+      "properties": {
+        "text": { "type": "string" },
+        "annotations": {
+          "type": "array",
+          "items": { "type": "ref", "ref": "#annotation" }
+        }
+      }
+    },
+    "annotation": {
+      "type": "object",
+      "description": "Marks up a range of the text. Offsets are zero-indexed counts of UTF-8 bytes; the start is inclusive and the end exclusive.",
+      "required": ["type", "byteStart", "byteEnd"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "knownValues": ["em", "strong", "underline", "locale"]
+        },
+        "value": {
+          "type": "string",
+          "description": "For 'locale' annotations, the language tag of the annotated range."
+        },
+        "byteStart": { "type": "integer", "minimum": 0 },
+        "byteEnd": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "secret": {
+      "type": "object",
+      "required": ["points"],
+      "properties": {
+        "prehidden": {
+          "type": "boolean",
+          "default": true,
+          "description": "False if this region still shows its private information in the image; regions are assumed to be already obscured."
+        },
+        "points": {
+          "type": "array",
+          "description": "The vertices of the polygon bounding the region.",
+          "minLength": 3,
+          "items": { "type": "ref", "ref": "#point" }
+        }
+      }
+    },
+    "point": {
+      "type": "object",
+      "description": "A point on one side of the postcard, in ten-thousandths of that side's width (x, from the left) and height (y, from the top).",
+      "required": ["x", "y"],
+      "properties": {
+        "x": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "y": { "type": "integer", "minimum": 0, "maximum": 10000 }
+      }
+    },
+    "size": {
+      "type": "object",
+      "description": "The dimensions of the front of the postcard.",
+      "required": ["widthPx", "heightPx"],
+      "properties": {
+        "widthPx": { "type": "integer", "minimum": 1 },
+        "heightPx": { "type": "integer", "minimum": 1 },
+        "widthMm": { "type": "integer", "minimum": 1 },
+        "heightMm": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "person": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "uri": { "type": "string", "format": "uri" }
+      }
+    },
+    "location": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "latitude": {
+          "type": "string",
+          "description": "Decimal degrees, as a string (atproto has no floating point numbers)."
+        },
+        "longitude": {
+          "type": "string",
+          "description": "Decimal degrees, as a string (atproto has no floating point numbers)."
+        },
+        "countryCode": {
+          "type": "string",
+          "description": "ISO 3166-1 alpha-3 country code.",
+          "minLength": 3,
+          "maxLength": 3
+        }
+      }
+    },
+    "context": {
+      "type": "object",
+      "description": "Where this postcard came from, and who is describing it.",
+      "properties": {
+        "description": { "type": "string" },
+        "author": { "type": "ref", "ref": "#person" }
+      }
+    }
+  }
+}
