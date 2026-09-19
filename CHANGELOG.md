@@ -383,6 +383,18 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.28.0 (2026-09-19)
+
+### Feat
+
+- upload to and download from an atproto PDS
+- atproto record conversion and PDS client
+- org.dotpostcard.postcard atproto lexicon
+
+### Fix
+
+- nil encode options no longer panic for lossless-capable web formats
+
 ## v0.27.0 (2026-08-11)
 
 ### Feat
