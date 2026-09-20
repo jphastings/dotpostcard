@@ -3,6 +3,7 @@ package atproto
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/jphastings/dotpostcard/internal/testhelpers"
 	"github.com/jphastings/dotpostcard/types"
@@ -49,6 +50,70 @@ func TestRecordJSONShape(t *testing.T) {
 	require.True(t, ok, "location should be an object")
 	assert.IsType(t, "", location["latitude"], "latitude must be encoded as a string, not a number")
 	assert.Equal(t, "45.28", location["latitude"])
+}
+
+func TestRecordJSONShapeSentOnAndCardColor(t *testing.T) {
+	meta := types.Metadata{
+		Flip:   types.FlipNone,
+		SentOn: &types.Date{Time: time.Date(1974, time.September, 26, 0, 0, 0, 0, time.UTC)},
+		Physical: types.Physical{
+			CardColor: &types.Color{R: 0, G: 255, B: 128, A: 255},
+		},
+	}
+
+	data, err := json.Marshal(FromMetadata(meta, testBlob))
+	require.NoError(t, err)
+
+	var raw map[string]any
+	require.NoError(t, json.Unmarshal(data, &raw))
+
+	assert.Equal(t, map[string]any{"year": float64(1974), "month": float64(9), "day": float64(26)}, raw["sentOn"])
+
+	physical := raw["physical"].(map[string]any)
+	cardColor := physical["cardColor"].(map[string]any)
+	assert.Equal(t, float64(0), cardColor["r"], "a zero channel must still be present in the JSON")
+	assert.Equal(t, float64(255), cardColor["g"])
+	assert.Equal(t, float64(128), cardColor["b"])
+}
+
+func TestCardColorZeroChannelRoundTrips(t *testing.T) {
+	meta := types.Metadata{
+		Physical: types.Physical{CardColor: &types.Color{R: 0, G: 255, B: 128, A: 255}},
+	}
+
+	got, err := FromMetadata(meta, testBlob).ToMetadata()
+	require.NoError(t, err)
+
+	assert.Equal(t, meta.Physical.CardColor, got.Physical.CardColor)
+}
+
+func TestSentOnPre1970RoundTrips(t *testing.T) {
+	meta := types.Metadata{
+		SentOn: &types.Date{Time: time.Date(1905, time.June, 1, 0, 0, 0, 0, time.UTC)},
+	}
+
+	record := FromMetadata(meta, testBlob)
+	assert.Equal(t, &Date{Year: 1905, Month: 6, Day: 1}, record.SentOn)
+
+	got, err := record.ToMetadata()
+	require.NoError(t, err)
+	assert.Equal(t, meta.SentOn, got.SentOn)
+}
+
+func TestSentOnRejectsImpossibleDate(t *testing.T) {
+	record := Record{Type: RecordType, Flip: flipTokenNone, SentOn: &Date{Year: 1974, Month: 2, Day: 30}}
+
+	_, err := record.ToMetadata()
+	assert.Error(t, err, "time.Date silently normalises 30 February into 2 March; that must be rejected, not normalised")
+}
+
+func TestDiffFlagsADifferentSentOnDateButNotAnIdenticalOne(t *testing.T) {
+	a := Record{Type: RecordType, Flip: flipTokenNone, SentOn: &Date{Year: 1974, Month: 9, Day: 26}}
+	same := Record{Type: RecordType, Flip: flipTokenNone, SentOn: &Date{Year: 1974, Month: 9, Day: 26}}
+	different := Record{Type: RecordType, Flip: flipTokenNone, SentOn: &Date{Year: 1974, Month: 9, Day: 27}}
+
+	assert.NotContains(t, Diff(a, same), "sentOn")
+	assert.Contains(t, Diff(a, different), "sentOn")
 }
 
 func TestDiffReportsNothingForIdenticalRecords(t *testing.T) {
@@ -114,7 +179,7 @@ func TestSecretPrehiddenMissingFromJSONReadsAsTrue(t *testing.T) {
 		"image": {"$type": "blob", "ref": {"$link": "x"}, "mimeType": "image/jpeg", "size": 1},
 		"flip": "org.dotpostcard.postcard#flipNone",
 		"sides": [{"secrets": [{"points": [{"x":1000,"y":1000},{"x":2000,"y":1000},{"x":2000,"y":2000}]}]}],
-		"frontSize": {"widthPx": 1, "heightPx": 1}
+		"physical": {"frontSize": {"widthPx": 1, "heightPx": 1}}
 	}`
 
 	var record Record

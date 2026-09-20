@@ -9,7 +9,7 @@
       "key": "tid",
       "record": {
         "type": "object",
-        "required": ["image", "flip", "sides", "frontSize"],
+        "required": ["image", "flip", "sides", "physical"],
         "properties": {
           "image": {
             "type": "blob",
@@ -34,33 +34,21 @@
             "maxLength": 2,
             "items": { "type": "ref", "ref": "#side" }
           },
-          "frontSize": { "type": "ref", "ref": "#size" },
+          "physical": { "type": "ref", "ref": "#physical" },
           "locale": {
             "type": "string",
             "format": "language",
             "description": "The language the descriptions and transcriptions are written in, unless annotated otherwise."
           },
           "sentOn": {
-            "type": "string",
-            "description": "The date the postcard was sent, as YYYY-MM-DD.",
-            "minLength": 10,
-            "maxLength": 10
+            "type": "ref",
+            "ref": "#date",
+            "description": "The date the postcard was sent."
           },
           "sender": { "type": "ref", "ref": "#person" },
           "recipient": { "type": "ref", "ref": "#person" },
           "location": { "type": "ref", "ref": "#location" },
-          "context": { "type": "ref", "ref": "#context" },
-          "thicknessUm": {
-            "type": "integer",
-            "description": "The thickness of the postcard, in micrometres.",
-            "minimum": 1
-          },
-          "cardColor": {
-            "type": "string",
-            "description": "The colour of the card the postcard is made from, as #RRGGBB.",
-            "minLength": 7,
-            "maxLength": 7
-          }
+          "context": { "type": "ref", "ref": "#context" }
         }
       }
     },
@@ -162,6 +150,43 @@
         "heightPx": { "type": "integer", "minimum": 1 },
         "widthMm": { "type": "integer", "minimum": 1 },
         "heightMm": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "physical": {
+      "type": "object",
+      "description": "The physical attributes of the postcard.",
+      "required": ["frontSize"],
+      "properties": {
+        "frontSize": { "type": "ref", "ref": "#size" },
+        "thicknessUm": {
+          "type": "integer",
+          "description": "The thickness of the postcard, in micrometres.",
+          "minimum": 1
+        },
+        "cardColor": {
+          "type": "ref",
+          "ref": "#rgbColor",
+          "description": "The colour of the card the postcard is made from."
+        }
+      }
+    },
+    "rgbColor": {
+      "type": "object",
+      "required": ["r", "g", "b"],
+      "properties": {
+        "r": { "type": "integer", "minimum": 0, "maximum": 255 },
+        "g": { "type": "integer", "minimum": 0, "maximum": 255 },
+        "b": { "type": "integer", "minimum": 0, "maximum": 255 }
+      }
+    },
+    "date": {
+      "type": "object",
+      "description": "A calendar date, with no time of day or timezone.",
+      "required": ["year", "month", "day"],
+      "properties": {
+        "year": { "type": "integer", "minimum": 1 },
+        "month": { "type": "integer", "minimum": 1, "maximum": 12 },
+        "day": { "type": "integer", "minimum": 1, "maximum": 31 }
       }
     },
     "person": {

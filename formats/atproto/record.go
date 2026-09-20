@@ -28,19 +28,39 @@ const (
 
 // Record mirrors the org.dotpostcard.postcard lexicon record exactly.
 type Record struct {
-	Type        string    `json:"$type"`
-	Image       Blob      `json:"image"`
-	Flip        string    `json:"flip"`
-	Sides       []Side    `json:"sides"`
+	Type      string    `json:"$type"`
+	Image     Blob      `json:"image"`
+	Flip      string    `json:"flip"`
+	Sides     []Side    `json:"sides"`
+	Physical  Physical  `json:"physical"`
+	Locale    string    `json:"locale,omitempty"`
+	SentOn    *Date     `json:"sentOn,omitempty"`
+	Sender    *Person   `json:"sender,omitempty"`
+	Recipient *Person   `json:"recipient,omitempty"`
+	Location  *Location `json:"location,omitempty"`
+	Context   *Context  `json:"context,omitempty"`
+}
+
+// Date's fields have no omitempty: all three are required by the lexicon, and 0 would be an
+// invalid (not merely absent) month or day.
+type Date struct {
+	Year  int `json:"year"`
+	Month int `json:"month"`
+	Day   int `json:"day"`
+}
+
+type Physical struct {
 	FrontSize   Size      `json:"frontSize"`
-	Locale      string    `json:"locale,omitempty"`
-	SentOn      string    `json:"sentOn,omitempty"`
-	Sender      *Person   `json:"sender,omitempty"`
-	Recipient   *Person   `json:"recipient,omitempty"`
-	Location    *Location `json:"location,omitempty"`
-	Context     *Context  `json:"context,omitempty"`
 	ThicknessUm int       `json:"thicknessUm,omitempty"`
-	CardColor   string    `json:"cardColor,omitempty"`
+	CardColor   *RGBColor `json:"cardColor,omitempty"`
+}
+
+// RGBColor's fields have no omitempty: 0 is a meaningful channel value, and all three are
+// required by the lexicon.
+type RGBColor struct {
+	R int `json:"r"`
+	G int `json:"g"`
+	B int `json:"b"`
 }
 
 // Blob is an atproto blob reference, as returned by com.atproto.repo.uploadBlob.
@@ -128,32 +148,41 @@ func FromMetadata(meta types.Metadata, image Blob) Record {
 		rec.Sides = append(rec.Sides, sideToRecord(meta.Back))
 	}
 
-	rec.FrontSize = Size{
-		WidthPx:  meta.Physical.FrontDimensions.PxWidth,
-		HeightPx: meta.Physical.FrontDimensions.PxHeight,
-	}
-	if meta.Physical.FrontDimensions.HasPhysical() {
-		w, _ := meta.Physical.FrontDimensions.CmWidth.Float64()
-		h, _ := meta.Physical.FrontDimensions.CmHeight.Float64()
-		wmm := int(math.Round(w * 10))
-		hmm := int(math.Round(h * 10))
-		rec.FrontSize.WidthMm = &wmm
-		rec.FrontSize.HeightMm = &hmm
-	}
+	rec.Physical = physicalToRecord(meta.Physical)
 
 	if meta.SentOn != nil && !meta.SentOn.IsZero() {
-		rec.SentOn = meta.SentOn.Format("2006-01-02")
-	}
-
-	if meta.Physical.ThicknessMM != 0 {
-		rec.ThicknessUm = int(math.Round(meta.Physical.ThicknessMM * 1000))
-	}
-
-	if meta.Physical.CardColor != nil {
-		rec.CardColor = meta.Physical.CardColor.String()
+		y, m, d := meta.SentOn.Date()
+		rec.SentOn = &Date{Year: y, Month: int(m), Day: d}
 	}
 
 	return rec
+}
+
+func physicalToRecord(p types.Physical) Physical {
+	phys := Physical{
+		FrontSize: Size{
+			WidthPx:  p.FrontDimensions.PxWidth,
+			HeightPx: p.FrontDimensions.PxHeight,
+		},
+	}
+	if p.FrontDimensions.HasPhysical() {
+		w, _ := p.FrontDimensions.CmWidth.Float64()
+		h, _ := p.FrontDimensions.CmHeight.Float64()
+		wmm := int(math.Round(w * 10))
+		hmm := int(math.Round(h * 10))
+		phys.FrontSize.WidthMm = &wmm
+		phys.FrontSize.HeightMm = &hmm
+	}
+
+	if p.ThicknessMM != 0 {
+		phys.ThicknessUm = int(math.Round(p.ThicknessMM * 1000))
+	}
+
+	if p.CardColor != nil {
+		phys.CardColor = &RGBColor{R: int(p.CardColor.R), G: int(p.CardColor.G), B: int(p.CardColor.B)}
+	}
+
+	return phys
 }
 
 // ToMetadata interprets the record back into postcard metadata.
@@ -184,34 +213,40 @@ func (r Record) ToMetadata() (types.Metadata, error) {
 		meta.Back = sideFromRecord(r.Sides[1])
 	}
 
-	meta.Physical.FrontDimensions.PxWidth = r.FrontSize.WidthPx
-	meta.Physical.FrontDimensions.PxHeight = r.FrontSize.HeightPx
-	if r.FrontSize.WidthMm != nil && r.FrontSize.HeightMm != nil {
-		meta.Physical.FrontDimensions.CmWidth = big.NewRat(int64(*r.FrontSize.WidthMm), 10)
-		meta.Physical.FrontDimensions.CmHeight = big.NewRat(int64(*r.FrontSize.HeightMm), 10)
-	}
+	meta.Physical = physicalFromRecord(r.Physical)
 
-	if r.SentOn != "" {
-		t, err := time.Parse("2006-01-02", r.SentOn)
-		if err != nil {
-			return types.Metadata{}, fmt.Errorf("parsing sentOn %q: %w", r.SentOn, err)
+	if r.SentOn != nil {
+		t := time.Date(r.SentOn.Year, time.Month(r.SentOn.Month), r.SentOn.Day, 0, 0, 0, 0, time.UTC)
+		// time.Date silently normalises an out-of-range component (eg. 30 February becomes 2
+		// March), so an impossible date must be caught by checking it didn't move.
+		if y, m, d := t.Date(); y != r.SentOn.Year || int(m) != r.SentOn.Month || d != r.SentOn.Day {
+			return types.Metadata{}, fmt.Errorf("invalid sentOn date %04d-%02d-%02d", r.SentOn.Year, r.SentOn.Month, r.SentOn.Day)
 		}
 		meta.SentOn = &types.Date{Time: t}
 	}
 
-	if r.ThicknessUm != 0 {
-		meta.Physical.ThicknessMM = float64(r.ThicknessUm) / 1000
-	}
-
-	if r.CardColor != "" {
-		c, err := types.ColorFromString(r.CardColor)
-		if err != nil {
-			return types.Metadata{}, fmt.Errorf("parsing cardColor %q: %w", r.CardColor, err)
-		}
-		meta.Physical.CardColor = c
-	}
-
 	return meta, nil
+}
+
+func physicalFromRecord(p Physical) types.Physical {
+	var out types.Physical
+
+	out.FrontDimensions.PxWidth = p.FrontSize.WidthPx
+	out.FrontDimensions.PxHeight = p.FrontSize.HeightPx
+	if p.FrontSize.WidthMm != nil && p.FrontSize.HeightMm != nil {
+		out.FrontDimensions.CmWidth = big.NewRat(int64(*p.FrontSize.WidthMm), 10)
+		out.FrontDimensions.CmHeight = big.NewRat(int64(*p.FrontSize.HeightMm), 10)
+	}
+
+	if p.ThicknessUm != 0 {
+		out.ThicknessMM = float64(p.ThicknessUm) / 1000
+	}
+
+	if p.CardColor != nil {
+		out.CardColor = &types.Color{R: uint8(p.CardColor.R), G: uint8(p.CardColor.G), B: uint8(p.CardColor.B), A: 0xff}
+	}
+
+	return out
 }
 
 func flipToToken(flip types.Flip) string {
@@ -400,15 +435,15 @@ func Diff(a, b Record) []string {
 	}
 
 	add("flip", a.Flip == b.Flip)
-	add("frontSize", reflect.DeepEqual(a.FrontSize, b.FrontSize))
+	add("physical.frontSize", reflect.DeepEqual(a.Physical.FrontSize, b.Physical.FrontSize))
 	add("locale", a.Locale == b.Locale)
-	add("sentOn", a.SentOn == b.SentOn)
+	add("sentOn", reflect.DeepEqual(a.SentOn, b.SentOn))
 	add("sender", reflect.DeepEqual(a.Sender, b.Sender))
 	add("recipient", reflect.DeepEqual(a.Recipient, b.Recipient))
 	add("location", reflect.DeepEqual(a.Location, b.Location))
 	add("context", reflect.DeepEqual(a.Context, b.Context))
-	add("thicknessUm", a.ThicknessUm == b.ThicknessUm)
-	add("cardColor", a.CardColor == b.CardColor)
+	add("physical.thicknessUm", a.Physical.ThicknessUm == b.Physical.ThicknessUm)
+	add("physical.cardColor", reflect.DeepEqual(a.Physical.CardColor, b.Physical.CardColor))
 
 	maxSides := len(a.Sides)
 	if len(b.Sides) > maxSides {
