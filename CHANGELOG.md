@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.29.0 (2026-09-20)
+
+### Feat
+
+- reshape atproto postcard records to mirror the other formats
+
 ## v0.28.0 (2026-09-19)
 
 ### Feat
