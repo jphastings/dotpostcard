@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.30.0 (2026-09-27)
+
+### Feat
+
+- **atproto**: split the PDS bundle codec out so records don't need the image toolchain (#5)
+
 ## v0.29.0 (2026-09-20)
 
 ### Feat
