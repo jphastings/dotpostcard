@@ -106,6 +106,14 @@ changelog:
 release:
   prerelease: auto
   draft: false
+  # Attach these under fixed names (no name_template) so other apps can pin
+  # a version and self-host the service worker, eg.
+  # .../releases/download/vX.Y.Z/postoffice-serviceworker.wasm
+  extra_files:
+    - glob: ./internal/www/postoffice/postoffice-serviceworker.wasm
+    - glob: ./internal/www/postoffice/postoffice-serviceworker.js
+    - glob: ./internal/www/postoffice/wasm_exec.js
+    - glob: ./internal/www/postoffice/sw.js
 homebrew_casks:
 - name: postcards
   repository:
