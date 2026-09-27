@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.32.0 (2026-09-27)
+
+### Feat
+
+- **postoffice**: accept the card's colour in the compile form (#7)
+
 ## v0.31.0 (2026-09-27)
 
 ### Feat
