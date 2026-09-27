@@ -152,6 +152,14 @@ func requestToPostcard(codecChoices CodecChoices, r *http.Request) (types.Postca
 	meta.Context.Description = r.FormValue("context.description")
 	meta.Context.Author.Scan(r.FormValue("context.author"))
 
+	if v := r.FormValue("physical.card-color"); v != "" {
+		c, err := types.ColorFromString(v)
+		if err != nil {
+			return types.Postcard{}, nil, encOpts, fmt.Errorf("invalid physical.card-color value: %w", err)
+		}
+		meta.Physical.CardColor = c
+	}
+
 	frontR, nameGuess, err := formToFile(r.MultipartForm.File["front"])
 	if err != nil {
 		return types.Postcard{}, nil, encOpts, err
