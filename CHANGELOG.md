@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.31.0 (2026-09-27)
+
+### Feat
+
+- **release**: attach the postoffice service worker wasm to each release (#6)
+
 ## v0.30.0 (2026-09-27)
 
 ### Feat
