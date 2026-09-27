@@ -3,13 +3,14 @@ package atproto
 import (
 	"testing"
 
+	"github.com/jphastings/dotpostcard/formats/atproto/internal/testpds"
 	"github.com/jphastings/dotpostcard/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestLoginAndRecordExists(t *testing.T) {
-	srv := newFakePDS("did:plc:testuser")
+	srv := testpds.New("did:plc:testuser", RecordType)
 	defer srv.Close()
 
 	client, err := Login("alice.example", "app-password", srv.URL, "")
@@ -28,7 +29,7 @@ func TestLoginAndRecordExists(t *testing.T) {
 }
 
 func TestAnonymousResolvesHandleViaOverrideHost(t *testing.T) {
-	srv := newFakePDS("did:plc:testuser")
+	srv := testpds.New("did:plc:testuser", RecordType)
 	defer srv.Close()
 
 	client, err := Anonymous("alice.example", srv.URL, "")

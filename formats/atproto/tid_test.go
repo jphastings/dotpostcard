@@ -71,3 +71,21 @@ func TestRecordKeyUsesTodayWhenSentOnUnknown(t *testing.T) {
 
 	assert.Equal(t, "2020-06-15", tidTimestamp(t, key).Format("2006-01-02"))
 }
+
+func TestRecordKeyMatchesRecordKeyMethod(t *testing.T) {
+	today := time.Date(2020, time.June, 15, 0, 0, 0, 0, time.UTC)
+	image := []byte("some image bytes")
+
+	t.Run("with SentOn", func(t *testing.T) {
+		sentOn := &types.Date{Time: time.Date(1974, time.September, 26, 0, 0, 0, 0, time.UTC)}
+		record := Record{SentOn: &Date{Year: 1974, Month: 9, Day: 26}}
+
+		assert.Equal(t, RecordKey(sentOn, today, image), record.Key(today, image))
+	})
+
+	t.Run("without SentOn", func(t *testing.T) {
+		record := Record{}
+
+		assert.Equal(t, RecordKey(nil, today, image), record.Key(today, image))
+	})
+}

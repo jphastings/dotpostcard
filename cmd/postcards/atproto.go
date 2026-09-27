@@ -11,6 +11,7 @@ import (
 
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/formats/atproto"
+	"github.com/jphastings/dotpostcard/formats/atproto/pdsbundle"
 	"github.com/jphastings/dotpostcard/formats/web"
 	"github.com/jphastings/dotpostcard/types"
 	"github.com/spf13/cobra"
@@ -92,7 +93,7 @@ func atPLCHostOverride() string { return os.Getenv("ATP_PLC_HOST") }
 func atBundlesFromURIs(uris []string, pdsHostOverride, plcHostOverride string, warn func(uri, msg string)) []formats.Bundle {
 	var bundles []formats.Bundle
 	for _, uri := range uris {
-		bundle, err := atproto.NewBundle(uri, pdsHostOverride, plcHostOverride, func(msg string) { warn(uri, msg) })
+		bundle, err := pdsbundle.NewBundle(uri, pdsHostOverride, plcHostOverride, func(msg string) { warn(uri, msg) })
 		if err != nil {
 			warn(uri, err.Error())
 			continue
