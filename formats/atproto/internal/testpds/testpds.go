@@ -1,4 +1,9 @@
-package atproto
+// Package testpds is a minimal in-memory stand-in for an atproto PDS, exercised over real HTTP
+// so both formats/atproto and formats/atproto/pdsbundle can test their client/record-fetching
+// code end to end. It stores records as raw JSON rather than a typed atproto.Record, so this
+// package doesn't need to import formats/atproto (which would create an import cycle for the
+// internal *_test.go files of the atproto package itself).
+package testpds
 
 import (
 	"encoding/json"
@@ -9,18 +14,18 @@ import (
 	"sync"
 )
 
-// fakePDS is a minimal in-memory stand-in for a PDS, exercised over real HTTP so client.go's
-// request/response handling is tested end to end.
-type fakePDS struct {
-	mu      sync.Mutex
-	did     string
-	blobs   map[string][]byte
-	records map[string]Record
-	nextCID int
+type server struct {
+	mu         sync.Mutex
+	did        string
+	collection string
+	blobs      map[string][]byte
+	records    map[string]json.RawMessage
+	nextCID    int
 }
 
-func newFakePDS(did string) *httptest.Server {
-	f := &fakePDS{did: did, blobs: map[string][]byte{}, records: map[string]Record{}}
+// New starts a fake PDS for did, whose records are reported under the given lexicon collection.
+func New(did, collection string) *httptest.Server {
+	f := &server{did: did, collection: collection, blobs: map[string][]byte{}, records: map[string]json.RawMessage{}}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/xrpc/com.atproto.server.createSession", f.createSession)
@@ -38,7 +43,7 @@ func writeXRPCError(w http.ResponseWriter, status int, errCode, message string) 
 	json.NewEncoder(w).Encode(map[string]string{"error": errCode, "message": message})
 }
 
-func (f *fakePDS) createSession(w http.ResponseWriter, r *http.Request) {
+func (f *server) createSession(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Identifier string `json:"identifier"`
 		Password   string `json:"password"`
@@ -55,11 +60,11 @@ func (f *fakePDS) createSession(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"did": f.did, "accessJwt": "fake-access-jwt"})
 }
 
-func (f *fakePDS) resolveHandle(w http.ResponseWriter, r *http.Request) {
+func (f *server) resolveHandle(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"did": f.did})
 }
 
-func (f *fakePDS) uploadBlob(w http.ResponseWriter, r *http.Request) {
+func (f *server) uploadBlob(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Authorization") == "" {
 		writeXRPCError(w, http.StatusUnauthorized, "AuthenticationRequired", "missing bearer token")
 		return
@@ -78,24 +83,24 @@ func (f *fakePDS) uploadBlob(w http.ResponseWriter, r *http.Request) {
 	f.mu.Unlock()
 
 	json.NewEncoder(w).Encode(map[string]any{
-		"blob": Blob{
-			Type:     "blob",
-			Ref:      BlobRef{Link: cid},
-			MimeType: r.Header.Get("Content-Type"),
-			Size:     int64(len(data)),
+		"blob": map[string]any{
+			"$type":    "blob",
+			"ref":      map[string]string{"$link": cid},
+			"mimeType": r.Header.Get("Content-Type"),
+			"size":     len(data),
 		},
 	})
 }
 
-func (f *fakePDS) putRecord(w http.ResponseWriter, r *http.Request) {
+func (f *server) putRecord(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Authorization") == "" {
 		writeXRPCError(w, http.StatusUnauthorized, "AuthenticationRequired", "missing bearer token")
 		return
 	}
 
 	var body struct {
-		Rkey   string `json:"rkey"`
-		Record Record `json:"record"`
+		Rkey   string          `json:"rkey"`
+		Record json.RawMessage `json:"record"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeXRPCError(w, http.StatusBadRequest, "InvalidRequest", err.Error())
@@ -107,12 +112,12 @@ func (f *fakePDS) putRecord(w http.ResponseWriter, r *http.Request) {
 	f.mu.Unlock()
 
 	json.NewEncoder(w).Encode(map[string]string{
-		"uri": fmt.Sprintf("at://%s/%s/%s", f.did, RecordType, body.Rkey),
+		"uri": fmt.Sprintf("at://%s/%s/%s", f.did, f.collection, body.Rkey),
 		"cid": "bafyreifakerecordcidpadding",
 	})
 }
 
-func (f *fakePDS) getRecord(w http.ResponseWriter, r *http.Request) {
+func (f *server) getRecord(w http.ResponseWriter, r *http.Request) {
 	rkey := r.URL.Query().Get("rkey")
 
 	f.mu.Lock()
@@ -125,13 +130,13 @@ func (f *fakePDS) getRecord(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(map[string]any{
-		"uri":   fmt.Sprintf("at://%s/%s/%s", f.did, RecordType, rkey),
+		"uri":   fmt.Sprintf("at://%s/%s/%s", f.did, f.collection, rkey),
 		"cid":   "bafyreifakerecordcidpadding",
 		"value": record,
 	})
 }
 
-func (f *fakePDS) getBlob(w http.ResponseWriter, r *http.Request) {
+func (f *server) getBlob(w http.ResponseWriter, r *http.Request) {
 	cid := r.URL.Query().Get("cid")
 
 	f.mu.Lock()
@@ -144,12 +149,4 @@ func (f *fakePDS) getBlob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write(data)
-}
-
-// putRecordDirect lets tests simulate an out-of-band edit to a stored record (eg. someone
-// editing the record without re-uploading the image).
-func (f *fakePDS) putRecordDirect(rkey string, record Record) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.records[rkey] = record
 }

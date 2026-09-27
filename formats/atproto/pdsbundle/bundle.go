@@ -1,4 +1,8 @@
-package atproto
+// Package pdsbundle reads org.dotpostcard.postcard records from an atproto PDS and decodes
+// their image blob into a full postcard, using the web codec's image toolchain. Consumers that
+// only need the record types or its TID rule (eg. an indexer that never decodes images) should
+// depend on formats/atproto directly instead of this package.
+package pdsbundle
 
 import (
 	"bytes"
@@ -10,6 +14,7 @@ import (
 	"unicode"
 
 	"github.com/jphastings/dotpostcard/formats"
+	"github.com/jphastings/dotpostcard/formats/atproto"
 	"github.com/jphastings/dotpostcard/formats/web"
 	"github.com/jphastings/dotpostcard/types"
 )
@@ -18,12 +23,12 @@ var _ formats.Bundle = Bundle{}
 
 // Bundle reads a single org.dotpostcard.postcard record from a PDS.
 type Bundle struct {
-	client *Client
+	client *atproto.Client
 	did    string
 	rkey   string
 	uri    string
 	warn   func(string)
-	record Record
+	record atproto.Record
 	name   string
 }
 
@@ -37,11 +42,11 @@ func ParseURI(uri string) (authority, rkey string, err error) {
 	}
 
 	parts := strings.SplitN(rest, "/", 3)
-	if len(parts) != 3 || parts[0] == "" || parts[1] != RecordType {
-		return "", "", fmt.Errorf("%q is not an %s record URI (want at://{authority}/%s/{rkey})", uri, RecordType, RecordType)
+	if len(parts) != 3 || parts[0] == "" || parts[1] != atproto.RecordType {
+		return "", "", fmt.Errorf("%q is not an %s record URI (want at://{authority}/%s/{rkey})", uri, atproto.RecordType, atproto.RecordType)
 	}
 
-	if err := ValidRecordKey(parts[2]); err != nil {
+	if err := atproto.ValidRecordKey(parts[2]); err != nil {
 		return "", "", fmt.Errorf("%q: %w", uri, err)
 	}
 
@@ -58,7 +63,7 @@ func NewBundle(uri, pdsHostOverride, plcHostOverride string, warn func(string)) 
 		return Bundle{}, err
 	}
 
-	client, err := Anonymous(authority, pdsHostOverride, plcHostOverride)
+	client, err := atproto.Anonymous(authority, pdsHostOverride, plcHostOverride)
 	if err != nil {
 		return Bundle{}, fmt.Errorf("resolving %q: %w", authority, err)
 	}
@@ -88,7 +93,7 @@ func (b Bundle) CodecName() string { return "ATProto" }
 // TID and not fit for human use as a name.
 const cidNameLength = 12
 
-func nameFromRecord(record Record, cid string) string {
+func nameFromRecord(record atproto.Record, cid string) string {
 	if record.Location != nil {
 		if name := kebabCase(record.Location.Name); name != "" {
 			return name
@@ -140,8 +145,8 @@ func (b Bundle) Decode(decOpts formats.DecodeOptions) (types.Postcard, error) {
 	}
 
 	if b.warn != nil {
-		imageRecord := FromMetadata(pc.Meta, b.record.Image)
-		if diffs := Diff(imageRecord, b.record); len(diffs) > 0 {
+		imageRecord := atproto.FromMetadata(pc.Meta, b.record.Image)
+		if diffs := atproto.Diff(imageRecord, b.record); len(diffs) > 0 {
 			b.warn(fmt.Sprintf("record and image metadata differ: %s", strings.Join(diffs, ", ")))
 		}
 	}

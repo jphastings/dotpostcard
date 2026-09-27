@@ -1,4 +1,4 @@
-package atproto
+package pdsbundle
 
 import (
 	"bytes"
@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/jphastings/dotpostcard/formats"
+	"github.com/jphastings/dotpostcard/formats/atproto"
+	"github.com/jphastings/dotpostcard/formats/atproto/internal/testpds"
 	"github.com/jphastings/dotpostcard/formats/web"
 	"github.com/jphastings/dotpostcard/internal/testhelpers"
 	"github.com/jphastings/dotpostcard/types"
@@ -50,20 +52,20 @@ func TestWebEncodingIsDeterministic(t *testing.T) {
 }
 
 func TestUploadDownloadRoundTrip(t *testing.T) {
-	srv := newFakePDS("did:plc:testuser")
+	srv := testpds.New("did:plc:testuser", atproto.RecordType)
 	defer srv.Close()
 
-	client, err := Login("alice.example", "app-password", srv.URL, "")
+	client, err := atproto.Login("alice.example", "app-password", srv.URL, "")
 	require.NoError(t, err)
 
 	data, mimetype, meta := encodeSamplePostcard(t)
 
 	blob, err := client.UploadBlob(data, mimetype)
 	require.NoError(t, err)
-	require.NoError(t, client.PutRecord("some-postcard", FromMetadata(meta, blob)))
+	require.NoError(t, client.PutRecord("some-postcard", atproto.FromMetadata(meta, blob)))
 
 	var warnings []string
-	uri := fmt.Sprintf("at://%s/%s/some-postcard", client.DID(), RecordType)
+	uri := fmt.Sprintf("at://%s/%s/some-postcard", client.DID(), atproto.RecordType)
 	bundle, err := NewBundle(uri, srv.URL, "", func(msg string) { warnings = append(warnings, msg) })
 	require.NoError(t, err)
 
@@ -83,22 +85,22 @@ func TestUploadDownloadRoundTrip(t *testing.T) {
 }
 
 func TestDecodeWarnsOnMismatchAndRecordWins(t *testing.T) {
-	srv := newFakePDS("did:plc:testuser")
+	srv := testpds.New("did:plc:testuser", atproto.RecordType)
 	defer srv.Close()
 
-	client, err := Login("alice.example", "app-password", srv.URL, "")
+	client, err := atproto.Login("alice.example", "app-password", srv.URL, "")
 	require.NoError(t, err)
 
 	data, mimetype, meta := encodeSamplePostcard(t)
 	blob, err := client.UploadBlob(data, mimetype)
 	require.NoError(t, err)
 
-	record := FromMetadata(meta, blob)
+	record := atproto.FromMetadata(meta, blob)
 	record.Context.Description = "An edited description the image's own XMP doesn't know about"
 	require.NoError(t, client.PutRecord("some-postcard", record))
 
 	var warnings []string
-	uri := fmt.Sprintf("at://%s/%s/some-postcard", client.DID(), RecordType)
+	uri := fmt.Sprintf("at://%s/%s/some-postcard", client.DID(), atproto.RecordType)
 	bundle, err := NewBundle(uri, srv.URL, "", func(msg string) { warnings = append(warnings, msg) })
 	require.NoError(t, err)
 
@@ -113,10 +115,10 @@ func TestDecodeWarnsOnMismatchAndRecordWins(t *testing.T) {
 func putAndFetchNamed(t *testing.T, locationName string) string {
 	t.Helper()
 
-	srv := newFakePDS("did:plc:testuser")
+	srv := testpds.New("did:plc:testuser", atproto.RecordType)
 	defer srv.Close()
 
-	client, err := Login("alice.example", "app-password", srv.URL, "")
+	client, err := atproto.Login("alice.example", "app-password", srv.URL, "")
 	require.NoError(t, err)
 
 	data, mimetype, meta := encodeSamplePostcard(t)
@@ -124,9 +126,9 @@ func putAndFetchNamed(t *testing.T, locationName string) string {
 
 	blob, err := client.UploadBlob(data, mimetype)
 	require.NoError(t, err)
-	require.NoError(t, client.PutRecord("3jzfcijpj2z2a", FromMetadata(meta, blob)))
+	require.NoError(t, client.PutRecord("3jzfcijpj2z2a", atproto.FromMetadata(meta, blob)))
 
-	uri := fmt.Sprintf("at://%s/%s/3jzfcijpj2z2a", client.DID(), RecordType)
+	uri := fmt.Sprintf("at://%s/%s/3jzfcijpj2z2a", client.DID(), atproto.RecordType)
 	bundle, err := NewBundle(uri, srv.URL, "", nil)
 	require.NoError(t, err)
 

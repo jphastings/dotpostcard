@@ -43,6 +43,16 @@ func RecordKey(sentOn *types.Date, today time.Time, image []byte) string {
 	return encodeTID(uint64(micros)<<10 | clockID)
 }
 
+// Key returns r's TID: derived from the day it was sent (r.SentOn, else today) plus the
+// image's hash. It delegates to RecordKey.
+func (r Record) Key(today time.Time, image []byte) string {
+	var sentOn *types.Date
+	if r.SentOn != nil {
+		sentOn = &types.Date{Time: time.Date(r.SentOn.Year, time.Month(r.SentOn.Month), r.SentOn.Day, 0, 0, 0, 0, time.UTC)}
+	}
+	return RecordKey(sentOn, today, image)
+}
+
 func dayUTC(t time.Time) time.Time {
 	t = t.UTC()
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
