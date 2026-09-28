@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.33.0 (2026-09-28)
+
+### Feat
+
+- **atproto**: derive a record's key from its image blob's CID (#8)
+
 ## v0.32.0 (2026-09-27)
 
 ### Feat
