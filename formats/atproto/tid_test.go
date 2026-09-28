@@ -72,6 +72,59 @@ func TestRecordKeyUsesTodayWhenSentOnUnknown(t *testing.T) {
 	assert.Equal(t, "2020-06-15", tidTimestamp(t, key).Format("2006-01-02"))
 }
 
+// realBlobCID is the CIDv1/raw/sha2-256 multibase string a real content-addressed store
+// assigns to the bytes "some image bytes" — obtained independently of this package with:
+//
+//	ipfs add --cid-version=1 --raw-leaves --hash=sha2-256 --only-hash
+//
+// It embeds exactly sha256([]byte("some image bytes")), which is what atproto's uploadBlob
+// also produces for a raw-codec blob CID.
+const realBlobCID = "bafkreickdudulxqk62aq5vkttfvp246y6fjlbqzjdd62ta6akbn4pid3ye"
+
+func TestKeyFromImageMatchesKey(t *testing.T) {
+	today := time.Date(2020, time.June, 15, 0, 0, 0, 0, time.UTC)
+	image := []byte("some image bytes")
+	blob := Blob{Ref: BlobRef{Link: realBlobCID}}
+
+	t.Run("with SentOn", func(t *testing.T) {
+		record := Record{Image: blob, SentOn: &Date{Year: 1974, Month: 9, Day: 26}}
+
+		got, err := record.KeyFromImage(today)
+		require.NoError(t, err)
+		assert.Equal(t, record.Key(today, image), got)
+	})
+
+	t.Run("without SentOn", func(t *testing.T) {
+		record := Record{Image: blob}
+
+		got, err := record.KeyFromImage(today)
+		require.NoError(t, err)
+		assert.Equal(t, record.Key(today, image), got)
+	})
+}
+
+func TestKeyFromImageRejectsUnsupportedCID(t *testing.T) {
+	today := time.Now()
+
+	cases := map[string]string{
+		// Same digest, but dag-cbor codec (0x71) rather than raw (0x55) — hand-assembled to
+		// exercise the codec check, not a value any real service would return for a blob.
+		"dag-cbor codec": "bafyreickdudulxqk62aq5vkttfvp246y6fjlbqzjdd62ta6akbn4pid3ye",
+		// A real CIDv0 (base58btc multihash, no multibase prefix) for "hello world"'s bytes.
+		"CIDv0":          "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG",
+		"missing":        "",
+		"invalid base32": "bNotValidBase32!!!",
+	}
+
+	for name, link := range cases {
+		t.Run(name, func(t *testing.T) {
+			record := Record{Image: Blob{Ref: BlobRef{Link: link}}}
+			_, err := record.KeyFromImage(today)
+			assert.Error(t, err)
+		})
+	}
+}
+
 func TestRecordKeyMatchesRecordKeyMethod(t *testing.T) {
 	today := time.Date(2020, time.June, 15, 0, 0, 0, 0, time.UTC)
 	image := []byte("some image bytes")
