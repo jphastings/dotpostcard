@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.33.1 (2026-11-09)
+
+### Fix
+
+- honour EXIF orientation in component images
+
 ## v0.33.0 (2026-09-28)
 
 ### Feat
