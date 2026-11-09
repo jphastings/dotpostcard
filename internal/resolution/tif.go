@@ -7,17 +7,22 @@ import (
 )
 
 func decodeTIFF(data []byte) (*big.Rat, *big.Rat, error) {
-	jmp := tiffstructure.NewTiffMediaParser()
-
-	mc, err := jmp.ParseBytes(data)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	_, exifData, err := mc.Exif()
+	exifData, err := exifFromTIFF(data)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	return decodeExif(exifData)
+}
+
+func exifFromTIFF(data []byte) ([]byte, error) {
+	jmp := tiffstructure.NewTiffMediaParser()
+
+	mc, err := jmp.ParseBytes(data)
+	if err != nil {
+		return nil, err
+	}
+
+	_, exifData, err := mc.Exif()
+	return exifData, err
 }

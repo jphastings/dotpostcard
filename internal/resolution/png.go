@@ -43,3 +43,13 @@ func decodePNG(data []byte) (*big.Rat, *big.Rat, error) {
 	// Scale down by 100, because PNG gives units in meters
 	return big.NewRat(int64(pdX), 100), big.NewRat(int64(pdY), 100), nil
 }
+
+func exifFromPNG(data []byte) ([]byte, error) {
+	mc, err := pngstructure.NewPngMediaParser().ParseBytes(data)
+	if err != nil {
+		return nil, err
+	}
+
+	_, exifData, err := mc.Exif()
+	return exifData, err
+}

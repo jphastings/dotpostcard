@@ -115,13 +115,17 @@ func (b bundle) Decode(opts formats.DecodeOptions) (types.Postcard, error) {
 }
 
 func decodeImage(r io.Reader, decOpts formats.DecodeOptions) (image.Image, types.Size, bool, float64, error) {
-	var dataCopy bytes.Buffer
-	t := io.TeeReader(r, &dataCopy)
-
-	img, _, err := image.Decode(t)
+	// Read everything first: WebP and TIFF can store EXIF after the image data, where a decoder may stop early
+	data, err := io.ReadAll(r)
 	if err != nil {
 		return nil, types.Size{}, false, 0, err
 	}
+	img, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil, types.Size{}, false, 0, err
+	}
+	orientation := resolution.Orientation(data)
+	img = images.Orient(img, orientation)
 	bounds := img.Bounds()
 	size := types.Size{
 		PxWidth:  bounds.Dx(),
@@ -132,8 +136,12 @@ func decodeImage(r io.Reader, decOpts formats.DecodeOptions) (image.Image, types
 
 	// Invalid physical dimensions just get ignored
 	var pxPerCm float64
-	xRes, yRes, resErr := resolution.Decode(dataCopy.Bytes())
+	xRes, yRes, resErr := resolution.Decode(data)
 	if resErr == nil && xRes != nil && yRes != nil && xRes.Sign() != 0 && yRes.Sign() != 0 {
+		if orientation >= 5 {
+			// Resolution is per stored axis, and those axes are transposed
+			xRes, yRes = yRes, xRes
+		}
 		size.SetResolution(xRes, yRes)
 		x, _ := xRes.Float64()
 		y, _ := yRes.Float64()

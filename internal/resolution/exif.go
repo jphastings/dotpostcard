@@ -17,7 +17,14 @@ func decodeExif(data []byte) (*big.Rat, *big.Rat, error) {
 	var yRes *big.Rat
 	var toCm func(*big.Rat) *big.Rat
 
+	seen := map[string]bool{}
 	for _, tag := range tags {
+		// IFD0 (the main image) is visited before IFD1 (the thumbnail), so the first of each tag wins
+		if seen[tag.TagName] {
+			continue
+		}
+		seen[tag.TagName] = true
+
 		switch tag.TagName {
 		case "XResolution":
 			vals := tag.Value.([]exifcommon.Rational)
@@ -53,4 +60,24 @@ func ResolutionToCm(exifResolutionUnit uint16) func(*big.Rat) *big.Rat {
 		}
 		return new(big.Rat).Mul(res, toCm)
 	}
+}
+
+func exifOrientation(data []byte) int {
+	tags, _, err := exif.GetFlatExifData(data, nil)
+	if err != nil {
+		return 1
+	}
+
+	for _, tag := range tags {
+		if tag.TagName != "Orientation" {
+			continue
+		}
+		// IFD0 is visited before the thumbnail's IFD1, so the first one describes the main image
+		vals, ok := tag.Value.([]uint16)
+		if !ok || len(vals) == 0 || vals[0] < 1 || vals[0] > 8 {
+			return 1
+		}
+		return int(vals[0])
+	}
+	return 1
 }

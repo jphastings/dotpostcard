@@ -3,17 +3,20 @@ package resolution
 import (
 	"fmt"
 	"math/big"
+
+	"github.com/jphastings/dotpostcard/pkg/xmpinject"
 )
 
 var readers = []struct {
 	magicBytes []byte
 	fn         func([]byte) (*big.Rat, *big.Rat, error)
+	exif       func([]byte) ([]byte, error)
 }{
-	{[]byte(pngHeader), decodePNG},
-	{[]byte("\xff\xd8"), decodeJPEG},
-	{[]byte("RIFF????WEBPVP8"), decodeWebP},
-	{[]byte{0x4D, 0x4D, 0x00, 0x2A}, decodeTIFF},
-	{[]byte{0x49, 0x49, 0x2A, 0x00}, decodeTIFF},
+	{[]byte(pngHeader), decodePNG, exifFromPNG},
+	{[]byte("\xff\xd8"), decodeJPEG, exifFromJPEG},
+	{[]byte("RIFF????WEBPVP8"), decodeWebP, xmpinject.EXIFfromWebP},
+	{[]byte{0x4D, 0x4D, 0x00, 0x2A}, decodeTIFF, exifFromTIFF},
+	{[]byte{0x49, 0x49, 0x2A, 0x00}, decodeTIFF, exifFromTIFF},
 }
 
 // Decode returns the width and height resolution (number of pixels per centimetre) an image declares it is stored with
@@ -38,4 +41,18 @@ func isMagic(data, magic []byte) bool {
 	}
 
 	return true
+}
+
+// Orientation returns the EXIF orientation (1–8) an image declares, or 1 if it declares no valid one.
+func Orientation(data []byte) int {
+	for _, r := range readers {
+		if len(data) >= len(r.magicBytes) && isMagic(data[:len(r.magicBytes)], r.magicBytes) {
+			exifData, err := r.exif(data)
+			if err != nil {
+				return 1
+			}
+			return exifOrientation(exifData)
+		}
+	}
+	return 1
 }
