@@ -203,7 +203,7 @@ func rotateForWeb(img image.Image, flip types.Flip) (image.Image, image.Rectangl
 		// Top left of the source should be bottom left of the output
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
 			for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-				rotated.Set(y, bounds.Max.X-x, img.At(x, y))
+				rotated.Set(y-bounds.Min.Y, bounds.Max.X-1-x, img.At(x, y))
 			}
 		}
 
@@ -211,7 +211,7 @@ func rotateForWeb(img image.Image, flip types.Flip) (image.Image, image.Rectangl
 		// Top left of the source should be top right of the output
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
 			for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-				rotated.Set(bounds.Max.Y-y, x, img.At(x, y))
+				rotated.Set(bounds.Max.Y-1-y, x-bounds.Min.X, img.At(x, y))
 			}
 		}
 	}

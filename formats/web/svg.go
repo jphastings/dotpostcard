@@ -47,7 +47,7 @@ func writeSVG(w io.Writer, pc types.Postcard, combinedImg image.Image, xmpData [
 			if err != nil {
 				return fmt.Errorf("back image can't be outlined: %w", err)
 			}
-			v.backPoints = backPoints
+			v.backPoints = rotatePointsForWeb(backPoints, pc.Meta.Flip)
 		}
 	}
 
@@ -60,6 +60,23 @@ func writeSVG(w io.Writer, pc types.Postcard, combinedImg image.Image, xmpData [
 
 	WriteSVG(w, v)
 	return nil
+}
+
+// rotatePointsForWeb moves outline points (normalised to the unrotated back)
+// to where rotateForWeb puts those pixels.
+func rotatePointsForWeb(points []geom3d.Point, flip types.Flip) []geom3d.Point {
+	rotated := make([]geom3d.Point, len(points))
+	for i, p := range points {
+		switch flip {
+		case types.FlipLeftHand:
+			rotated[i] = geom3d.Point{X: p.Y, Y: 1 - p.X}
+		case types.FlipRightHand:
+			rotated[i] = geom3d.Point{X: 1 - p.Y, Y: p.X}
+		default:
+			rotated[i] = p
+		}
+	}
+	return rotated
 }
 
 // TODO: Figure out if bezier curves are worth it
