@@ -28,6 +28,20 @@ builds:
     ldflags:
       - -s -w -X "main.Date={{.CommitDate}}"
   -
+    main: ./cmd/fastfoto-postcards
+    id: fastfoto-postcards
+    binary: fastfoto-postcards
+    env:
+      - CGO_ENABLED=0
+    # Only macOS has USB bindings so far; elsewhere it couldn't reach the scanner.
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X "main.Date={{.CommitDate}}"
+  -
     main: ./cmd/postoffice-serviceworker
     id: postoffice-serviceworker
     binary: postoffice-serviceworker
