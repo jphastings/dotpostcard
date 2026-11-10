@@ -100,10 +100,6 @@ label:has(.postcard) {
     }
   }
 
-  &.left-hand,&.right-hand {
-    aspect-ratio: 1/1;
-  }
-
   &.flip-book::after,&.flip-book .shadow {
     transform: var(--p) var(--offset) rotateY(var(--flip));
     background-image: linear-gradient(to right,

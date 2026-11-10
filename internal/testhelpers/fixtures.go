@@ -9,6 +9,8 @@ import (
 	"math/big"
 	"time"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/jphastings/dotpostcard/types"
 )
 
@@ -136,3 +138,24 @@ var SampleXMP []byte
 
 //go:embed sample-meta.yaml
 var SampleYAML []byte
+
+//go:embed heteroriented-left-hand-meta.yaml
+var heterorientedLeftHandYAML []byte
+
+// HeterorientedLeftHand is a left-hand card built from the upright sample images:
+// a portrait front and an upright landscape back.
+func HeterorientedLeftHand() types.Postcard {
+	front := TestImages["sample-portrait-front.png"]
+	pc := types.Postcard{
+		Name:  "heteroriented-left-hand",
+		Front: front,
+		Back:  TestImages["sample-back.png"],
+	}
+	if err := yaml.Unmarshal(heterorientedLeftHandYAML, &pc.Meta); err != nil {
+		panic(fmt.Sprintf("heteroriented fixture metadata is invalid: %v", err))
+	}
+	pc.Meta.Physical.FrontDimensions.PxWidth = front.Bounds().Dx()
+	pc.Meta.Physical.FrontDimensions.PxHeight = front.Bounds().Dy()
+	pc.Meta.HasTransparency = true
+	return pc
+}

@@ -7,6 +7,7 @@ import (
 
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/internal/testhelpers"
+	"github.com/jphastings/dotpostcard/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -70,4 +71,22 @@ func TestEncodeTransparentPostcardWithoutOptions(t *testing.T) {
 
 	_, err = fws[0].Bytes()
 	assert.NoError(t, err)
+}
+
+func TestHeterorientedCardRoundTripsThroughWeb(t *testing.T) {
+	pc := testhelpers.HeterorientedLeftHand()
+	assert.NoError(t, pc.Validate())
+
+	fws, err := PostcardCodec.Encode(pc, nil)
+	assert.NoError(t, err)
+	data, err := fws[0].Bytes()
+	assert.NoError(t, err)
+
+	decoded, err := BundleFromReader(io.NopCloser(bytes.NewReader(data)), fws[0].Filename).Decode(formats.DecodeOptions{})
+	assert.NoError(t, err)
+	assert.NoError(t, decoded.Validate())
+	assert.Equal(t, types.FlipLeftHand, decoded.Meta.Flip)
+	b, f := decoded.Back.Bounds(), decoded.Front.Bounds()
+	assert.Greater(t, f.Dy(), f.Dx(), "front stays portrait")
+	assert.Greater(t, b.Dx(), b.Dy(), "back is restored to landscape")
 }
