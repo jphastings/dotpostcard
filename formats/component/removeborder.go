@@ -52,11 +52,20 @@ func removeBorder(img image.Image, pxPerCm float64) (image.Image, error) {
 // to the backboard colour) pulls one side's border inward, the other side's
 // card size pins it back.
 func removeBorderPair(front, back image.Image, heteroriented bool, pxPerCmF, pxPerCmB float64) (image.Image, image.Image, error) {
-	fEdges, err := detectBorderEdges(front, pxPerCmF)
+	return RemoveBorderPairGuided(front, back, front, back, heteroriented, pxPerCmF, pxPerCmB)
+}
+
+// RemoveBorderPairGuided is removeBorderPair with edges detected on separate
+// guide images (same bounds as their side), while the matte takes its colour
+// from the sides themselves. A guide lets the caller express "difference from
+// the backing" in a way plain brightness can't, for card stock close to the
+// backing's luminance.
+func RemoveBorderPairGuided(front, back, frontGuide, backGuide image.Image, heteroriented bool, pxPerCmF, pxPerCmB float64) (image.Image, image.Image, error) {
+	fEdges, err := detectBorderEdges(frontGuide, pxPerCmF)
 	if err != nil {
 		return nil, nil, err
 	}
-	bEdges, err := detectBorderEdges(back, pxPerCmB)
+	bEdges, err := detectBorderEdges(backGuide, pxPerCmB)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -132,9 +141,14 @@ func detectBorderEdges(img image.Image, pxPerCm float64) ([4][]int, error) {
 			b = image.Rect(0, 0, h, w)
 		}
 		fImg := image.NewGray(b)
+		gray, isGray := img.(*image.Gray)
 		for ry := 0; ry < b.Dy(); ry++ {
 			for rx := 0; rx < b.Dx(); rx++ {
 				x, y := rotation[side](b, rx, ry)
+				if isGray {
+					fImg.Pix[ry*fImg.Stride+rx] = gray.Pix[(bounds.Min.Y+y-gray.Rect.Min.Y)*gray.Stride+bounds.Min.X+x-gray.Rect.Min.X]
+					continue
+				}
 				fImg.Set(rx, ry, img.At(bounds.Min.X+x, bounds.Min.Y+y))
 			}
 		}
