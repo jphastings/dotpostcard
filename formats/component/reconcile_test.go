@@ -123,3 +123,29 @@ func TestRemoveBorderPairSkipsReconcileOnScaleMismatch(t *testing.T) {
 	assert.Zero(t, alphaAt(frontOut, 5, h/2))
 	assert.Zero(t, alphaAt(backOut, 5, h/2))
 }
+
+// Edges come from the guide, not the colour image: here the colour image shows
+// no card/backboard contrast at all, so only the guide can place the border.
+func TestRemoveBorderPairGuidedUsesGuide(t *testing.T) {
+	const w, h, m = 400, 300, 30
+	flat := image.NewNRGBA(image.Rect(0, 0, w, h))
+	guide := image.NewGray(image.Rect(0, 0, w, h))
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			flat.Set(x, y, color.NRGBA{150, 150, 150, 255})
+			g := uint8(128)
+			if x >= m && x < w-m && y >= m && y < h-m {
+				g = 200
+			}
+			guide.SetGray(x, y, color.Gray{g})
+		}
+	}
+
+	out, _, err := RemoveBorderPairGuided(flat, flat, guide, guide, false, 150, 150)
+	require.NoError(t, err)
+
+	_, _, _, outside := out.At(10, h/2).RGBA()
+	_, _, _, inside := out.At(w/2, h/2).RGBA()
+	assert.Zero(t, outside)
+	assert.Equal(t, uint32(0xffff), inside)
+}
