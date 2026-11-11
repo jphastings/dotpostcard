@@ -59,6 +59,13 @@ func TestReportListsFlagsAndOrphans(t *testing.T) {
 	assert.Contains(t, out, "3")
 }
 
+func TestReportListsOnlyCardsToRescan(t *testing.T) {
+	out, _, _ := execute(t, func(context.Context, fastfoto.Options) (fastfoto.Report, error) {
+		return fastfoto.Report{Cards: []fastfoto.CardResult{{Name: "0001"}, {Name: "0002", Rescan: true}, {Name: "0003", Rescan: true}}}, nil
+	})
+	assert.Contains(t, out, "rescan these cards, fed straighter: 0002, 0003")
+}
+
 func TestHelpCarriesTheLoadingAdvice(t *testing.T) {
 	out, _, err := execute(t, nil, "--help")
 	assert.NoError(t, err)

@@ -21,7 +21,7 @@ const (
 	marginCm = 0.6
 
 	// How far the upright box may poke past the frame before a corner counts as clipped.
-	clipToleranceCm = 0.1
+	clipToleranceCm = 0.3
 
 	// A card's edge points should hug its outline: when fewer do, something else is in the
 	// feeder, like a second card shingled against it. Deep torn or pinked edges stay inside this.
@@ -603,6 +603,7 @@ type card struct {
 	size        types.Size
 	tilt        [2]float64 // degrees, front then back
 	flags       []string
+	rescan      bool // a side lost a corner past the tolerance
 }
 
 func buildCard(front, back *frame, threshold, feedScale float64) (*card, error) {
@@ -621,6 +622,7 @@ func buildCard(front, back *frame, threshold, feedScale float64) (*card, error) 
 			c.flags = append(c.flags, fmt.Sprintf("only %.0f%% of the %s's edge is on one outline: a double-feed?", geos[i].onOutline*100, [2]string{"front", "back"}[i]))
 		}
 		if lost := geos[i].clippedBy(sigs[i]); lost > clipToleranceCm*pxPerCm {
+			c.rescan = true
 			c.flags = append(c.flags, fmt.Sprintf("%s: a corner was clipped by about %.1f mm: keep the card snug against the guides, straightest edge leading",
 				[2]string{"front", "back"}[i], lost/pxPerCm*10))
 		}

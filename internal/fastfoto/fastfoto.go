@@ -58,6 +58,8 @@ type CardResult struct {
 	TiltFront float64 // degrees
 	TiltBack  float64
 	Flags     []string
+	// Rescan is set when a side lost enough of a corner that feeding the card again, straighter, is worthwhile.
+	Rescan bool
 	// Notes say what the LLM step did to the card, or why it left the card as scanned.
 	Notes []string
 	// LLMFailed is set when the LLM step errored, so the card was left as scanned.
@@ -273,6 +275,7 @@ func (r *run) buildOne(number int) (res CardResult) {
 	res.HeightCm, _ = c.size.CmHeight.Float64()
 	res.TiltFront, res.TiltBack = c.tilt[0], c.tilt[1]
 	res.Flags = c.flags
+	res.Rescan = c.rescan
 
 	flip, sideMeta := types.FlipBook, [2]types.Side{}
 	front, back := image.Image(c.front), image.Image(c.back)
