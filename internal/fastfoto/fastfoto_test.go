@@ -255,17 +255,34 @@ func TestCardDarkOnBothSidesFallsBackAndFlagsUncertainEdges(t *testing.T) {
 	assert.Contains(t, strings.Join(report.Cards[0].Flags, "\n"), "uncertain")
 }
 
-func TestClippedCardIsFlagged(t *testing.T) {
+func TestSkewedCardIsSetAsideForRescan(t *testing.T) {
 	dir := t.TempDir()
 	s := defaultSynth()
 	s.heightCm = 4
 	s.tiltDeg = 6
 	writeRaw(t, dir, 1, s)
 	writeRaw(t, dir, 2, s)
-	report, err := runNoScan(t, dir)
+	described := false
+	opts := Options{OutDir: dir, NoScan: true, Describe: func(context.Context, image.Image, image.Image) (Description, error) {
+		described = true
+		return Description{}, nil
+	}}
+	report, err := Run(context.Background(), opts)
 	require.NoError(t, err)
-	assert.Contains(t, report.Cards[0].Flags[0], "clipped")
 	assert.True(t, report.Cards[0].Rescan)
+	assert.False(t, described)
+
+	f, err := os.Open(filepath.Join(dir, "for-rescan-0001.jpg"))
+	require.NoError(t, err)
+	defer f.Close()
+	_, err = jpeg.Decode(f)
+	assert.NoError(t, err)
+	assert.NoFileExists(t, filepath.Join(dir, "0001-front.png"))
+	assert.NoFileExists(t, filepath.Join(dir, "0001-meta.yaml"))
+
+	report, err = Run(context.Background(), opts)
+	require.NoError(t, err)
+	assert.Empty(t, report.Cards)
 }
 
 func TestSlightlySkewedCardIsNotWarnedAbout(t *testing.T) {

@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -22,7 +23,8 @@ To redo a card, delete its NNNN-meta.yaml and run again with --no-scan.
 
 Loading: top edge first, back of the card facing you. Keep the paper guides
 snug against the card, and put the card's straightest edge leading. A skewed
-card loses its far corners to the scan; those cards are flagged.
+card loses its far corners to the scan; those cards are set aside as
+for-rescan-NNNN.jpg, to feed again.
 
 Only one app can scan at a time, so close Epson FastFoto or Image Capture if they are open.
 Ctrl-C finishes the current card; press it again to abort. If the scanner
@@ -74,7 +76,7 @@ func newCommand(run runFunc, stdout, stderr io.Writer) *cobra.Command {
 			}()
 
 			report, err := run(ctx, opts)
-			printReport(stdout, report)
+			printReport(stdout, report, opts.OutDir)
 			return err
 		},
 	}
@@ -92,22 +94,24 @@ func newCommand(run runFunc, stdout, stderr io.Writer) *cobra.Command {
 	return cmd
 }
 
-func printReport(w io.Writer, r fastfoto.Report) {
+func printReport(w io.Writer, r fastfoto.Report, outDir string) {
 	built, llmFailed := 0, 0
-	var rescan []string
+	rescan := 0
 	for _, c := range r.Cards {
 		if c.Err != nil {
 			fmt.Fprintf(w, "%s  FAILED: %v\n", c.Name, c.Err)
 			continue
 		}
-		built++
 		if c.LLMFailed {
 			llmFailed++
 		}
 		if c.Rescan {
-			rescan = append(rescan, c.Name)
+			rescan++
+			fmt.Fprintf(w, "%s  scanned skewed, needs a rescan  tilt %.1f/%.1f deg\n", c.Name, c.TiltFront, c.TiltBack)
+		} else {
+			built++
+			fmt.Fprintf(w, "%s  %.2f x %.2f cm  tilt %.1f/%.1f deg\n", c.Name, c.WidthCm, c.HeightCm, c.TiltFront, c.TiltBack)
 		}
-		fmt.Fprintf(w, "%s  %.2f x %.2f cm  tilt %.1f/%.1f deg\n", c.Name, c.WidthCm, c.HeightCm, c.TiltFront, c.TiltBack)
 		for _, note := range c.Notes {
 			fmt.Fprintf(w, "  %s\n", note)
 		}
@@ -125,8 +129,12 @@ func printReport(w io.Writer, r fastfoto.Report) {
 	if llmFailed > 0 {
 		fmt.Fprintf(w, "%d cards left as scanned: the LLM step failed\n", llmFailed)
 	}
-	if len(rescan) > 0 {
-		fmt.Fprintf(w, "rescan these cards, fed straighter: %s\n", strings.Join(rescan, ", "))
+	if rescan > 0 {
+		subject := "cards were scanned skewed, and need"
+		if rescan == 1 {
+			subject = "card was scanned skewed, and needs"
+		}
+		fmt.Fprintf(w, "%d %s a rescan. See %s\n", rescan, subject, filepath.Join(outDir, "for-rescan-*.jpg"))
 	}
 	if r.RawDir != "" {
 		fmt.Fprintf(w, "%d cards; raw scans: %s (%.0f MB)\n", built, r.RawDir, float64(r.RawBytes)/1e6)

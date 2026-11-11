@@ -58,7 +58,8 @@ type CardResult struct {
 	TiltFront float64 // degrees
 	TiltBack  float64
 	Flags     []string
-	// Rescan is set when a side lost enough of a corner that feeding the card again, straighter, is worthwhile.
+	// Rescan is set when a side lost enough of a corner that the card was set aside, unbuilt, as
+	// for-rescan-NNNN.jpg to be fed again straighter.
 	Rescan bool
 	// Notes say what the LLM step did to the card, or why it left the card as scanned.
 	Notes []string
@@ -79,10 +80,12 @@ type Report struct {
 var (
 	rawPageRE = regexp.MustCompile(`^page-(\d+)\.jpg$`)
 	outputRE  = regexp.MustCompile(`^(\d+)-(?:front\.png|back\.png|meta\.yaml)$`)
+	rescanRE  = regexp.MustCompile(`^for-rescan-(\d+)\.jpg$`)
 )
 
-func rawName(page int) string  { return fmt.Sprintf("page-%05d.jpg", page) }
-func cardName(card int) string { return fmt.Sprintf("%04d", card) }
+func rawName(page int) string    { return fmt.Sprintf("page-%05d.jpg", page) }
+func cardName(card int) string   { return fmt.Sprintf("%04d", card) }
+func rescanName(card int) string { return "for-rescan-" + cardName(card) + ".jpg" }
 
 type run struct {
 	opts Options
@@ -172,7 +175,7 @@ func Run(ctx context.Context, opts Options) (Report, error) {
 	return report, errors.Join(errs...)
 }
 
-// inventory lists the raw pages, the cards whose metadata exists (so are complete), and
+// inventory lists the raw pages, the cards whose metadata or for-rescan preview exists (so are done), and
 // the highest card number that any output file already uses.
 func (r *run) inventory() (pages, finished map[int]bool, highest int, err error) {
 	pages, finished = map[int]bool{}, map[int]bool{}
@@ -195,6 +198,10 @@ func (r *run) inventory() (pages, finished map[int]bool, highest int, err error)
 			n, _ := strconv.Atoi(m[1])
 			highest = max(highest, n)
 			finished[n] = finished[n] || strings.HasSuffix(e.Name(), "-meta.yaml")
+		} else if m := rescanRE.FindStringSubmatch(e.Name()); m != nil {
+			n, _ := strconv.Atoi(m[1])
+			highest = max(highest, n)
+			finished[n] = true
 		}
 	}
 	return pages, finished, highest, nil
@@ -244,7 +251,9 @@ func (r *run) process(card int) {
 		r.mu.Lock()
 		r.results = append(r.results, res)
 		r.mu.Unlock()
-		if res.Err == nil {
+		if res.Rescan {
+			r.log("card %s: scanned skewed, needs a rescan, %.1fs", res.Name, res.Elapsed.Seconds())
+		} else if res.Err == nil {
 			r.log("card %s: %.1f x %.1f cm%s, %.1fs", res.Name, res.WidthCm, res.HeightCm, flagSummary(res.Flags), res.Elapsed.Seconds())
 		}
 	}()
@@ -270,12 +279,16 @@ func (r *run) buildOne(number int) (res CardResult) {
 	if res.Err != nil {
 		return
 	}
+	res.TiltFront, res.TiltBack = c.tilt[0], c.tilt[1]
+	res.Flags = c.flags
+	if c.rescan {
+		res.Rescan = true
+		r.withSlot(r.slots, func() { res.Err = r.writeRescanPreview(number, c.rawFront) })
+		return
+	}
 	res.WidthPx, res.HeightPx = c.size.PxWidth, c.size.PxHeight
 	res.WidthCm, _ = c.size.CmWidth.Float64()
 	res.HeightCm, _ = c.size.CmHeight.Float64()
-	res.TiltFront, res.TiltBack = c.tilt[0], c.tilt[1]
-	res.Flags = c.flags
-	res.Rescan = c.rescan
 
 	flip, sideMeta := types.FlipBook, [2]types.Side{}
 	front, back := image.Image(c.front), image.Image(c.back)
@@ -359,6 +372,17 @@ func (r *run) loadCard(number int) (*card, error) {
 		front, back = back, front
 	}
 	return buildCard(front, back, r.opts.CardThreshold, r.opts.FeedScale)
+}
+
+func (r *run) writeRescanPreview(number int, front image.Image) error {
+	b, err := shrunkJPEG(front)
+	if err != nil {
+		return err
+	}
+	return writeAtomic(filepath.Join(r.opts.OutDir, rescanName(number)), func(w io.Writer) error {
+		_, err := w.Write(b)
+		return err
+	})
 }
 
 func (r *run) write(name string, size types.Size, flip types.Flip, sides [2]types.Side, front, back image.Image) error {
