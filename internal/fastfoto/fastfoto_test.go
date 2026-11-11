@@ -5,6 +5,7 @@ import (
 	"context"
 	"image"
 	"image/color"
+	"image/draw"
 	"image/jpeg"
 	"image/png"
 	"math"
@@ -47,7 +48,9 @@ func loadPNG(t *testing.T, path string) *image.NRGBA {
 	defer f.Close()
 	img, err := png.Decode(f)
 	require.NoError(t, err)
-	return img.(*image.NRGBA)
+	out := image.NewNRGBA(img.Bounds())
+	draw.Draw(out, out.Bounds(), img, img.Bounds().Min, draw.Src)
+	return out
 }
 
 func alpha(img *image.NRGBA, x, y int) uint8 { return img.NRGBAAt(x, y).A }
@@ -241,6 +244,58 @@ func TestSidesOffsetByAShadowBandAreRegistered(t *testing.T) {
 	assert.Greater(t, img.NRGBAAt(first+2, y).R, uint8(200), "the front's left edge is paper, not the band")
 	assert.Greater(t, img.NRGBAAt(last-2, y).R, uint8(200), "the front's right edge is paper")
 	assert.InDelta(t, 5*pxPerCm, float64(last-first+1), 3, "no paper cut off at either side")
+}
+
+func TestBackingShadowedButRedderIsNotCard(t *testing.T) {
+	dir := t.TempDir()
+	s := defaultSynth()
+	s.redShadow = true
+	writeRaw(t, dir, 1, s)
+	writeRaw(t, dir, 2, s)
+	report, err := runNoScan(t, dir)
+	require.NoError(t, err)
+
+	img := loadPNG(t, filepath.Join(dir, "0001-front.png"))
+	assert.InDelta(t, 5*pxPerCm, float64(img.Bounds().Dx()), 5)
+	assert.InDelta(t, 3.4*pxPerCm, float64(img.Bounds().Dy()), 5)
+	assert.Empty(t, report.Cards[0].Flags)
+}
+
+func TestPrintingGreyerThanBackingUpToTheEdgeIsStillCard(t *testing.T) {
+	dir := t.TempDir()
+	s := defaultSynth()
+	s.edgeDots = true
+	writeRaw(t, dir, 1, s)
+	writeRaw(t, dir, 2, s)
+	_, err := runNoScan(t, dir)
+	require.NoError(t, err)
+
+	img := loadPNG(t, filepath.Join(dir, "0001-front.png"))
+	assert.InDelta(t, 3.4*pxPerCm, float64(img.Bounds().Dy()), 5)
+	for x := img.Bounds().Dx() / 4; x < img.Bounds().Dx()*3/4; x++ {
+		require.GreaterOrEqualf(t, alpha(img, x, 15), uint8(250), "column %d", x)
+	}
+}
+
+func TestFrontAlphaIsTheBacksMirrored(t *testing.T) {
+	dir := t.TempDir()
+	back, front := defaultSynth(), defaultSynth()
+	back.tiltDeg, front.tiltDeg = 1, -1
+	front.bandPx = [2]int{14, 0}
+	back.zigzagPx = 14
+	writeRaw(t, dir, 1, back)
+	writeRaw(t, dir, 2, front)
+	_, err := runNoScan(t, dir)
+	require.NoError(t, err)
+
+	f, b := loadPNG(t, filepath.Join(dir, "0001-front.png")), loadPNG(t, filepath.Join(dir, "0001-back.png"))
+	require.Equal(t, f.Bounds(), b.Bounds())
+	w := f.Bounds().Dx()
+	for y := 0; y < f.Bounds().Dy(); y++ {
+		for x := 0; x < w; x++ {
+			require.Equalf(t, alpha(f, x, y), alpha(b, w-1-x, y), "alpha at %d,%d", x, y)
+		}
+	}
 }
 
 func TestCardDarkOnBothSidesFallsBackAndFlagsUncertainEdges(t *testing.T) {

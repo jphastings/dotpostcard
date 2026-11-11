@@ -33,6 +33,9 @@ const (
 	// of the crop survive; a hard edge's matte ramps over only a few pixels.
 	trimAlpha = 16
 
+	// How far past a measured box a pixel may still be card, to cover the box's own error.
+	boxTolerancePx = 2
+
 	stripPx    = 160
 	latticePx  = 8
 	scanStepPx = 3
@@ -160,16 +163,20 @@ func contrast(c, ref rgb) float64 {
 	return dY
 }
 
-// newSignal is 128 plus each pixel's contrast against the backing.
-func newSignal(f *frame) *image.Gray {
+// newSignals is 128 plus each pixel's contrast against the backing, and the same on
+// luminance alone. Only luminance can say a pixel is lighter than the backing: shadowed
+// backing can be redder than unshadowed, which the mixed contrast reads as brighter.
+func newSignals(f *frame) (mixed, lum *image.Gray) {
 	bk := measureBacking(f)
-	s := image.NewGray(image.Rect(0, 0, f.w, f.h))
+	mixed, lum = image.NewGray(image.Rect(0, 0, f.w, f.h)), image.NewGray(image.Rect(0, 0, f.w, f.h))
 	for y := 0; y < f.h; y++ {
 		for x := 0; x < f.w; x++ {
-			s.Pix[y*s.Stride+x] = clampByte(128 + contrast(f.at(x, y), bk.at(x, y)))
+			c, ref := f.at(x, y), bk.at(x, y)
+			mixed.Pix[y*mixed.Stride+x] = clampByte(128 + contrast(c, ref))
+			lum.Pix[y*lum.Stride+x] = clampByte(128 + luminance(c) - luminance(ref))
 		}
 	}
-	return s
+	return mixed, lum
 }
 
 func clampByte(v float64) uint8 { return uint8(math.Round(math.Min(255, math.Max(0, v)))) }
@@ -461,8 +468,8 @@ func (g geometry) clippedBy(sig *image.Gray) float64 {
 // the card's box centred, then moves the canvas by reg. Canvas outside the frame reads as
 // backing in the signal and is listed in offFrame, because what's drawn there is only the
 // frame's edge repeated.
-func (g geometry) warp(f *frame, sig *image.Gray, w, h int, reg registration) (img *image.NRGBA, guide *image.Gray, offFrame []bool) {
-	img, guide, offFrame = image.NewNRGBA(image.Rect(0, 0, w, h)), image.NewGray(image.Rect(0, 0, w, h)), make([]bool, w*h)
+func (g geometry) warp(f *frame, sig, lum *image.Gray, w, h int, reg registration) (img *image.NRGBA, guide, lumGuide *image.Gray, offFrame []bool) {
+	img, guide, lumGuide, offFrame = image.NewNRGBA(image.Rect(0, 0, w, h)), image.NewGray(image.Rect(0, 0, w, h)), image.NewGray(image.Rect(0, 0, w, h)), make([]bool, w*h)
 	uc, vc := (g.uMin+g.uMax)/2, (g.vMin+g.vMax)/2
 	// Both canvas and frame treat integer coordinates as pixel centres. Without tilt the
 	// origin is rounded onto the frame's pixel grid so every pixel is copied, not blended.
@@ -482,15 +489,16 @@ func (g geometry) warp(f *frame, sig *image.Gray, w, h int, reg registration) (i
 			c := f.sample(x, y)
 			i := cy*img.Stride + 4*cx
 			img.Pix[i], img.Pix[i+1], img.Pix[i+2], img.Pix[i+3] = uint8(c[0]+0.5), uint8(c[1]+0.5), uint8(c[2]+0.5), 255
-			guide.Pix[cy*guide.Stride+cx] = 128
+			guide.Pix[cy*guide.Stride+cx], lumGuide.Pix[cy*lumGuide.Stride+cx] = 128, 128
 			if f.contains(x, y) {
 				guide.Pix[cy*guide.Stride+cx] = clampByte(sampleGray(sig, x, y))
+				lumGuide.Pix[cy*lumGuide.Stride+cx] = clampByte(sampleGray(lum, x, y))
 			} else {
 				offFrame[cy*w+cx] = true
 			}
 		}
 	}
-	return img, guide, offFrame
+	return img, guide, lumGuide, offFrame
 }
 
 func clearOffFrame(img *image.NRGBA, offFrame []bool) {
@@ -507,19 +515,21 @@ type canvases struct {
 	w, h     int
 	frames   [2]*frame
 	frameSig [2]*image.Gray
+	frameLum [2]*image.Gray
 	geos     [2]geometry
 	imgs     [2]*image.NRGBA
 	signals  [2]*image.Gray
+	lumSigs  [2]*image.Gray // luminance alone, for deciding what is lighter than the backing
 	offFrame [2][]bool
 	boxes    [2]image.Rectangle // each side's measured card box
 }
 
-func makeCanvases(frames [2]*frame, sigs [2]*image.Gray, geos [2]geometry) canvases {
+func makeCanvases(frames [2]*frame, sigs, lums [2]*image.Gray, geos [2]geometry) canvases {
 	margin := marginCm * pxPerCm
 	cv := canvases{
 		w:      int(math.Ceil(math.Max(geos[0].width(), geos[1].width()) + 2*margin)),
 		h:      int(math.Ceil(math.Max(geos[0].height(), geos[1].height()) + 2*margin)),
-		frames: frames, frameSig: sigs, geos: geos,
+		frames: frames, frameSig: sigs, frameLum: lums, geos: geos,
 	}
 	cx, cy := float64(cv.w-1)/2, float64(cv.h-1)/2
 	for i := range frames {
@@ -532,7 +542,7 @@ func makeCanvases(frames [2]*frame, sigs [2]*image.Gray, geos [2]geometry) canva
 
 // rewarp redraws one side's canvas moved by reg.
 func (cv *canvases) rewarp(side int, reg registration) {
-	cv.imgs[side], cv.signals[side], cv.offFrame[side] = cv.geos[side].warp(cv.frames[side], cv.frameSig[side], cv.w, cv.h, reg)
+	cv.imgs[side], cv.signals[side], cv.lumSigs[side], cv.offFrame[side] = cv.geos[side].warp(cv.frames[side], cv.frameSig[side], cv.frameLum[side], cv.w, cv.h, reg)
 }
 
 func absGuide(sig *image.Gray) *image.Gray {
@@ -572,7 +582,7 @@ func (cv canvases) matte() (matted, error) {
 		return out, nil
 	}
 
-	m, err := component.RemoveBorderGuided(cv.imgs[lead], lightGuide(cv.signals[lead]), pxPerCm)
+	m, err := component.RemoveBorderGuided(cv.imgs[lead], lightGuide(cv.signals[lead], cv.lumSigs[lead], cv.boxes[lead].Inset(-boxTolerancePx)), pxPerCm)
 	if err != nil {
 		return matted{}, err
 	}
@@ -617,11 +627,11 @@ func (f *frame) image() image.Image {
 
 func buildCard(front, back *frame, threshold, feedScale float64) (*card, error) {
 	frames := [2]*frame{front, back}
-	var sigs [2]*image.Gray
+	var sigs, lums [2]*image.Gray
 	var geos [2]geometry
 	c := &card{}
 	for i, f := range frames {
-		sigs[i] = newSignal(f)
+		sigs[i], lums[i] = newSignals(f)
 		geos[i] = measure(sigs[i], threshold)
 		c.tilt[i] = geos[i].theta * 180 / math.Pi
 		if geos[i].missing {
@@ -646,7 +656,7 @@ func buildCard(front, back *frame, threshold, feedScale float64) (*card, error) 
 		return c, nil
 	}
 
-	cv := makeCanvases(frames, sigs, geos)
+	cv := makeCanvases(frames, sigs, lums, geos)
 	m, err := cv.matte()
 	if err != nil {
 		return nil, err
@@ -667,26 +677,26 @@ func buildCard(front, back *frame, threshold, feedScale float64) (*card, error) 
 	return c, nil
 }
 
-// trimTogether crops each side to its visible pixels and centres both on transparent
-// canvases of the larger size, without scaling.
-func trimTogether(a, b *image.NRGBA) ([2]*image.NRGBA, error) {
+// trimTogether crops both sides with one box, the front's, so the back's crop is its mirror
+// image and the sides still map onto each other. The box is the union of the front's visible
+// pixels and the back's, mirrored.
+func trimTogether(front, back *image.NRGBA) ([2]*image.NRGBA, error) {
 	var out [2]*image.NRGBA
-	srcs := [2]*image.NRGBA{a, b}
-	var boxes [2]image.Rectangle
-	var w, h int
-	for i, s := range srcs {
-		boxes[i] = visibleBounds(s)
-		if boxes[i].Empty() {
-			return out, errors.New("no card found in the scan")
-		}
-		w, h = max(w, boxes[i].Dx()), max(h, boxes[i].Dy())
+	fb, bb := visibleBounds(front), visibleBounds(back)
+	if fb.Empty() || bb.Empty() {
+		return out, errors.New("no card found in the scan")
 	}
-	for i, s := range srcs {
-		dst := image.NewNRGBA(image.Rect(0, 0, w, h))
-		offset := image.Pt((w-boxes[i].Dx())/2, (h-boxes[i].Dy())/2)
-		for y := 0; y < boxes[i].Dy(); y++ {
-			srcRow := s.Pix[(boxes[i].Min.Y+y)*s.Stride+4*boxes[i].Min.X:][:4*boxes[i].Dx()]
-			copy(dst.Pix[(offset.Y+y)*dst.Stride+4*offset.X:], srcRow)
+	mirror := func(r image.Rectangle) image.Rectangle {
+		return image.Rect(front.Bounds().Dx()-r.Max.X, r.Min.Y, front.Bounds().Dx()-r.Min.X, r.Max.Y)
+	}
+	box := fb.Union(mirror(bb))
+	for i, c := range []struct {
+		src *image.NRGBA
+		box image.Rectangle
+	}{{front, box}, {back, mirror(box)}} {
+		dst := image.NewNRGBA(image.Rect(0, 0, box.Dx(), box.Dy()))
+		for y := 0; y < box.Dy(); y++ {
+			copy(dst.Pix[y*dst.Stride:][:4*box.Dx()], c.src.Pix[(c.box.Min.Y+y)*c.src.Stride+4*c.box.Min.X:])
 		}
 		out[i] = dst
 	}
