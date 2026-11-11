@@ -383,6 +383,13 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.34.1 (2026-11-11)
+
+### Fix
+
+- show calendar backs upright in 3D
+- render heteroriented web backs correctly
+
 ## v0.34.0 (2026-11-10)
 
 ### Feat
