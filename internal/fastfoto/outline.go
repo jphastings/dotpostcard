@@ -47,11 +47,20 @@ func lightFraction(sig *image.Gray, box image.Rectangle) float64 {
 }
 
 // lightGuide is 128 plus how much brighter than the backing each pixel is. Shadow and dark
-// card both read as backing, so only light stock counts as card.
-func lightGuide(sig *image.Gray) *image.Gray {
-	g := image.NewGray(sig.Rect)
-	for i, v := range sig.Pix {
-		g.Pix[i] = 128 + uint8(max(int(v)-128-lightMargin, 0))
+// card both read as backing, so only light stock counts as card. Inside the card's box that
+// is judged on the mixed signal, because ink can be darker than the backing yet warmer than
+// it. Beyond the box there is only backing and shadow, which can be redder when darker, so
+// only brightness counts there.
+func lightGuide(mixed, lum *image.Gray, box image.Rectangle) *image.Gray {
+	g := image.NewGray(mixed.Rect)
+	for y := 0; y < mixed.Rect.Dy(); y++ {
+		for x := 0; x < mixed.Rect.Dx(); x++ {
+			sig := lum
+			if (image.Point{x, y}).In(box) {
+				sig = mixed
+			}
+			g.Pix[y*g.Stride+x] = 128 + uint8(max(int(sig.Pix[y*sig.Stride+x])-128-lightMargin, 0))
+		}
 	}
 	return g
 }

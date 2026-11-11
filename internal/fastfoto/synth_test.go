@@ -22,6 +22,8 @@ type synth struct {
 	chromaNoise int     // extra colour noise in pairs of pixels, as the scanner's JPEG makes
 	bandPx      [2]int  // width of a hard dark band just beyond the left and right edges
 	frameBandPx int     // dark rows along the frame's very top and bottom
+	edgeDots    bool    // neutral grey halftone printed up to the top edge: darker than the backing, but warmer
+	redShadow   bool    // backing beside the left and right edges a little darker, but redder
 }
 
 const sideShadowPx = 100
@@ -83,6 +85,15 @@ func (s synth) image() *image.RGBA {
 				if beyond := math.Abs(u) - s.widthCm*pxPerCm/2; beyond > 0 && beyond <= sideShadowPx {
 					dark := 45 * (1 - beyond/sideShadowPx)
 					c = color.RGBA{uint8(float64(c.R) - dark), uint8(float64(c.G) - dark), uint8(float64(c.B) - dark), 255}
+				}
+			}
+			hw := s.widthCm * pxPerCm / 2
+			if s.edgeDots && inside && v < -hh+30 && math.Mod(u+hw, 6) < 5 && math.Mod(v+hh, 6) < 5 {
+				c = color.RGBA{160, 160, 160, 255}
+			}
+			if s.redShadow && math.Abs(v) <= hh {
+				if beyond := math.Abs(u) - s.widthCm*pxPerCm/2; beyond > 0 && beyond <= sideShadowPx {
+					c = color.RGBA{c.R + 3, c.G - 8, c.B - 2, 255}
 				}
 			}
 			if y < s.frameBandPx || y >= s.h-s.frameBandPx {
