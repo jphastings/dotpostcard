@@ -21,7 +21,7 @@ const (
 	marginCm = 0.6
 
 	// How far the upright box may poke past the frame before a corner counts as clipped.
-	clipToleranceCm = 0.3
+	clipToleranceCm = 0.175
 
 	// A card's edge points should hug its outline: when fewer do, something else is in the
 	// feeder, like a second card shingled against it. Deep torn or pinked edges stay inside this.
