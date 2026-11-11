@@ -37,6 +37,7 @@ const (
 	latticePx  = 8
 	scanStepPx = 3
 	runSamples = 4
+	edgeBandPx = 16
 	// Outliers beyond this fraction of an edge's points don't push the box outward.
 	extentTrim = 0.01
 	// Corners are rounded or clipped, so tilt is fitted on the middle of each edge.
@@ -159,34 +160,7 @@ func contrast(c, ref rgb) float64 {
 	return dY
 }
 
-const (
-	// A shadow along a card's edge is a smooth darkening outside the card that ends at the
-	// card's sharp edge. A dark photo reaching the edge has no such ramp: it starts sharply.
-	shadowOnset  = 12
-	shadowSoftPx = 8
-	shadowFade   = 3
-	shadowFadePx = 8
-	// Shadow darkens by no more than this over the first few pixels past its onset.
-	shadowGentle   = 40
-	shadowStartMax = 60
-	shadowMaxPx    = 400
-	// Any change this large over shadowStepPx is an edge, not shading.
-	shadowStep   = 36
-	shadowStepPx = 3
-	shadowRunN   = 4
-	shadowBandPx = 16
-	// Mean distance from the running mean, in levels, above which a dark stretch is image detail.
-	shadowRoughness = 15
-	// Shadow ends when the signal lightens by this much from its darkest point.
-	shadowRise = 30
-	// JPEG chroma noise, doubled by contrast's R-B term, swings backing by up to about 17 in
-	// runs wide enough to pass for the start of a card.
-	backingNoise   = 24
-	shadowSmoothPx = 2
-)
-
-// newSignal is 128 plus each pixel's contrast against the backing, with shadows along
-// the card's edges flattened back to 128 so they never count as card.
+// newSignal is 128 plus each pixel's contrast against the backing.
 func newSignal(f *frame) *image.Gray {
 	bk := measureBacking(f)
 	s := image.NewGray(image.Rect(0, 0, f.w, f.h))
@@ -195,124 +169,10 @@ func newSignal(f *frame) *image.Gray {
 			s.Pix[y*s.Stride+x] = clampByte(128 + contrast(f.at(x, y), bk.at(x, y)))
 		}
 	}
-	// Each pass reads the untouched signal, so the result doesn't depend on pass order.
-	seen := append([]uint8(nil), s.Pix...)
-	for y := 0; y < f.h; y++ {
-		flattenShadow(seen[y*s.Stride:], s.Pix[y*s.Stride:], 0, 1, f.w/2)
-		flattenShadow(seen[y*s.Stride:], s.Pix[y*s.Stride:], f.w-1, -1, f.w/2)
-	}
-	for x := 0; x < f.w; x++ {
-		flattenShadow(seen[x:], s.Pix[x:], 0, s.Stride, f.h/2)
-		flattenShadow(seen[x:], s.Pix[x:], (f.h-1)*s.Stride, -s.Stride, f.h/2)
-	}
-	for i, v := range s.Pix {
-		if abs(int(v)-128) <= backingNoise {
-			s.Pix[i] = 128
-		}
-	}
 	return s
 }
 
 func clampByte(v float64) uint8 { return uint8(math.Round(math.Min(255, math.Max(0, v)))) }
-
-// flattenShadow walks n samples inward from the frame's edge along one line. If the first
-// thing it meets is a smooth darkening (a shadow) it resets that stretch, up to the sharp
-// edge that ends it, to backing level.
-func flattenShadow(seen, pix []uint8, start, step, n int) {
-	// Backing noise is a few levels either way, enough to break a shadow's smooth ramp
-	// into pieces, so the decisions below read a short running mean.
-	smooth := make([]int, n)
-	for i := range smooth {
-		sum, count := 0, 0
-		for j := max(i-shadowSmoothPx, 0); j <= min(i+shadowSmoothPx, n-1); j++ {
-			sum += int(seen[start+j*step]) - 128
-			count++
-		}
-		smooth[i] = sum / count
-	}
-	dev := func(i int) int { return smooth[i] }
-	// A ramp can darken by 10 a pixel at a skewed corner, so a short jump has to be bigger
-	// than that, and a longer one is judged against its own length.
-	steep := func(i int) bool {
-		return abs(dev(i+shadowStepPx)-dev(i)) > shadowStep || abs(dev(i+2*shadowStepPx)-dev(i)) > 2*shadowStep
-	}
-	// Some frames end in a dark band a few pixels deep. A card's dark content doesn't
-	// lighten again that soon.
-	first := 0
-	for first < shadowBandPx && dev(first) < -shadowOnset {
-		first++
-	}
-	if first > 0 && first < shadowBandPx {
-		for j := 0; j < first; j++ {
-			pix[start+j*step] = 128
-		}
-	} else {
-		first = 0
-	}
-	for i, run := first, 0; i < n-2*shadowStepPx; i++ {
-		d := dev(i)
-		if d > backingNoise {
-			return
-		}
-		if d >= -shadowOnset {
-			run = 0
-			continue
-		}
-		if run++; run < shadowRunN {
-			continue
-		}
-		onset := i - shadowRunN + 1
-		if dev(onset) < -shadowStartMax || abs(dev(onset+shadowRunN-1)-dev(onset)) > shadowGentle {
-			return // a dark photo starts deep, or drops in a pixel or two
-		}
-		end, darkest := onset, dev(onset)
-		for end < min(n-2*shadowStepPx-1, onset+shadowMaxPx) && !steep(end) && dev(end) <= darkest+shadowRise {
-			end++
-			darkest = min(darkest, dev(end))
-		}
-		// The ramp starts well before it's dark enough to notice.
-		for ; onset > shadowFadePx; onset-- {
-			sum := 0
-			for j := onset - shadowFadePx; j < onset; j++ {
-				sum += dev(j)
-			}
-			if sum >= -shadowFadePx*shadowFade {
-				break
-			}
-		}
-		if end-onset < shadowSoftPx || !steep(end) {
-			// A shadow ends at the card's sharp edge. A dip that doesn't, like the dark strip
-			// along some frame edges, is noise: look on past it.
-			i, run = end, 0
-			continue
-		}
-		rough := 0
-		for j := onset; j < end; j++ {
-			rough += abs(int(seen[start+j*step]) - 128 - dev(j))
-		}
-		if rough > shadowRoughness*(end-onset) {
-			return // shadow is smooth; a photo's detail isn't
-		}
-		// The sharp edge lies somewhere in the window that tripped the step test.
-		edge, steepest := end, 0
-		for j := max(end-shadowSmoothPx, 0); j < min(end+shadowStepPx+shadowSmoothPx, n-1); j++ {
-			if d := abs(int(seen[start+(j+1)*step]) - int(seen[start+j*step])); d > steepest {
-				edge, steepest = j+1, d
-			}
-		}
-		for j := onset; j < edge; j++ {
-			pix[start+j*step] = 128
-		}
-		return
-	}
-}
-
-func abs(v int) int {
-	if v < 0 {
-		return -v
-	}
-	return v
-}
 
 type point struct{ x, y float64 }
 
@@ -346,21 +206,42 @@ func firstRun(from, to int, hit func(i int) bool) (int, bool) {
 // nothing about the card; left and right points are kept either way.
 func locate(sig *image.Gray, threshold float64) edges {
 	w, h := sig.Bounds().Dx(), sig.Bounds().Dy()
-	isCard := func(x, y int) bool { return math.Abs(float64(sig.Pix[y*sig.Stride+x])-128) > threshold }
+	at := func(x, y int) float64 { return float64(sig.Pix[y*sig.Stride+x]) - 128 }
+	// Some frames have a short dark band along their outermost rows or columns. Counting it
+	// as card would put the edge on the frame boundary, so it is skipped when backing follows.
+	// A bright run, or a dark one that outlasts the band, is still the card touching the edge.
+	scan := func(from, to int, signal func(i int) float64) (int, bool) {
+		dir := 1
+		if to < from {
+			dir = -1
+		}
+		start := from
+		if signal(from) < -threshold {
+			for d := 1; d <= edgeBandPx && from+dir*d != to; d++ {
+				if v := signal(from + dir*d); v >= -threshold {
+					if v <= threshold {
+						start = from + dir*d
+					}
+					break
+				}
+			}
+		}
+		return firstRun(start, to, func(i int) bool { return math.Abs(signal(i)) > threshold })
+	}
 	var e edges
 	for y := 0; y < h; y += latticePx {
-		if x, ok := firstRun(0, w/2, func(x int) bool { return isCard(x, y) }); ok {
+		if x, ok := scan(0, w/2, func(x int) float64 { return at(x, y) }); ok {
 			e.left = append(e.left, point{float64(x), float64(y)})
 		}
-		if x, ok := firstRun(w-1, w/2, func(x int) bool { return isCard(x, y) }); ok {
+		if x, ok := scan(w-1, w/2, func(x int) float64 { return at(x, y) }); ok {
 			e.right = append(e.right, point{float64(x), float64(y)})
 		}
 	}
 	for x := 0; x < w; x += latticePx {
-		if y, ok := firstRun(0, h/2, func(y int) bool { return isCard(x, y) }); ok && y >= scanStepPx {
+		if y, ok := scan(0, h/2, func(y int) float64 { return at(x, y) }); ok && y >= scanStepPx {
 			e.top = append(e.top, point{float64(x), float64(y)})
 		}
-		if y, ok := firstRun(h-1, h/2, func(y int) bool { return isCard(x, y) }); ok && y <= h-1-scanStepPx {
+		if y, ok := scan(h-1, h/2, func(y int) float64 { return at(x, y) }); ok && y <= h-1-scanStepPx {
 			e.bottom = append(e.bottom, point{float64(x), float64(y)})
 		}
 	}
@@ -576,30 +457,34 @@ func (g geometry) clippedBy(sig *image.Gray) float64 {
 	return worst
 }
 
-// warp resamples the frame upright into a canvas of the given size, with the card's box
-// centred. It also returns a guide: 128 plus how far each pixel is from the backing, so
-// the border detector sees "differs from the backing" whether the card is lighter or
-// darker. Canvas outside the frame reads as backing in the guide and is listed in
-// offFrame, because what's drawn there is only the frame's edge repeated.
-func (g geometry) warp(f *frame, sig *image.Gray, w, h int) (img *image.NRGBA, guide *image.Gray, offFrame []bool) {
+// warp resamples the frame and its signal upright into canvases of the given size, with
+// the card's box centred, then moves the canvas by reg. Canvas outside the frame reads as
+// backing in the signal and is listed in offFrame, because what's drawn there is only the
+// frame's edge repeated.
+func (g geometry) warp(f *frame, sig *image.Gray, w, h int, reg registration) (img *image.NRGBA, guide *image.Gray, offFrame []bool) {
 	img, guide, offFrame = image.NewNRGBA(image.Rect(0, 0, w, h)), image.NewGray(image.Rect(0, 0, w, h)), make([]bool, w*h)
 	uc, vc := (g.uMin+g.uMax)/2, (g.vMin+g.vMax)/2
 	// Both canvas and frame treat integer coordinates as pixel centres. Without tilt the
 	// origin is rounded onto the frame's pixel grid so every pixel is copied, not blended.
 	ox, oy := g.unrotated(uc-float64(w-1)/2, vc-float64(h-1)/2)
-	if g.theta == 0 {
+	if g.theta == 0 && reg == (registration{}) {
 		ox, oy = math.Round(ox), math.Round(oy)
 	}
 	sin, cos := math.Sincos(g.theta)
+	regSin, regCos := math.Sincos(reg.deg * math.Pi / 180)
+	mx, my := float64(w-1)/2, float64(h-1)/2
 	for cy := 0; cy < h; cy++ {
 		for cx := 0; cx < w; cx++ {
-			x, y := ox+float64(cx)*cos-float64(cy)*sin, oy+float64(cx)*sin+float64(cy)*cos
+			u, v := float64(cx)-mx, float64(cy)-my
+			v *= 1 + reg.ey
+			qx, qy := mx+u*regCos-v*regSin+reg.dx, my+u*regSin+v*regCos+reg.dy
+			x, y := ox+qx*cos-qy*sin, oy+qx*sin+qy*cos
 			c := f.sample(x, y)
 			i := cy*img.Stride + 4*cx
 			img.Pix[i], img.Pix[i+1], img.Pix[i+2], img.Pix[i+3] = uint8(c[0]+0.5), uint8(c[1]+0.5), uint8(c[2]+0.5), 255
 			guide.Pix[cy*guide.Stride+cx] = 128
 			if f.contains(x, y) {
-				guide.Pix[cy*guide.Stride+cx] = clampByte(128 + math.Abs(sampleGray(sig, x, y)-128))
+				guide.Pix[cy*guide.Stride+cx] = clampByte(sampleGray(sig, x, y))
 			} else {
 				offFrame[cy*w+cx] = true
 			}
@@ -615,6 +500,101 @@ func clearOffFrame(img *image.NRGBA, offFrame []bool) {
 			img.Pix[(i/w)*img.Stride+4*(i%w)+3] = 0
 		}
 	}
+}
+
+// canvases are both sides warped upright onto canvases of one size, index 0 the front.
+type canvases struct {
+	w, h     int
+	frames   [2]*frame
+	frameSig [2]*image.Gray
+	geos     [2]geometry
+	imgs     [2]*image.NRGBA
+	signals  [2]*image.Gray
+	offFrame [2][]bool
+	boxes    [2]image.Rectangle // each side's measured card box
+}
+
+func makeCanvases(frames [2]*frame, sigs [2]*image.Gray, geos [2]geometry) canvases {
+	margin := marginCm * pxPerCm
+	cv := canvases{
+		w:      int(math.Ceil(math.Max(geos[0].width(), geos[1].width()) + 2*margin)),
+		h:      int(math.Ceil(math.Max(geos[0].height(), geos[1].height()) + 2*margin)),
+		frames: frames, frameSig: sigs, geos: geos,
+	}
+	cx, cy := float64(cv.w-1)/2, float64(cv.h-1)/2
+	for i := range frames {
+		cv.rewarp(i, registration{})
+		cv.boxes[i] = image.Rect(int(math.Round(cx-geos[i].width()/2)), int(math.Round(cy-geos[i].height()/2)),
+			int(math.Round(cx+geos[i].width()/2)), int(math.Round(cy+geos[i].height()/2))).Intersect(image.Rect(0, 0, cv.w, cv.h))
+	}
+	return cv
+}
+
+// rewarp redraws one side's canvas moved by reg.
+func (cv *canvases) rewarp(side int, reg registration) {
+	cv.imgs[side], cv.signals[side], cv.offFrame[side] = cv.geos[side].warp(cv.frames[side], cv.frameSig[side], cv.w, cv.h, reg)
+}
+
+func absGuide(sig *image.Gray) *image.Gray {
+	g := image.NewGray(sig.Rect)
+	for i, v := range sig.Pix {
+		g.Pix[i] = clampByte(128 + math.Abs(float64(v)-128))
+	}
+	return g
+}
+
+// matted is both sides cut out of their canvases, before trimming.
+type matted struct {
+	front, back *image.NRGBA
+	flags       []string
+	turnDeg     [2]float64 // how far each side's canvas was turned to register it
+}
+
+// matte cuts both sides out. The side with the lighter stock is cut out against the backing,
+// where shadow can never pass for card, and its alpha is carried over to the other side,
+// whose canvas is registered to it, so both share one outline. With no light side the sides
+// are each cut by how far they differ from the backing, and shadows may show.
+func (cv canvases) matte() (matted, error) {
+	light := [2]float64{lightFraction(cv.signals[0], cv.boxes[0]), lightFraction(cv.signals[1], cv.boxes[1])}
+	lead := 1
+	if light[0] > light[1]+0.05 {
+		lead = 0
+	}
+	if light[lead] < minLightFraction {
+		m0, m1, err := component.RemoveBorderPairGuided(cv.imgs[0], cv.imgs[1], absGuide(cv.signals[0]), absGuide(cv.signals[1]), false, pxPerCm, pxPerCm)
+		if err != nil {
+			return matted{}, err
+		}
+		out := matted{front: m0.(*image.NRGBA), back: m1.(*image.NRGBA),
+			flags: []string{"neither side is lighter than the scanner's backing, so the card's edges may be uncertain: shadows can be mistaken for card"}}
+		clearOffFrame(out.front, cv.offFrame[0])
+		clearOffFrame(out.back, cv.offFrame[1])
+		return out, nil
+	}
+
+	m, err := component.RemoveBorderGuided(cv.imgs[lead], lightGuide(cv.signals[lead]), pxPerCm)
+	if err != nil {
+		return matted{}, err
+	}
+	sides := [2]*image.NRGBA{}
+	sides[lead] = m.(*image.NRGBA)
+	clearOffFrame(sides[lead], cv.offFrame[lead])
+
+	follow := 1 - lead
+	outline := mirrorAlpha(sides[lead])
+	reg := register(outline, cv.imgs[follow])
+	if reg.reach(cv.w, cv.h) < negligiblePx {
+		reg = registration{}
+	}
+	cv.rewarp(follow, reg)
+	sides[follow] = cv.imgs[follow]
+	for i, a := range outline.Pix {
+		sides[follow].Pix[(i/outline.Stride)*sides[follow].Stride+4*(i%outline.Stride)+3] = a
+	}
+	clearOffFrame(sides[follow], cv.offFrame[follow])
+	out := matted{front: sides[0], back: sides[1]}
+	out.turnDeg[follow] = reg.deg
+	return out, nil
 }
 
 // Result of assembling one card from its two frames.
@@ -650,24 +630,15 @@ func buildCard(front, back *frame, threshold, feedScale float64) (*card, error) 
 		c.flags = append(c.flags, "the two sides measure different sizes: are they the same card?")
 	}
 
-	margin := marginCm * pxPerCm
-	w := int(math.Ceil(math.Max(geos[0].width(), geos[1].width()) + 2*margin))
-	h := int(math.Ceil(math.Max(geos[0].height(), geos[1].height()) + 2*margin))
-	var imgs [2]image.Image
-	var guides [2]image.Image
-	var offFrame [2][]bool
-	for i, f := range frames {
-		imgs[i], guides[i], offFrame[i] = geos[i].warp(f, sigs[i], w, h)
-	}
-
-	matted, mattedBack, err := component.RemoveBorderPairGuided(imgs[0], imgs[1], guides[0], guides[1], false, pxPerCm, pxPerCm)
+	cv := makeCanvases(frames, sigs, geos)
+	m, err := cv.matte()
 	if err != nil {
 		return nil, err
 	}
-	frontOut, backOut := matted.(*image.NRGBA), mattedBack.(*image.NRGBA)
-	clearOffFrame(frontOut, offFrame[0])
-	clearOffFrame(backOut, offFrame[1])
-	sides, err := trimTogether(frontOut, backOut)
+	c.flags = append(c.flags, m.flags...)
+	c.tilt[0] += m.turnDeg[0]
+	c.tilt[1] += m.turnDeg[1]
+	sides, err := trimTogether(m.front, m.back)
 	if err != nil {
 		return nil, err
 	}

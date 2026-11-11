@@ -162,7 +162,7 @@ func TestShadowAlongSidesDoesNotSoftenTheEdge(t *testing.T) {
 	}
 }
 
-func TestPinkedEdgeKeepsItsTeeth(t *testing.T) {
+func TestPinkedEdgeKeepsItsTeethOnBothSides(t *testing.T) {
 	dir := t.TempDir()
 	s := defaultSynth()
 	s.zigzagPx = 14
@@ -171,21 +171,88 @@ func TestPinkedEdgeKeepsItsTeeth(t *testing.T) {
 	_, err := runNoScan(t, dir)
 	require.NoError(t, err)
 
+	for _, side := range []string{"front", "back"} {
+		img := loadPNG(t, filepath.Join(dir, "0001-"+side+".png"))
+		b := img.Bounds()
+		lastOpaque := func(x int) int {
+			for y := b.Dy() - 1; y >= 0; y-- {
+				if alpha(img, x, y) >= 128 {
+					return y
+				}
+			}
+			return -1
+		}
+		lo, hi := b.Dy(), 0
+		for x := b.Dx() / 4; x < b.Dx()*3/4; x++ {
+			lo, hi = min(lo, lastOpaque(x)), max(hi, lastOpaque(x))
+		}
+		assert.GreaterOrEqual(t, hi-lo, 10, "%s: tooth depth should survive, not be smoothed flat", side)
+	}
+}
+
+func TestDarkFrontBesideShadowBandsFollowsTheLightBack(t *testing.T) {
+	dir := t.TempDir()
+	back, front := defaultSynth(), defaultSynth()
+	front.paper = color.RGBA{55, 55, 55, 255} // no step between this and the band beside it
+	back.bandPx, front.bandPx = [2]int{14, 14}, [2]int{14, 14}
+	writeRaw(t, dir, 1, back)
+	writeRaw(t, dir, 2, front)
+	report, err := runNoScan(t, dir)
+	require.NoError(t, err)
+	assert.Empty(t, report.Cards[0].Flags)
+
+	for _, side := range []string{"front", "back"} {
+		img := loadPNG(t, filepath.Join(dir, "0001-"+side+".png"))
+		for _, y := range []int{img.Bounds().Dy() / 4, img.Bounds().Dy() / 2} {
+			first, last := -1, -1
+			for x := 0; x < img.Bounds().Dx(); x++ {
+				if alpha(img, x, y) >= 128 {
+					last = x
+					if first < 0 {
+						first = x
+					}
+				}
+			}
+			assert.InDeltaf(t, 5*pxPerCm, float64(last-first+1), 3, "%s row %d: shadow fringe widens, a bite narrows", side, y)
+		}
+	}
+}
+
+func TestSidesOffsetByAShadowBandAreRegistered(t *testing.T) {
+	dir := t.TempDir()
+	back, front := defaultSynth(), defaultSynth()
+	front.bandPx = [2]int{14, 0} // widens only the front's measured box, so its canvas sits 7px off the back's
+	writeRaw(t, dir, 1, back)
+	writeRaw(t, dir, 2, front)
+	_, err := runNoScan(t, dir)
+	require.NoError(t, err)
+
 	img := loadPNG(t, filepath.Join(dir, "0001-front.png"))
-	b := img.Bounds()
-	lastOpaque := func(x int) int {
-		for y := b.Dy() - 1; y >= 0; y-- {
-			if alpha(img, x, y) >= 128 {
-				return y
+	y := img.Bounds().Dy() / 2
+	first, last := -1, -1
+	for x := 0; x < img.Bounds().Dx(); x++ {
+		if alpha(img, x, y) == 255 {
+			last = x
+			if first < 0 {
+				first = x
 			}
 		}
-		return -1
 	}
-	lo, hi := b.Dy(), 0
-	for x := b.Dx() / 4; x < b.Dx()*3/4; x++ {
-		lo, hi = min(lo, lastOpaque(x)), max(hi, lastOpaque(x))
-	}
-	assert.GreaterOrEqual(t, hi-lo, 10, "tooth depth should survive, not be smoothed flat")
+	assert.Greater(t, img.NRGBAAt(first+2, y).R, uint8(200), "the front's left edge is paper, not the band")
+	assert.Greater(t, img.NRGBAAt(last-2, y).R, uint8(200), "the front's right edge is paper")
+	assert.InDelta(t, 5*pxPerCm, float64(last-first+1), 3, "no paper cut off at either side")
+}
+
+func TestCardDarkOnBothSidesFallsBackAndFlagsUncertainEdges(t *testing.T) {
+	dir := t.TempDir()
+	s := defaultSynth()
+	s.paper = color.RGBA{50, 50, 50, 255}
+	writeRaw(t, dir, 1, s)
+	writeRaw(t, dir, 2, s)
+	report, err := runNoScan(t, dir)
+	require.NoError(t, err)
+	assert.InDelta(t, 5.0, report.Cards[0].WidthCm, 0.1)
+	assert.Contains(t, strings.Join(report.Cards[0].Flags, "\n"), "uncertain")
 }
 
 func TestClippedCardIsFlagged(t *testing.T) {
@@ -198,6 +265,19 @@ func TestClippedCardIsFlagged(t *testing.T) {
 	report, err := runNoScan(t, dir)
 	require.NoError(t, err)
 	assert.Contains(t, report.Cards[0].Flags[0], "clipped")
+}
+
+func TestDarkRowsAtFrameTopAndBottomAreNotTheCard(t *testing.T) {
+	dir := t.TempDir()
+	s := defaultSynth()
+	s.frameBandPx = 8
+	writeRaw(t, dir, 1, s)
+	writeRaw(t, dir, 2, s)
+	report, err := runNoScan(t, dir)
+	require.NoError(t, err)
+	assert.Empty(t, report.Cards[0].Flags)
+	assert.InDelta(t, 5.0, report.Cards[0].WidthCm, 0.1)
+	assert.InDelta(t, 3.4, report.Cards[0].HeightCm, 0.1)
 }
 
 func TestShingledDoubleFeedIsFlagged(t *testing.T) {

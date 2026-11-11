@@ -39,7 +39,13 @@ var rotation = map[int]func(image.Rectangle, int, int) (int, int){
 // and mattes it away with soft alpha. pxPerCm may be 0 when the scan's
 // resolution is unknown.
 func removeBorder(img image.Image, pxPerCm float64) (image.Image, error) {
-	edges, err := detectBorderEdges(img, pxPerCm)
+	return RemoveBorderGuided(img, img, pxPerCm)
+}
+
+// RemoveBorderGuided is removeBorder with edges detected on a separate guide image (same
+// bounds as img), while the matte takes its colour from img itself.
+func RemoveBorderGuided(img, guide image.Image, pxPerCm float64) (image.Image, error) {
+	edges, err := detectBorderEdges(guide, pxPerCm)
 	if err != nil {
 		return nil, err
 	}
