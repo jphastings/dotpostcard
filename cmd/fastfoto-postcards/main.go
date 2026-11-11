@@ -18,6 +18,7 @@ const guide = `Scan a stack of postcards through an Epson FastFoto FF-680W (macO
 
 Per card you get NNNN-front.png, NNNN-back.png and NNNN-meta.yaml in --out-dir,
 ready for the postcards tool. Raw scans are kept in raw/ so a run can be resumed.
+To redo a card, delete its NNNN-meta.yaml and run again with --no-scan.
 
 Loading: top edge first, back of the card facing you. Keep the paper guides
 snug against the card, and put the card's straightest edge leading. A skewed
@@ -51,6 +52,9 @@ func newCommand(run runFunc, stdout, stderr io.Writer) *cobra.Command {
 			if !(opts.FeedScale > 0) || math.IsInf(opts.FeedScale, 0) {
 				return fmt.Errorf("--feed-scale must be a positive number, not %v", opts.FeedScale)
 			}
+			if err := opts.LLM.Validate(); err != nil {
+				return err
+			}
 			opts.Log = stderr
 
 			ctx, stopNow := context.WithCancel(cmd.Context())
@@ -80,20 +84,29 @@ func newCommand(run runFunc, stdout, stderr io.Writer) *cobra.Command {
 	f.Float64Var(&opts.CardThreshold, "card-threshold", fastfoto.DefaultCardThreshold, "how far a pixel must differ from the backing to count as card")
 	f.Float64Var(&opts.FeedScale, "feed-scale", 1, "multiplier for sizes along the feed direction")
 	f.BoolVar(&opts.NoScan, "no-scan", false, "only process pages already in raw/")
+	f.StringVar(&opts.LLM.Backend, "llm", "", "describe and orient each card with: claude-code (with web search), anthropic (ANTHROPIC_API_KEY) or openai (OPENAI_API_KEY). The anthropic and openai backends haven't been tested live")
+	f.StringVar(&opts.LLM.Model, "llm-model", "", "model for --llm (default "+fastfoto.DefaultLLMModel+" for the Claude backends; required for openai)")
+	f.StringVar(&opts.LLM.BaseURL, "llm-base-url", "", "OpenAI-compatible endpoint for --llm openai")
 	cmd.SetOut(stdout)
 	cmd.SetErr(stderr)
 	return cmd
 }
 
 func printReport(w io.Writer, r fastfoto.Report) {
-	built := 0
+	built, llmFailed := 0, 0
 	for _, c := range r.Cards {
 		if c.Err != nil {
 			fmt.Fprintf(w, "%s  FAILED: %v\n", c.Name, c.Err)
 			continue
 		}
 		built++
+		if c.LLMFailed {
+			llmFailed++
+		}
 		fmt.Fprintf(w, "%s  %.2f x %.2f cm  tilt %.1f/%.1f deg\n", c.Name, c.WidthCm, c.HeightCm, c.TiltFront, c.TiltBack)
+		for _, note := range c.Notes {
+			fmt.Fprintf(w, "  %s\n", note)
+		}
 		for _, flag := range c.Flags {
 			fmt.Fprintf(w, "  ! %s\n", flag)
 		}
@@ -104,6 +117,9 @@ func printReport(w io.Writer, r fastfoto.Report) {
 			pages[i] = fmt.Sprintf("%d", p)
 		}
 		fmt.Fprintf(w, "unpaired pages kept: %s\n", strings.Join(pages, ", "))
+	}
+	if llmFailed > 0 {
+		fmt.Fprintf(w, "%d cards left as scanned: the LLM step failed\n", llmFailed)
 	}
 	if r.RawDir != "" {
 		fmt.Fprintf(w, "%d cards; raw scans: %s (%.0f MB)\n", built, r.RawDir, float64(r.RawBytes)/1e6)

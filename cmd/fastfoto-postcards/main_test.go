@@ -83,3 +83,28 @@ func TestNonPositiveFeedScaleIsRejected(t *testing.T) {
 		assert.Error(t, err, scale)
 	}
 }
+
+func TestBadLLMFlagsAreRejected(t *testing.T) {
+	for _, args := range [][]string{{"--llm", "gemini"}, {"--llm", "openai"}} {
+		_, _, err := execute(t, nil, args...)
+		assert.Error(t, err, args)
+	}
+}
+
+func TestLLMFlagsReachTheRun(t *testing.T) {
+	var got fastfoto.Options
+	_, _, err := execute(t, func(_ context.Context, o fastfoto.Options) (fastfoto.Report, error) {
+		got = o
+		return fastfoto.Report{}, nil
+	}, "--llm", "openai", "--llm-model", "m", "--llm-base-url", "http://x")
+	assert.NoError(t, err)
+	assert.Equal(t, fastfoto.LLMConfig{Backend: "openai", Model: "m", BaseURL: "http://x"}, got.LLM)
+}
+
+func TestSummaryCountsCardsLeftAsScanned(t *testing.T) {
+	out, _, err := execute(t, func(context.Context, fastfoto.Options) (fastfoto.Report, error) {
+		return fastfoto.Report{Cards: []fastfoto.CardResult{{Name: "0001", LLMFailed: true}, {Name: "0002", LLMFailed: true}, {Name: "0003"}}}, nil
+	})
+	assert.NoError(t, err)
+	assert.Contains(t, out, "2 cards left as scanned: the LLM step failed")
+}
