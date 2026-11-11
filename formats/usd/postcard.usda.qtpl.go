@@ -304,11 +304,11 @@ def Xform "Postcard" (
 
             texCoord2f[] primvars:st = [`)
 //line postcard.usda.qtpl:119
-		for _, v := range params.BackPoints {
+		for _, v := range params.BackTexCoords {
 //line postcard.usda.qtpl:119
 			qw422016.N().S(`(`)
 //line postcard.usda.qtpl:119
-			qw422016.N().F(1 - v.X)
+			qw422016.N().F(v.X)
 //line postcard.usda.qtpl:119
 			qw422016.N().S(`,`)
 //line postcard.usda.qtpl:119
