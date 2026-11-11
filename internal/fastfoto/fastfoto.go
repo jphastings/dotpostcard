@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"image"
 	"image/png"
 	"io"
 	"math"
@@ -20,12 +21,14 @@ import (
 	"time"
 
 	"github.com/jphastings/dotpostcard/formats/metadata"
+	"github.com/jphastings/dotpostcard/internal/images"
 	"github.com/jphastings/dotpostcard/types"
 )
 
 const (
 	DefaultCardThreshold = 24
 	workers              = 2
+	maxInFlight          = 6
 )
 
 type Options struct {
@@ -40,6 +43,9 @@ type Options struct {
 	// Stop is cancelled to finish the current card and then stop feeding.
 	Stop context.Context
 	Log  io.Writer
+	// LLM, when set, orients and describes each card; Describe overrides the backend it names.
+	LLM      LLMConfig
+	Describe Describer
 }
 
 type CardResult struct {
@@ -52,6 +58,10 @@ type CardResult struct {
 	TiltFront float64 // degrees
 	TiltBack  float64
 	Flags     []string
+	// Notes say what the LLM step did to the card, or why it left the card as scanned.
+	Notes []string
+	// LLMFailed is set when the LLM step errored, so the card was left as scanned.
+	LLMFailed bool
 	Elapsed   time.Duration
 	Err       error
 }
@@ -73,7 +83,9 @@ func rawName(page int) string  { return fmt.Sprintf("page-%05d.jpg", page) }
 func cardName(card int) string { return fmt.Sprintf("%04d", card) }
 
 type run struct {
-	opts   Options
+	opts Options
+	// ctx is the run's own: Stop only means finish the current card, which includes its LLM call.
+	ctx    context.Context
 	rawDir string
 	log    func(format string, args ...any)
 
@@ -81,6 +93,10 @@ type run struct {
 	results []CardResult
 	wg      sync.WaitGroup
 	slots   chan struct{}
+	// inflight bounds how many decoded cards are held in memory, including those waiting on the LLM.
+	inflight chan struct{}
+	// llmSlots is separate so slow model calls never hold up image processing.
+	llmSlots chan struct{}
 }
 
 // Run scans a stack (unless NoScan) and processes every complete pair of pages that
@@ -105,11 +121,21 @@ func Run(ctx context.Context, opts Options) (Report, error) {
 	if opts.Log == nil {
 		opts.Log = io.Discard
 	}
+	if opts.Describe == nil && opts.LLM.Backend != "" {
+		d, err := NewDescriber(ctx, opts.LLM)
+		if err != nil {
+			return Report{}, err
+		}
+		opts.Describe = d
+	}
 	r := &run{
-		opts:   opts,
-		rawDir: filepath.Join(opts.OutDir, "raw"),
-		log:    func(format string, args ...any) { fmt.Fprintf(opts.Log, format+"\n", args...) },
-		slots:  make(chan struct{}, workers),
+		opts:     opts,
+		ctx:      ctx,
+		rawDir:   filepath.Join(opts.OutDir, "raw"),
+		log:      func(format string, args ...any) { fmt.Fprintf(opts.Log, format+"\n", args...) },
+		slots:    make(chan struct{}, workers),
+		inflight: make(chan struct{}, maxInFlight),
+		llmSlots: make(chan struct{}, llmConcurrency),
 	}
 	if err := os.MkdirAll(r.rawDir, 0o755); err != nil {
 		return Report{}, err
@@ -208,9 +234,8 @@ func (r *run) process(card int) {
 	r.wg.Add(1)
 	go func() {
 		defer r.wg.Done()
-		r.slots <- struct{}{}
-		defer func() { <-r.slots }()
-
+		r.inflight <- struct{}{}
+		defer func() { <-r.inflight }()
 		start := time.Now()
 		res := r.buildOne(card)
 		res.Elapsed = time.Since(start)
@@ -238,29 +263,9 @@ func (r *run) buildOne(number int) (res CardResult) {
 		}
 	}()
 
-	firstPage, secondPage := 2*number-1, 2*number
-	var frames [2]*frame
-	for i, page := range [2]int{firstPage, secondPage} {
-		f, err := os.Open(filepath.Join(r.rawDir, rawName(page)))
-		if err != nil {
-			res.Err = err
-			return
-		}
-		frames[i], err = decodeFrame(f)
-		f.Close()
-		if err != nil {
-			res.Err = fmt.Errorf("%s: %w", rawName(page), err)
-			return
-		}
-	}
-	front, back := frames[1], frames[0]
-	if r.opts.FirstSideFront {
-		front, back = back, front
-	}
-
-	c, err := buildCard(front, back, r.opts.CardThreshold, r.opts.FeedScale)
-	if err != nil {
-		res.Err = err
+	var c *card
+	r.withSlot(r.slots, func() { c, res.Err = r.loadCard(number) })
+	if res.Err != nil {
 		return
 	}
 	res.WidthPx, res.HeightPx = c.size.PxWidth, c.size.PxHeight
@@ -269,26 +274,111 @@ func (r *run) buildOne(number int) (res CardResult) {
 	res.TiltFront, res.TiltBack = c.tilt[0], c.tilt[1]
 	res.Flags = c.flags
 
+	flip, sideMeta := types.FlipBook, [2]types.Side{}
+	front, back := image.Image(c.front), image.Image(c.back)
+	if r.opts.Describe != nil {
+		var d Description
+		var err error
+		r.withSlot(r.llmSlots, func() { d, err = r.describe(front, back) })
+		res.Notes = append(res.Notes, d.Notes...)
+		if err != nil {
+			res.LLMFailed = true
+			res.Notes = append(res.Notes, fmt.Sprintf("LLM step failed, card left as scanned: %v", err))
+		} else {
+			sideMeta[0] = types.Side{Description: d.Front.Description, Transcription: types.AnnotatedText{Text: d.Front.Transcription}}
+			sideMeta[1] = types.Side{Description: d.Back.Description, Transcription: types.AnnotatedText{Text: d.Back.Transcription}}
+			f, b, wantFlip := resolveTurns(d.Front.Rotation, d.Back.Rotation)
+			rf, rb := turn(front, f), turn(back, b)
+			size := c.size
+			if f%2 == 1 {
+				size.PxWidth, size.PxHeight = size.PxHeight, size.PxWidth
+				size.CmWidth, size.CmHeight = size.CmHeight, size.CmWidth
+			}
+			backSize := types.Size{PxWidth: rb.Bounds().Dx(), PxHeight: rb.Bounds().Dy()}
+			if err := types.CheckFlip(types.Size{PxWidth: rf.Bounds().Dx(), PxHeight: rf.Bounds().Dy()}, backSize, wantFlip); err != nil {
+				res.Notes = append(res.Notes, fmt.Sprintf("LLM orientation ignored: %v", err))
+			} else if f != 0 || b != 0 {
+				front, back, c.size, flip = rf, rb, size, wantFlip
+				res.WidthPx, res.HeightPx = size.PxWidth, size.PxHeight
+				res.WidthCm, _ = size.CmWidth.Float64()
+				res.HeightCm, _ = size.CmHeight.Float64()
+				res.Notes = append(res.Notes, fmt.Sprintf("front turned %d°, back turned %d°, %s", f*90, b*90, flip))
+			}
+		}
+	}
+
+	r.withSlot(r.slots, func() { res.Err = r.write(res.Name, c.size, flip, sideMeta, front, back) })
+	return
+}
+
+// describeTimeout stops a hung model call holding an LLM slot for ever.
+var describeTimeout = 5 * time.Minute
+
+// describe keeps a panicking describer or model adapter from failing the card.
+func (r *run) describe(front, back image.Image) (d Description, err error) {
+	defer func() {
+		if p := recover(); p != nil {
+			err = fmt.Errorf("panic: %v", p)
+		}
+	}()
+	ctx, cancel := context.WithTimeout(r.ctx, describeTimeout)
+	defer cancel()
+	return r.opts.Describe(ctx, front, back)
+}
+
+// withSlot runs fn while holding one of the limited slots.
+func (r *run) withSlot(slots chan struct{}, fn func()) {
+	slots <- struct{}{}
+	defer func() { <-slots }()
+	fn()
+}
+
+// turn rotates img clockwise by the given number of quarter turns.
+func turn(img image.Image, quarters int) image.Image {
+	return images.Orient(img, [4]int{1, 6, 3, 8}[quarters])
+}
+
+func (r *run) loadCard(number int) (*card, error) {
+	var frames [2]*frame
+	for i, page := range [2]int{2*number - 1, 2 * number} {
+		f, err := os.Open(filepath.Join(r.rawDir, rawName(page)))
+		if err != nil {
+			return nil, err
+		}
+		frames[i], err = decodeFrame(f)
+		f.Close()
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", rawName(page), err)
+		}
+	}
+	front, back := frames[1], frames[0]
+	if r.opts.FirstSideFront {
+		front, back = back, front
+	}
+	return buildCard(front, back, r.opts.CardThreshold, r.opts.FeedScale)
+}
+
+func (r *run) write(name string, size types.Size, flip types.Flip, sides [2]types.Side, front, back image.Image) error {
 	meta, err := metadata.Codec(metadata.AsYAML).Encode(types.Postcard{
-		Name: res.Name,
+		Name: name,
 		Meta: types.Metadata{
-			Flip:     types.FlipBook,
-			Physical: types.Physical{FrontDimensions: c.size},
+			Flip:     flip,
+			Front:    sides[0],
+			Back:     sides[1],
+			Physical: types.Physical{FrontDimensions: size},
 		},
 	}, nil)
 	if err != nil {
-		res.Err = err
-		return
+		return err
 	}
 
 	// The metadata file goes last: its presence means the card is complete.
-	dir := r.opts.OutDir
 	for _, w := range []struct {
 		suffix string
 		write  func(io.Writer) error
 	}{
-		{"front.png", func(w io.Writer) error { return png.Encode(w, c.front) }},
-		{"back.png", func(w io.Writer) error { return png.Encode(w, c.back) }},
+		{"front.png", func(w io.Writer) error { return png.Encode(w, front) }},
+		{"back.png", func(w io.Writer) error { return png.Encode(w, back) }},
 		{"meta.yaml", func(w io.Writer) error {
 			b, err := meta[0].Bytes()
 			if err != nil {
@@ -298,12 +388,11 @@ func (r *run) buildOne(number int) (res CardResult) {
 			return err
 		}},
 	} {
-		if err = writeAtomic(filepath.Join(dir, res.Name+"-"+w.suffix), w.write); err != nil {
-			res.Err = err
-			return
+		if err := writeAtomic(filepath.Join(r.opts.OutDir, name+"-"+w.suffix), w.write); err != nil {
+			return err
 		}
 	}
-	return
+	return nil
 }
 
 func writeAtomic(path string, write func(io.Writer) error) error {
