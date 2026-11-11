@@ -116,7 +116,7 @@ def Xform "Postcard" (
             rel material:binding = </Postcard/Materials/sides>
             int[] primvars:st:indices = [{% for _, t := range params.BackTriangles %}{%d t %},{% endfor %}]
 
-            texCoord2f[] primvars:st = [{% for _, v := range params.BackPoints %}({%f 1 - v.X %},{%f v.Y * 0.5 %}),{% endfor %}] (
+            texCoord2f[] primvars:st = [{% for _, v := range params.BackTexCoords %}({%f v.X %},{%f v.Y * 0.5 %}),{% endfor %}] (
                 interpolation = "faceVarying"
             )
             uniform token subsetFamily:materialBind:familyType = "nonOverlapping"

@@ -113,6 +113,7 @@ type usdParams struct {
 
 	FrontPoints    []geom3d.Point
 	BackPoints     []geom3d.Point
+	BackTexCoords  []geom3d.Point
 	BackSidePoints []geom3d.Point
 	FrontTriangles []int
 	BackTriangles  []int
@@ -169,7 +170,7 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 		}
 		fTris := geom3d.Triangulate(frontPoints)
 
-		var backPoints []geom3d.Point
+		var backPoints, backTexCoords []geom3d.Point
 		var bTris []int
 		if pc.Back != nil {
 			backPoints, err = images.Outline(pc.Back, true, true)
@@ -178,6 +179,7 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 			}
 			// Generate triangles on unrotated points
 			bTris = geom3d.Triangulate(backPoints)
+			backTexCoords = geom3d.BackTexCoords(backPoints, pc.Meta.Flip)
 			backPoints = geom3d.RotateForFlip(backPoints, pc.Meta.Flip)
 		} else {
 			backPoints = frontPoints
@@ -198,6 +200,7 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 
 			FrontPoints:    frontPoints,
 			BackPoints:     backPoints,
+			BackTexCoords:  backTexCoords,
 			FrontTriangles: fTris,
 			BackTriangles:  bTris,
 			SideTriangles:  sTris,
@@ -205,16 +208,7 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 			SidesFilename: sideFilename,
 		}
 
-		switch pc.Meta.Flip {
-		case types.FlipLeftHand:
-			params.FlipAxis = []float64{1, 1, 0}
-		case types.FlipRightHand:
-			params.FlipAxis = []float64{1, -1, 0}
-		case types.FlipCalendar:
-			params.FlipAxis = []float64{1, 0, 0}
-		case types.FlipBook:
-			params.FlipAxis = []float64{0, 1, 0}
-		}
+		params.FlipAxis = geom3d.FlipAxis(pc.Meta.Flip)
 
 		WriteUSDA(w, params)
 		return nil
