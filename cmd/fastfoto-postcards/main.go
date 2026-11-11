@@ -94,6 +94,7 @@ func newCommand(run runFunc, stdout, stderr io.Writer) *cobra.Command {
 
 func printReport(w io.Writer, r fastfoto.Report) {
 	built, llmFailed := 0, 0
+	var rescan []string
 	for _, c := range r.Cards {
 		if c.Err != nil {
 			fmt.Fprintf(w, "%s  FAILED: %v\n", c.Name, c.Err)
@@ -102,6 +103,9 @@ func printReport(w io.Writer, r fastfoto.Report) {
 		built++
 		if c.LLMFailed {
 			llmFailed++
+		}
+		if c.Rescan {
+			rescan = append(rescan, c.Name)
 		}
 		fmt.Fprintf(w, "%s  %.2f x %.2f cm  tilt %.1f/%.1f deg\n", c.Name, c.WidthCm, c.HeightCm, c.TiltFront, c.TiltBack)
 		for _, note := range c.Notes {
@@ -120,6 +124,9 @@ func printReport(w io.Writer, r fastfoto.Report) {
 	}
 	if llmFailed > 0 {
 		fmt.Fprintf(w, "%d cards left as scanned: the LLM step failed\n", llmFailed)
+	}
+	if len(rescan) > 0 {
+		fmt.Fprintf(w, "rescan these cards, fed straighter: %s\n", strings.Join(rescan, ", "))
 	}
 	if r.RawDir != "" {
 		fmt.Fprintf(w, "%d cards; raw scans: %s (%.0f MB)\n", built, r.RawDir, float64(r.RawBytes)/1e6)

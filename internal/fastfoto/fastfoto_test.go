@@ -259,12 +259,25 @@ func TestClippedCardIsFlagged(t *testing.T) {
 	dir := t.TempDir()
 	s := defaultSynth()
 	s.heightCm = 4
-	s.tiltDeg = 2
+	s.tiltDeg = 6
 	writeRaw(t, dir, 1, s)
 	writeRaw(t, dir, 2, s)
 	report, err := runNoScan(t, dir)
 	require.NoError(t, err)
 	assert.Contains(t, report.Cards[0].Flags[0], "clipped")
+	assert.True(t, report.Cards[0].Rescan)
+}
+
+func TestSlightlySkewedCardIsNotWarnedAbout(t *testing.T) {
+	dir := t.TempDir()
+	s := defaultSynth()
+	s.tiltDeg = 1
+	writeRaw(t, dir, 1, s)
+	writeRaw(t, dir, 2, s)
+	report, err := runNoScan(t, dir)
+	require.NoError(t, err)
+	assert.Empty(t, report.Cards[0].Flags)
+	assert.False(t, report.Cards[0].Rescan)
 }
 
 func TestDarkRowsAtFrameTopAndBottomAreNotTheCard(t *testing.T) {
