@@ -28,6 +28,17 @@ type synth struct {
 
 const sideShadowPx = 100
 
+// croppedSynth is a card in a frame only as big as its bounding box plus marginPx of
+// backing on every side, as the scanner's hardware crop delivers it.
+func croppedSynth(widthCm, heightCm, tiltDeg float64, marginPx int) synth {
+	s := defaultSynth()
+	s.widthCm, s.heightCm, s.tiltDeg, s.paper = widthCm, heightCm, tiltDeg, color.RGBA{215, 175, 140, 255}
+	sin, cos := math.Sincos(math.Abs(tiltDeg) * math.Pi / 180)
+	w, h := widthCm*pxPerCm, heightCm*pxPerCm
+	s.w, s.h = int(math.Ceil(w*cos+h*sin))+2*marginPx, int(math.Ceil(w*sin+h*cos))+2*marginPx
+	return s
+}
+
 func defaultSynth() synth {
 	return synth{w: 1700, h: 920, widthCm: 5, heightCm: 3.4, paper: color.RGBA{242, 239, 236, 255}}
 }

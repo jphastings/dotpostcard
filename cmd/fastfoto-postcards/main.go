@@ -22,8 +22,8 @@ ready for the postcards tool. Raw scans are kept in raw/ so a run can be resumed
 To redo a card, delete its NNNN-meta.yaml and run again with --no-scan.
 
 Loading: top edge first, back of the card facing you. Keep the paper guides
-snug against the card, and put the card's straightest edge leading. A skewed
-card loses its far corners to the scan; those cards are set aside as
+snug against the card, and put the card's straightest edge leading. A card
+that goes in so skewed that a corner is cut off is set aside as
 for-rescan-NNNN.jpg, to feed again.
 
 Only one app can scan at a time, so close Epson FastFoto or Image Capture if they are open.

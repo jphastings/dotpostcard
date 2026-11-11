@@ -36,7 +36,9 @@ const (
 	// How far past a measured box a pixel may still be card, to cover the box's own error.
 	boxTolerancePx = 2
 
-	stripPx    = 160
+	// Narrower than the margin a hardware-cropped frame guarantees at a tilted card's
+	// outermost corner, so the strip never averages in card.
+	stripPx    = 80
 	latticePx  = 8
 	scanStepPx = 3
 	runSamples = 4
