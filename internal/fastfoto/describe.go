@@ -192,8 +192,9 @@ func parseReply(s string) (Description, error) {
 	return Description{Front: *flat.Front, Back: *flat.Back}, nil
 }
 
-// jpegPart flattens the card onto white (the model can't see transparency), shrinks it and encodes it.
-func jpegPart(img image.Image) (schema.MessageInputPart, error) {
+// shrunkJPEG flattens img onto white (the model can't see transparency), shrinks its long edge
+// to llmImageEdgePx and encodes it.
+func shrunkJPEG(img image.Image) ([]byte, error) {
 	b := img.Bounds()
 	flat := image.NewRGBA(b)
 	xdraw.Draw(flat, b, image.NewUniform(color.White), image.Point{}, xdraw.Src)
@@ -207,10 +208,16 @@ func jpegPart(img image.Image) (schema.MessageInputPart, error) {
 		out = small
 	}
 	var buf bytes.Buffer
-	if err := jpeg.Encode(&buf, out, &jpeg.Options{Quality: 85}); err != nil {
+	err := jpeg.Encode(&buf, out, &jpeg.Options{Quality: 85})
+	return buf.Bytes(), err
+}
+
+func jpegPart(img image.Image) (schema.MessageInputPart, error) {
+	b, err := shrunkJPEG(img)
+	if err != nil {
 		return schema.MessageInputPart{}, err
 	}
-	data := base64.StdEncoding.EncodeToString(buf.Bytes())
+	data := base64.StdEncoding.EncodeToString(b)
 	return schema.MessageInputPart{Type: schema.ChatMessagePartTypeImageURL, Image: &schema.MessageInputImage{
 		MessagePartCommon: schema.MessagePartCommon{Base64Data: &data, MIMEType: "image/jpeg"},
 	}}, nil

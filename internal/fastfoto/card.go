@@ -603,7 +603,16 @@ type card struct {
 	size        types.Size
 	tilt        [2]float64 // degrees, front then back
 	flags       []string
-	rescan      bool // a side lost a corner past the tolerance
+	rescan      bool // a side lost a corner past the tolerance; only flags, tilt and rawFront are set
+	rawFront    image.Image
+}
+
+func (f *frame) image() image.Image {
+	img := image.NewRGBA(image.Rect(0, 0, f.w, f.h))
+	for i := 0; i < f.w*f.h; i++ {
+		img.Pix[4*i], img.Pix[4*i+1], img.Pix[4*i+2], img.Pix[4*i+3] = f.pix[3*i], f.pix[3*i+1], f.pix[3*i+2], 255
+	}
+	return img
 }
 
 func buildCard(front, back *frame, threshold, feedScale float64) (*card, error) {
@@ -630,6 +639,11 @@ func buildCard(front, back *frame, threshold, feedScale float64) (*card, error) 
 	if math.Abs(geos[0].width()-geos[1].width()) > maxSideDifference*pxPerCm ||
 		math.Abs(geos[0].height()-geos[1].height()) > maxSideDifference*pxPerCm {
 		c.flags = append(c.flags, "the two sides measure different sizes: are they the same card?")
+	}
+
+	if c.rescan {
+		c.rawFront = front.image()
+		return c, nil
 	}
 
 	cv := makeCanvases(frames, sigs, geos)

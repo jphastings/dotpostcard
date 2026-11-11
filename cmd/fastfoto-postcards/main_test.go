@@ -59,11 +59,18 @@ func TestReportListsFlagsAndOrphans(t *testing.T) {
 	assert.Contains(t, out, "3")
 }
 
-func TestReportListsOnlyCardsToRescan(t *testing.T) {
-	out, _, _ := execute(t, func(context.Context, fastfoto.Options) (fastfoto.Report, error) {
-		return fastfoto.Report{Cards: []fastfoto.CardResult{{Name: "0001"}, {Name: "0002", Rescan: true}, {Name: "0003", Rescan: true}}}, nil
-	})
-	assert.Contains(t, out, "rescan these cards, fed straighter: 0002, 0003")
+func TestReportSummarisesCardsToRescan(t *testing.T) {
+	run := func(cards ...fastfoto.CardResult) func(context.Context, fastfoto.Options) (fastfoto.Report, error) {
+		return func(context.Context, fastfoto.Options) (fastfoto.Report, error) {
+			return fastfoto.Report{Cards: cards, RawDir: "raw"}, nil
+		}
+	}
+	out, _, _ := execute(t, run(fastfoto.CardResult{Name: "0001"}, fastfoto.CardResult{Name: "0002", Rescan: true}, fastfoto.CardResult{Name: "0003", Rescan: true}))
+	assert.Contains(t, out, "2 cards were scanned skewed, and need a rescan. See for-rescan-*.jpg\n")
+	assert.Contains(t, out, "1 cards; raw scans")
+
+	out, _, _ = execute(t, run(fastfoto.CardResult{Name: "0002", Rescan: true}), "--out-dir", "scans")
+	assert.Contains(t, out, "1 card was scanned skewed, and needs a rescan. See scans/for-rescan-*.jpg\n")
 }
 
 func TestHelpCarriesTheLoadingAdvice(t *testing.T) {
