@@ -340,6 +340,25 @@ func TestSkewedCardIsSetAsideForRescan(t *testing.T) {
 	assert.Empty(t, report.Cards)
 }
 
+func TestTiltedCardInACroppedFrameIsMeasuredWhole(t *testing.T) {
+	dir := t.TempDir()
+	writeRaw(t, dir, 1, croppedSynth(5, 3.4, 2.5, 115))
+	writeRaw(t, dir, 2, croppedSynth(5, 3.4, -2.5, 115))
+	report, err := runNoScan(t, dir)
+	require.NoError(t, err)
+	require.Len(t, report.Cards, 1)
+	assert.False(t, report.Cards[0].Rescan)
+	assert.Empty(t, report.Cards[0].Flags)
+	assert.InDelta(t, 5.0, report.Cards[0].WidthCm, 0.1)
+	assert.InDelta(t, 3.4, report.Cards[0].HeightCm, 0.1)
+
+	front := loadPNG(t, filepath.Join(dir, "0001-front.png"))
+	b := front.Bounds()
+	for _, corner := range [][2]int{{12, 12}, {b.Dx() - 13, 12}, {12, b.Dy() - 13}, {b.Dx() - 13, b.Dy() - 13}} {
+		assert.Equalf(t, uint8(255), alpha(front, corner[0], corner[1]), "corner %v is cut off", corner)
+	}
+}
+
 func TestSlightlySkewedCardIsNotWarnedAbout(t *testing.T) {
 	dir := t.TempDir()
 	s := defaultSynth()

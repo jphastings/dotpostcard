@@ -34,10 +34,12 @@ var (
 	ErrNotResponding = errors.New("the scanner isn't responding: check it's switched on (it powers itself off after 10 idle minutes), and if it is, switch it off and on again")
 )
 
-// Never add FMTRAW, CRP or a GMT tone curve: the first two have wedged the scanner
-// until power-cycled, and the curve clips blank paper to pure white.
-// OVSN is kept because it makes each side end at the card's real length.
-const scanParameters = "#ADFDPLXOVSN#COLC024#FMTJPG #JPGd100#GMMUG18#RSMd600#RSSd600#BSZi1048576#ACQi0000000i0000000i0005096i0009283"
+// CRP is the scanner's hardware crop, which keeps every corner of a skewed card; OVSN
+// instead ends each side one card-length in and loses two. #CRPd020 widens the crop by
+// 0.2 inch so the cutout has real backing on every side. Never combine CRP with OVSN: it
+// stalled the scanner. Never add FMTRAW or a GMT tone curve: the first has wedged the
+// scanner until power-cycled, and the curve clips blank paper to pure white.
+const scanParameters = "#ADFDPLXCRP #COLC024#FMTJPG #JPGd100#GMMUG18#RSMd600#RSSd600#CRPd020#BSZi1048576#ACQi0000000i0000000i0005096i0009283"
 
 const (
 	writeGap     = 500 * time.Microsecond
