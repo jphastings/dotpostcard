@@ -20,6 +20,8 @@ type synth struct {
 	doubleFeed  bool    // a second card shingled half a card away
 	sideShadow  bool    // soft ramp, darkest at the edge, beyond the left and right edges
 	chromaNoise int     // extra colour noise in pairs of pixels, as the scanner's JPEG makes
+	bandPx      [2]int  // width of a hard dark band just beyond the left and right edges
+	frameBandPx int     // dark rows along the frame's very top and bottom
 }
 
 const sideShadowPx = 100
@@ -28,7 +30,10 @@ func defaultSynth() synth {
 	return synth{w: 1700, h: 920, widthCm: 5, heightCm: 3.4, paper: color.RGBA{242, 239, 236, 255}}
 }
 
-var backingColour = color.RGBA{165, 173, 179, 255}
+var (
+	backingColour = color.RGBA{165, 173, 179, 255}
+	bandColour    = color.RGBA{60, 60, 60, 255}
+)
 
 // noise is a deterministic ±4 texture.
 func noise(x, y int) int {
@@ -71,11 +76,17 @@ func (s synth) image() *image.RGBA {
 				t := math.Max(0, (v-bottom-10)/60)
 				c = color.RGBA{uint8(60 + t*(float64(c.R)-60)), uint8(60 + t*(float64(c.G)-60)), uint8(60 + t*(float64(c.B)-60)), 255}
 			}
+			if beyond := math.Abs(u) - s.widthCm*pxPerCm/2; !inside && math.Abs(v) <= hh && beyond > 0 && beyond <= float64(s.bandPx[min(1, max(0, int(math.Copysign(1, u)+1)/2))]) {
+				c = bandColour
+			}
 			if s.sideShadow && math.Abs(v) <= hh {
 				if beyond := math.Abs(u) - s.widthCm*pxPerCm/2; beyond > 0 && beyond <= sideShadowPx {
 					dark := 45 * (1 - beyond/sideShadowPx)
 					c = color.RGBA{uint8(float64(c.R) - dark), uint8(float64(c.G) - dark), uint8(float64(c.B) - dark), 255}
 				}
+			}
+			if y < s.frameBandPx || y >= s.h-s.frameBandPx {
+				c = bandColour
 			}
 			n := noise(x, y)
 			chroma := s.chromaNoise * noise(x/2, y) / 4
