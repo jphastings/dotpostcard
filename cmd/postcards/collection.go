@@ -15,7 +15,7 @@ import (
 
 // webFileSuffixes mirrors the suffixes formats/web recognises as a web-format
 // postcard file (see formats/web/bundle.go).
-var webFileSuffixes = []string{".postcard.webp", ".postcard.jpg", ".postcard.jpeg", ".postcard.png"}
+var webFileSuffixes = []string{".postcard.webp", ".postcard.jpg", ".postcard.jpeg", ".postcard.png", ".postcard"}
 
 var collectionCmd = &cobra.Command{
 	Use:   "collection",
