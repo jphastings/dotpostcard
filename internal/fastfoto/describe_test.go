@@ -50,10 +50,7 @@ func TestParseReplyAcceptsFencesAndRejectsBadRotations(t *testing.T) {
 }
 
 func twoSidedDir(t *testing.T) string {
-	dir := t.TempDir()
-	writeRaw(t, dir, 1, defaultSynth())
-	writeRaw(t, dir, 2, defaultSynth())
-	return dir
+	return t.TempDir()
 }
 
 func describing(d Description, err error) func(*Options) {
@@ -64,7 +61,7 @@ func describing(d Description, err error) func(*Options) {
 
 func TestHeterorientedAnswerTurnsTheSidesAndSetsTheFlip(t *testing.T) {
 	dir := twoSidedDir(t)
-	report, err := runNoScan(t, dir, describing(Description{
+	report, err := runDefaultCard(t, dir, describing(Description{
 		Front: SideDescription{Rotation: "90", Description: "A harbour at dusk", Transcription: "Wish you were here"},
 		Back:  SideDescription{Rotation: "0", Description: "A map of the bay"},
 	}, nil))
@@ -90,7 +87,7 @@ func TestHeterorientedAnswerTurnsTheSidesAndSetsTheFlip(t *testing.T) {
 
 func TestDescriberFailureLeavesTheCardAsScanned(t *testing.T) {
 	dir := twoSidedDir(t)
-	report, err := runNoScan(t, dir, describing(Description{}, errors.New("quota")))
+	report, err := runDefaultCard(t, dir, describing(Description{}, errors.New("quota")))
 	require.NoError(t, err)
 	assert.Contains(t, report.Cards[0].Notes[0], "quota")
 
@@ -104,7 +101,7 @@ func TestDescriberFailureLeavesTheCardAsScanned(t *testing.T) {
 
 func TestDescriberPanicLeavesTheCardAsScanned(t *testing.T) {
 	dir := twoSidedDir(t)
-	report, err := runNoScan(t, dir, func(o *Options) {
+	report, err := runDefaultCard(t, dir, func(o *Options) {
 		o.Describe = func(context.Context, image.Image, image.Image) (Description, error) { panic("boom") }
 	})
 	require.NoError(t, err)
@@ -122,7 +119,7 @@ func TestClaudeCodeBackendDescribesCardsWithoutScanning(t *testing.T) {
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 
 	dir := twoSidedDir(t)
-	report, err := runNoScan(t, dir, func(o *Options) { o.LLM = LLMConfig{Backend: "claude-code"} })
+	report, err := runDefaultCard(t, dir, func(o *Options) { o.LLM = LLMConfig{Backend: "claude-code"} })
 	require.NoError(t, err)
 	require.NoError(t, report.Cards[0].Err)
 	assert.Empty(t, report.Cards[0].Notes)
@@ -136,7 +133,7 @@ func TestClaudeCodeBackendDescribesCardsWithoutScanning(t *testing.T) {
 
 func TestDescriberGetsTheRunsContext(t *testing.T) {
 	dir := twoSidedDir(t)
-	_, err := runNoScan(t, dir, func(o *Options) {
+	_, err := runDefaultCard(t, dir, func(o *Options) {
 		o.Describe = func(ctx context.Context, _, _ image.Image) (Description, error) {
 			require.NotNil(t, ctx)
 			return Description{}, ctx.Err()
@@ -151,7 +148,7 @@ func TestHungDescriberTimesOutAndLeavesTheCardAsScanned(t *testing.T) {
 	defer func() { describeTimeout = old }()
 
 	dir := twoSidedDir(t)
-	report, err := runNoScan(t, dir, func(o *Options) {
+	report, err := runDefaultCard(t, dir, func(o *Options) {
 		o.Describe = func(ctx context.Context, _, _ image.Image) (Description, error) {
 			<-ctx.Done()
 			return Description{}, ctx.Err()
@@ -169,7 +166,7 @@ func TestDeniedWebSearchIsANoteNotAnError(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(bin, "claude"), []byte(script), 0o755))
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 
-	report, err := runNoScan(t, twoSidedDir(t), func(o *Options) { o.LLM = LLMConfig{Backend: "claude-code"} })
+	report, err := runDefaultCard(t, twoSidedDir(t), func(o *Options) { o.LLM = LLMConfig{Backend: "claude-code"} })
 	require.NoError(t, err)
 	assert.False(t, report.Cards[0].LLMFailed)
 	assert.Contains(t, report.Cards[0].Notes[0], "WebSearch")

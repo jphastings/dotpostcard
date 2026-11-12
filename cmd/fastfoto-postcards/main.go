@@ -20,10 +20,9 @@ const guide = `Scan a stack of postcards through an Epson FastFoto FF-680W (macO
 
 By default each card is NNNN-front.png, NNNN-back.png and NNNN-meta.yaml in --out-dir,
 ready for the postcards tool. -f converts each card as postcards -f would, and
-replaces those files unless it includes component (-f web,component). Raw scans
-are kept in raw/ so a run can be resumed.
-To redo a card, delete its NNNN-meta.yaml (in raw/ when -f left out component)
-and run again with --no-scan.
+replaces those files unless it includes component (-f web,component). Cards
+number on from the highest number already in --out-dir. Scans are processed in
+memory and not kept: to redo a card, feed it again.
 
 Loading: top edge first, back of the card facing you. Keep the paper guides
 snug against the card, and put the card's straightest edge leading. A card
@@ -39,7 +38,7 @@ type runFunc func(context.Context, fastfoto.Options) (fastfoto.Report, error)
 
 func newCommand(run runFunc, stdout, stderr io.Writer) *cobra.Command {
 	var opts fastfoto.Options
-	var firstSide string
+	var topSide string
 	cmd := &cobra.Command{
 		Use:           "fastfoto-postcards [flags]",
 		Short:         "Scan a stack of postcards with an Epson FastFoto FF-680W",
@@ -48,12 +47,12 @@ func newCommand(run runFunc, stdout, stderr io.Writer) *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			switch firstSide {
+			switch topSide {
 			case "front":
-				opts.FirstSideFront = true
+				opts.TopSideFront = true
 			case "back":
 			default:
-				return fmt.Errorf("--first-side must be front or back, not %q", firstSide)
+				return fmt.Errorf("--top-side must be front or back, not %q", topSide)
 			}
 			if !(opts.FeedScale > 0) || math.IsInf(opts.FeedScale, 0) {
 				return fmt.Errorf("--feed-scale must be a positive number, not %v", opts.FeedScale)
@@ -85,11 +84,11 @@ func newCommand(run runFunc, stdout, stderr io.Writer) *cobra.Command {
 		},
 	}
 	f := cmd.Flags()
-	f.StringVar(&opts.OutDir, "out-dir", ".", "where to write cards and raw/")
-	f.StringVar(&firstSide, "first-side", "back", "which side of each card comes through the scanner first: front or back")
+	f.StringVar(&opts.OutDir, "out-dir", ".", "where to write cards")
+	f.StringVar(&topSide, "top-side", "back", "which side of the cards faces outward in the feeder: front or back")
 	f.Float64Var(&opts.CardThreshold, "card-threshold", fastfoto.DefaultCardThreshold, "how far a pixel must differ from the backing to count as card")
 	f.Float64Var(&opts.FeedScale, "feed-scale", 1, "multiplier for sizes along the feed direction")
-	f.BoolVar(&opts.NoScan, "no-scan", false, "only process pages already in raw/")
+	f.BoolVarP(&opts.Archival, "archival", "A", false, "Turn off image resizing, use lossless compression")
 	f.StringSliceVarP(&opts.Formats, "formats", "f", nil, fmt.Sprintf("also convert each card to these formats (comma separated, any of: %s, atproto)", strings.Join(postcards.Codecs, ", ")))
 	f.StringVar(&opts.ATUser, "at-user", "", "atproto handle or DID to upload as (format atproto only; falls back to $GOAT_USERNAME/$ATP_USERNAME/$ATP_AUTH_USERNAME)")
 	f.StringVar(&opts.ATPassword, "at-password", "", "atproto PDS app password (format atproto only; falls back to $GOAT_PASSWORD/$ATP_PASSWORD/$ATP_AUTH_PASSWORD)")
@@ -130,12 +129,8 @@ func printReport(w io.Writer, r fastfoto.Report, outDir string) {
 			fmt.Fprintf(w, "  ! converting failed: %v\n", c.ConvertErr)
 		}
 	}
-	if len(r.Orphans) > 0 {
-		pages := make([]string, len(r.Orphans))
-		for i, p := range r.Orphans {
-			pages[i] = fmt.Sprintf("%d", p)
-		}
-		fmt.Fprintf(w, "unpaired pages kept: %s\n", strings.Join(pages, ", "))
+	if r.Unpaired {
+		fmt.Fprintln(w, "a card's second side never arrived: that side was dropped, feed the card again")
 	}
 	if llmFailed > 0 {
 		fmt.Fprintf(w, "%d cards left as scanned: the LLM step failed\n", llmFailed)
@@ -147,9 +142,7 @@ func printReport(w io.Writer, r fastfoto.Report, outDir string) {
 		}
 		fmt.Fprintf(w, "%d %s a rescan. See %s\n", rescan, subject, filepath.Join(outDir, "for-rescan-*.jpg"))
 	}
-	if r.RawDir != "" {
-		fmt.Fprintf(w, "%d cards; raw scans: %s (%.0f MB)\n", built, r.RawDir, float64(r.RawBytes)/1e6)
-	}
+	fmt.Fprintf(w, "%d cards\n", built)
 }
 
 func main() {

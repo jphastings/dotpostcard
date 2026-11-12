@@ -2,6 +2,7 @@ package fastfoto
 
 import (
 	"bytes"
+	"fmt"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -128,6 +129,9 @@ func (s synth) jpegBytes() []byte {
 		panic(err)
 	}
 	b := buf.Bytes()
+	// A comment segment carries the true height for the fake scanner to report.
+	com := []byte(fmt.Sprintf("h=%d", s.h))
+	b = append(append([]byte{0xFF, 0xD8, 0xFF, 0xFE, 0, byte(len(com) + 2)}, com...), b[2:]...)
 	for i := 2; i+9 < len(b); {
 		if b[i+1] == 0xC0 {
 			b[i+5], b[i+6] = 9283>>8, 9283&0xFF

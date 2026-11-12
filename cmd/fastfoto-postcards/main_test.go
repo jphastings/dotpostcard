@@ -24,14 +24,14 @@ func TestFlagsReachTheRun(t *testing.T) {
 	_, _, err := execute(t, func(_ context.Context, o fastfoto.Options) (fastfoto.Report, error) {
 		got = o
 		return fastfoto.Report{}, nil
-	}, "--out-dir", "cards", "--first-side", "front", "--card-threshold", "30", "--feed-scale", "1.01", "--no-scan")
+	}, "--out-dir", "cards", "--top-side", "front", "--card-threshold", "30", "--feed-scale", "1.01", "-A")
 
 	assert.NoError(t, err)
 	assert.Equal(t, "cards", got.OutDir)
-	assert.True(t, got.FirstSideFront)
+	assert.True(t, got.TopSideFront)
 	assert.Equal(t, 30.0, got.CardThreshold)
 	assert.Equal(t, 1.01, got.FeedScale)
-	assert.True(t, got.NoScan)
+	assert.True(t, got.Archival)
 }
 
 func TestRunFailureIsAnError(t *testing.T) {
@@ -41,33 +41,33 @@ func TestRunFailureIsAnError(t *testing.T) {
 	assert.EqualError(t, err, "jam")
 }
 
-func TestBadFirstSideIsRejected(t *testing.T) {
-	_, _, err := execute(t, nil, "--first-side", "left")
+func TestBadTopSideIsRejected(t *testing.T) {
+	_, _, err := execute(t, nil, "--top-side", "left")
 	assert.Error(t, err)
 }
 
-func TestReportListsFlagsAndOrphans(t *testing.T) {
+func TestReportListsFlagsAndUnpairedSides(t *testing.T) {
 	out, _, err := execute(t, func(context.Context, fastfoto.Options) (fastfoto.Report, error) {
 		return fastfoto.Report{
-			Cards:   []fastfoto.CardResult{{Name: "0001", WidthCm: 14.8, HeightCm: 10.5, Flags: []string{"clipped"}}},
-			Orphans: []int{3},
+			Cards:    []fastfoto.CardResult{{Name: "0001", WidthCm: 14.8, HeightCm: 10.5, Flags: []string{"clipped"}}},
+			Unpaired: true,
 		}, nil
 	})
 	assert.NoError(t, err)
 	assert.Contains(t, out, "0001")
 	assert.Contains(t, out, "clipped")
-	assert.Contains(t, out, "3")
+	assert.Contains(t, out, "feed the card again")
 }
 
 func TestReportSummarisesCardsToRescan(t *testing.T) {
 	run := func(cards ...fastfoto.CardResult) func(context.Context, fastfoto.Options) (fastfoto.Report, error) {
 		return func(context.Context, fastfoto.Options) (fastfoto.Report, error) {
-			return fastfoto.Report{Cards: cards, RawDir: "raw"}, nil
+			return fastfoto.Report{Cards: cards}, nil
 		}
 	}
 	out, _, _ := execute(t, run(fastfoto.CardResult{Name: "0001"}, fastfoto.CardResult{Name: "0002", Rescan: true}, fastfoto.CardResult{Name: "0003", Rescan: true}))
 	assert.Contains(t, out, "2 cards were scanned skewed, and need a rescan. See for-rescan-*.jpg\n")
-	assert.Contains(t, out, "1 cards; raw scans")
+	assert.Contains(t, out, "1 cards\n")
 
 	out, _, _ = execute(t, run(fastfoto.CardResult{Name: "0002", Rescan: true}), "--out-dir", "scans")
 	assert.Contains(t, out, "1 card was scanned skewed, and needs a rescan. See scans/for-rescan-*.jpg\n")
@@ -83,8 +83,7 @@ func TestHelpCarriesTheLoadingAdvice(t *testing.T) {
 func TestFailedCardsAreReportedAndNotCounted(t *testing.T) {
 	out, _, _ := execute(t, func(context.Context, fastfoto.Options) (fastfoto.Report, error) {
 		return fastfoto.Report{
-			Cards:  []fastfoto.CardResult{{Name: "0001"}, {Name: "0002", Err: errors.New("no card found")}},
-			RawDir: "raw",
+			Cards: []fastfoto.CardResult{{Name: "0001"}, {Name: "0002", Err: errors.New("no card found")}},
 		}, nil
 	})
 	assert.Contains(t, out, "no card found")

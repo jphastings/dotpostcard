@@ -17,7 +17,6 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -38,12 +37,14 @@ const (
 )
 
 type Options struct {
-	OutDir         string
-	FirstSideFront bool
-	CardThreshold  float64
+	OutDir string
+	// TopSideFront is whether the front of each card faces outward in the feeder.
+	TopSideFront bool
+	// Archival turns off image resizing and uses lossless compression in converted formats.
+	Archival      bool
+	CardThreshold float64
 	// FeedScale stretches the feed-direction measurement to correct the scanner's feed error.
 	FeedScale float64
-	NoScan    bool
 	// Open connects to the scanner; the default is the real USB scanner.
 	Open func() (Transport, error)
 	// Stop is cancelled to finish the current card and then stop feeding.
@@ -86,28 +87,23 @@ type CardResult struct {
 
 type Report struct {
 	Cards []CardResult
-	// Orphans are raw pages with no partner, kept in RawDir.
-	Orphans  []int
-	RawDir   string
-	RawBytes int64
+	// Unpaired is set when the scan ended with one side of a card and not its partner. That
+	// side is dropped, and the card needs feeding again.
+	Unpaired bool
 }
 
 var (
-	rawPageRE = regexp.MustCompile(`^page-(\d+)\.jpg$`)
-	outputRE  = regexp.MustCompile(`^(\d+)-(?:front\.png|back\.png|meta\.yaml)$`)
-	rescanRE  = regexp.MustCompile(`^for-rescan-(\d+)\.jpg$`)
+	usedNumberRE = regexp.MustCompile(`^(?:for-rescan-)?(\d+)(?:[-.]|$)`)
 )
 
-func rawName(page int) string    { return fmt.Sprintf("page-%05d.jpg", page) }
 func cardName(card int) string   { return fmt.Sprintf("%04d", card) }
 func rescanName(card int) string { return "for-rescan-" + cardName(card) + ".jpg" }
 
 type run struct {
 	opts Options
 	// ctx is the run's own: Stop only means finish the current card, which includes its LLM call.
-	ctx    context.Context
-	rawDir string
-	log    func(format string, args ...any)
+	ctx context.Context
+	log func(format string, args ...any)
 
 	mu      sync.Mutex
 	results []CardResult
@@ -122,13 +118,13 @@ type run struct {
 	encOpts    formats.EncodeOptions
 	atClient   *atproto.Client
 	wantUpload bool
-	// wantComponents is whether component files belong in OutDir; otherwise they are staged in rawDir.
+	// wantComponents is whether component files belong in OutDir; otherwise they are staged in a temporary directory in OutDir.
 	wantComponents bool
 }
 
-// Run scans a stack (unless NoScan) and processes every complete pair of pages that
-// hasn't been turned into a card yet. Cards are processed while the stack is still
-// feeding; the scanner never waits on image work.
+// Run scans a stack and turns each pair of sides into a card, numbered on from the highest
+// number already used in OutDir. Cards are processed while the stack is still feeding; the
+// scanner never waits on image work.
 func Run(ctx context.Context, opts Options) (Report, error) {
 	if opts.CardThreshold == 0 {
 		opts.CardThreshold = DefaultCardThreshold
@@ -158,7 +154,6 @@ func Run(ctx context.Context, opts Options) (Report, error) {
 	r := &run{
 		opts:     opts,
 		ctx:      ctx,
-		rawDir:   filepath.Join(opts.OutDir, "raw"),
 		log:      func(format string, args ...any) { fmt.Fprintf(opts.Log, format+"\n", args...) },
 		slots:    make(chan struct{}, workers),
 		inflight: make(chan struct{}, maxInFlight),
@@ -167,30 +162,19 @@ func Run(ctx context.Context, opts Options) (Report, error) {
 	if err := r.prepareFormats(); err != nil {
 		return Report{}, err
 	}
-	if err := os.MkdirAll(r.rawDir, 0o755); err != nil {
+	if err := os.MkdirAll(opts.OutDir, 0o755); err != nil {
 		return Report{}, err
 	}
-
-	pages, finished, highest, err := r.inventory()
+	highest, err := r.highestUsed()
 	if err != nil {
 		return Report{}, err
 	}
-	for p := range pages {
-		highest = max(highest, (p+1)/2)
-	}
-	for p := range pages {
-		if p%2 == 0 && pages[p-1] && !finished[p/2] {
-			r.process(p / 2)
-		}
-	}
 
-	var scanErr error
-	if !opts.NoScan {
-		scanErr = r.scan(ctx, 2*highest, pages)
-	}
+	unpaired, scanErr := r.scan(ctx, highest)
 	r.wg.Wait()
 
 	report := r.report()
+	report.Unpaired = unpaired
 	errs := []error{scanErr}
 	for _, c := range report.Cards {
 		if c.Err != nil {
@@ -203,82 +187,59 @@ func Run(ctx context.Context, opts Options) (Report, error) {
 	return report, errors.Join(errs...)
 }
 
-// inventory lists the raw pages, the cards whose metadata or for-rescan preview exists (so are done), and
-// the highest card number that any output file already uses.
-func (r *run) inventory() (pages, finished map[int]bool, highest int, err error) {
-	pages, finished = map[int]bool{}, map[int]bool{}
-	raws, err := os.ReadDir(r.rawDir)
+// highestUsed is the highest card number that any file in OutDir starts with.
+func (r *run) highestUsed() (highest int, err error) {
+	entries, err := os.ReadDir(r.opts.OutDir)
 	if err != nil {
-		return nil, nil, 0, err
+		return 0, err
 	}
-	for _, e := range raws {
-		if m := rawPageRE.FindStringSubmatch(e.Name()); m != nil {
-			n, _ := strconv.Atoi(m[1])
-			pages[n] = true
-		} else if m := outputRE.FindStringSubmatch(e.Name()); m != nil && strings.HasSuffix(e.Name(), "-meta.yaml") {
+	for _, e := range entries {
+		if m := usedNumberRE.FindStringSubmatch(e.Name()); m != nil {
 			n, _ := strconv.Atoi(m[1])
 			highest = max(highest, n)
-			finished[n] = true
 		}
 	}
-	outs, err := os.ReadDir(r.opts.OutDir)
-	if err != nil {
-		return nil, nil, 0, err
-	}
-	for _, e := range outs {
-		if m := outputRE.FindStringSubmatch(e.Name()); m != nil {
-			n, _ := strconv.Atoi(m[1])
-			highest = max(highest, n)
-			finished[n] = finished[n] || strings.HasSuffix(e.Name(), "-meta.yaml")
-		} else if m := rescanRE.FindStringSubmatch(e.Name()); m != nil {
-			n, _ := strconv.Atoi(m[1])
-			highest = max(highest, n)
-			finished[n] = true
-		}
-	}
-	return pages, finished, highest, nil
+	return highest, nil
 }
 
-// scan feeds the stack, saving each side as it arrives and queueing a card whenever
-// its second side lands. Pages continue numbering after basePage.
-func (r *run) scan(ctx context.Context, basePage int, pages map[int]bool) error {
+// scan feeds the stack, queueing a card whenever its second side lands. New cards number on
+// from highest. unpaired is whether a side was left without its partner.
+func (r *run) scan(ctx context.Context, highest int) (unpaired bool, err error) {
 	t, err := r.opts.Open()
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer t.Close()
 
-	next := basePage
+	var first []byte
 	s := &session{t: t, log: func(msg string) { r.log("%s", msg) }}
 	err = s.feed(ctx, r.opts.Stop, func(jpeg []byte) error {
-		next++
-		if err := writeAtomic(filepath.Join(r.rawDir, rawName(next)), func(w io.Writer) error {
-			_, err := w.Write(jpeg)
-			return err
-		}); err != nil {
-			return err
+		if first == nil {
+			first = jpeg
+			return nil
 		}
-		pages[next] = true
-		if next%2 == 0 {
-			r.process(next / 2)
-		}
+		highest++
+		r.process(highest, [2][]byte{first, jpeg})
+		first = nil
 		return nil
 	})
-	if err != nil && next%2 == 1 {
-		r.log("page %d has no partner and stays in %s", next, r.rawDir)
+	if first != nil {
+		r.log("a side has no partner and is dropped: feed its card again")
 	}
-	return err
+	return first != nil, err
 }
 
 // process queues a card on the worker pool, which never blocks the caller.
-func (r *run) process(card int) {
+// ponytail: cards waiting for a worker hold their JPEG bytes (about 24 MB per card), with no
+// hard bound on the queue. Bound it (block feed's callback) if scans outrun processing for long.
+func (r *run) process(card int, sides [2][]byte) {
 	r.wg.Add(1)
 	go func() {
 		defer r.wg.Done()
 		r.inflight <- struct{}{}
 		defer func() { <-r.inflight }()
 		start := time.Now()
-		res := r.buildOne(card)
+		res := r.buildOne(card, sides)
 		res.Elapsed = time.Since(start)
 		r.mu.Lock()
 		r.results = append(r.results, res)
@@ -298,7 +259,7 @@ func flagSummary(flags []string) string {
 	return fmt.Sprintf(" (%d flags)", len(flags))
 }
 
-func (r *run) buildOne(number int) (res CardResult) {
+func (r *run) buildOne(number int, sides [2][]byte) (res CardResult) {
 	res = CardResult{Number: number, Name: cardName(number)}
 	defer func() {
 		if p := recover(); p != nil {
@@ -307,7 +268,7 @@ func (r *run) buildOne(number int) (res CardResult) {
 	}()
 
 	var c *card
-	r.withSlot(r.slots, func() { c, res.Err = r.loadCard(number) })
+	r.withSlot(r.slots, func() { c, res.Err = r.loadCard(sides) })
 	if res.Err != nil {
 		return
 	}
@@ -357,21 +318,38 @@ func (r *run) buildOne(number int) (res CardResult) {
 
 	dir := r.opts.OutDir
 	if !r.wantComponents {
-		dir = r.rawDir
+		dir, res.Err = os.MkdirTemp(r.opts.OutDir, ".fastfoto-*")
+		if res.Err != nil {
+			return
+		}
+		defer os.RemoveAll(dir)
 	}
 	r.withSlot(r.slots, func() { res.Err = r.write(dir, res.Name, c.size, flip, sideMeta, front, back) })
 	if res.Err == nil && (len(r.codecs) > 0 || r.wantUpload) {
 		r.withSlot(r.slots, func() { res.ConvertErr = r.convert(&res, dir) })
-		if !r.wantComponents {
-			if res.ConvertErr != nil {
-				res.ConvertErr = fmt.Errorf("%w (components kept in %s)", res.ConvertErr, r.rawDir)
+		if !r.wantComponents && res.ConvertErr != nil {
+			if err := r.keepStaged(dir); err != nil {
+				res.ConvertErr = fmt.Errorf("%w (and its components couldn't be kept: %v)", res.ConvertErr, err)
 			} else {
-				os.Remove(filepath.Join(dir, res.Name+"-front.png"))
-				os.Remove(filepath.Join(dir, res.Name+"-back.png"))
+				res.ConvertErr = fmt.Errorf("%w (components kept in %s)", res.ConvertErr, r.opts.OutDir)
 			}
 		}
 	}
 	return
+}
+
+// keepStaged moves a card's staged components into OutDir so a failed conversion doesn't lose it.
+func (r *run) keepStaged(dir string) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		if err := os.Rename(filepath.Join(dir, e.Name()), filepath.Join(r.opts.OutDir, e.Name())); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // prepareFormats validates the requested formats and logs in to atproto if asked, so that
@@ -395,7 +373,7 @@ func (r *run) prepareFormats() error {
 		return err
 	}
 	r.codecs = codecs
-	r.encOpts = formats.EncodeOptions{IncludeSupportFiles: supportFiles}
+	r.encOpts = formats.EncodeOptions{IncludeSupportFiles: supportFiles, Archival: r.opts.Archival}
 	if !r.wantUpload {
 		return nil
 	}
@@ -482,21 +460,16 @@ func turn(img image.Image, quarters int) image.Image {
 	return images.Orient(img, [4]int{1, 6, 3, 8}[quarters])
 }
 
-func (r *run) loadCard(number int) (*card, error) {
+func (r *run) loadCard(sides [2][]byte) (*card, error) {
 	var frames [2]*frame
-	for i, page := range [2]int{2*number - 1, 2 * number} {
-		f, err := os.Open(filepath.Join(r.rawDir, rawName(page)))
-		if err != nil {
-			return nil, err
-		}
-		frames[i], err = decodeFrame(f)
-		f.Close()
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", rawName(page), err)
+	for i, jpeg := range sides {
+		var err error
+		if frames[i], err = decodeFrame(bytes.NewReader(jpeg)); err != nil {
+			return nil, fmt.Errorf("side %d: %w", i+1, err)
 		}
 	}
 	front, back := frames[1], frames[0]
-	if r.opts.FirstSideFront {
+	if r.opts.TopSideFront {
 		front, back = back, front
 	}
 	return buildCard(front, back, r.opts.CardThreshold, r.opts.FeedScale)
@@ -527,7 +500,6 @@ func (r *run) write(dir, name string, size types.Size, flip types.Flip, sides [2
 		return err
 	}
 
-	// The metadata file goes last: its presence means the card is complete.
 	for _, w := range []struct {
 		suffix string
 		write  func(io.Writer) error
@@ -580,29 +552,7 @@ func writeAtomic(path string, write func(io.Writer) error) error {
 func (r *run) report() Report {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	rep := Report{Cards: append([]CardResult(nil), r.results...), RawDir: r.rawDir}
+	rep := Report{Cards: append([]CardResult(nil), r.results...)}
 	sort.Slice(rep.Cards, func(i, j int) bool { return rep.Cards[i].Number < rep.Cards[j].Number })
-
-	entries, _ := os.ReadDir(r.rawDir)
-	pages := map[int]bool{}
-	for _, e := range entries {
-		if m := rawPageRE.FindStringSubmatch(e.Name()); m != nil {
-			n, _ := strconv.Atoi(m[1])
-			pages[n] = true
-			if info, err := e.Info(); err == nil {
-				rep.RawBytes += info.Size()
-			}
-		}
-	}
-	for p := range pages {
-		partner := p + 1
-		if p%2 == 0 {
-			partner = p - 1
-		}
-		if !pages[partner] {
-			rep.Orphans = append(rep.Orphans, p)
-		}
-	}
-	sort.Ints(rep.Orphans)
 	return rep
 }
