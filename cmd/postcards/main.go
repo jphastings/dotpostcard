@@ -211,7 +211,7 @@ var rootCmd = &cobra.Command{
 						}
 
 						fileDur := time.Since(fileStartT)
-						fmt.Fprintf(sso, "%s (%s) → (%s) %s (%s)\n", filename, bundleName, codecName, dst, fileDur)
+						fmt.Fprintf(sso, "%s (%s) → (%s) %s (%s)\n", filename, bundleName, codecName, dst, fmt.Sprintf("%.1fs", fileDur.Seconds()))
 					}(filename, bundle.CodecName(), codec.Name(), fw)
 				}
 			}
@@ -237,7 +237,7 @@ var rootCmd = &cobra.Command{
 						return
 					}
 
-					fmt.Fprintf(sso, "%s (%s) → (%s) %s (%s)\n", filename, bundleName, "ATProto", atURI, time.Since(fileStartT))
+					fmt.Fprintf(sso, "%s (%s) → (%s) %s (%s)\n", filename, bundleName, "ATProto", atURI, fmt.Sprintf("%.1fs", time.Since(fileStartT).Seconds()))
 				}(filename, bundle.CodecName(), pc)
 			}
 		}

@@ -17,6 +17,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -60,6 +61,20 @@ type Options struct {
 	Formats []string
 	// ATUser and ATPassword fall back to the same environment variables as the postcards tool.
 	ATUser, ATPassword string
+	// OnStart is called with how many formats each card is written as, once the scanner is
+	// open and before anything is fed.
+	OnStart func(formats int)
+	// OnCard is called as each card finishes, in the order they finish and never concurrently.
+	OnCard func(CardResult)
+}
+
+// Output is something written, or uploaded, for a card.
+type Output struct {
+	Format string
+	// Path is the file written in OutDir, several joined with commas for components, or the
+	// URI of an upload.
+	Path  string
+	Bytes int64 // zero for uploads
 }
 
 type CardResult struct {
@@ -75,12 +90,18 @@ type CardResult struct {
 	// Rescan is set when a side lost enough of a corner that the card was set aside, unbuilt, as
 	// for-rescan-NNNN.jpg to be fed again straighter.
 	Rescan bool
-	// Notes say what the LLM step did to the card, or why it left the card as scanned.
+	// Notes are the describer's own, and why the LLM step left the card as scanned or its orientation was ignored.
 	Notes []string
 	// LLMFailed is set when the LLM step errored, so the card was left as scanned.
 	LLMFailed bool
-	Elapsed   time.Duration
-	Err       error
+	// Flip is how the card's back turns over, as the LLM oriented it (book when it didn't).
+	Flip types.Flip
+	// Described is set when the LLM step described the card.
+	Described bool
+	// Outputs are the files and uploads made for the card; for a Rescan card, the preview to feed it again by.
+	Outputs []Output
+	Elapsed time.Duration
+	Err     error
 	// ConvertErr is set when converting or uploading the built card failed; the card's
 	// components are still complete.
 	ConvertErr error
@@ -144,6 +165,12 @@ func Run(ctx context.Context, opts Options) (Report, error) {
 	}
 	if opts.Log == nil {
 		opts.Log = io.Discard
+	}
+	if opts.OnStart == nil {
+		opts.OnStart = func(int) {}
+	}
+	if opts.OnCard == nil {
+		opts.OnCard = func(CardResult) {}
 	}
 	if opts.Describe == nil && opts.LLM.Backend != "" {
 		d, err := describe.New(ctx, opts.LLM)
@@ -211,6 +238,7 @@ func (r *run) scan(ctx context.Context, highest int) (unpaired bool, err error) 
 		return false, err
 	}
 	defer t.Close()
+	r.opts.OnStart(r.formatCount())
 
 	var first []byte
 	s := &session{t: t, log: func(msg string) { r.log("%s", msg) }}
@@ -244,20 +272,21 @@ func (r *run) process(card int, sides [2][]byte) {
 		res.Elapsed = time.Since(start)
 		r.mu.Lock()
 		r.results = append(r.results, res)
+		r.opts.OnCard(res)
 		r.mu.Unlock()
-		if res.Rescan {
-			r.log("card %s: scanned skewed, needs a rescan, %.1fs", res.Name, res.Elapsed.Seconds())
-		} else if res.Err == nil {
-			r.log("card %s: %.1f x %.1f cm%s, %.1fs", res.Name, res.WidthCm, res.HeightCm, flagSummary(res.Flags), res.Elapsed.Seconds())
-		}
 	}()
 }
 
-func flagSummary(flags []string) string {
-	if len(flags) == 0 {
-		return ""
+// formatCount is how many formats each card is written as, counted as the postcards tool does.
+func (r *run) formatCount() int {
+	n := len(r.codecs)
+	if r.wantUpload {
+		n++
 	}
-	return fmt.Sprintf(" (%d flags)", len(flags))
+	if r.wantComponents {
+		n++
+	}
+	return n
 }
 
 func (r *run) buildOne(number int, sides [2][]byte) (res CardResult) {
@@ -278,6 +307,7 @@ func (r *run) buildOne(number int, sides [2][]byte) (res CardResult) {
 	if c.rescan {
 		res.Rescan = true
 		r.withSlot(r.slots, func() { res.Err = r.writeRescanPreview(number, c.rawFront) })
+		res.Outputs = []Output{{Format: "Rescan preview", Path: rescanName(number)}}
 		return
 	}
 	res.WidthPx, res.HeightPx = c.size.PxWidth, c.size.PxHeight
@@ -293,8 +323,9 @@ func (r *run) buildOne(number int, sides [2][]byte) (res CardResult) {
 		res.Notes = append(res.Notes, d.Notes...)
 		if err != nil {
 			res.LLMFailed = true
-			res.Notes = append(res.Notes, fmt.Sprintf("LLM step failed, card left as scanned: %v", err))
+			res.Notes = append(res.Notes, fmt.Sprintf("LLM step failed, left as scanned: %v", err))
 		} else {
+			res.Described = true
 			var sides types.Metadata
 			d.Fill(&sides)
 			sideMeta = [2]types.Side{sides.Front, sides.Back}
@@ -313,7 +344,6 @@ func (r *run) buildOne(number int, sides [2][]byte) (res CardResult) {
 				res.WidthPx, res.HeightPx = size.PxWidth, size.PxHeight
 				res.WidthCm, _ = size.CmWidth.Float64()
 				res.HeightCm, _ = size.CmHeight.Float64()
-				res.Notes = append(res.Notes, fmt.Sprintf("front turned %d°, back turned %d°, %s", f*90, b*90, flip))
 			}
 		}
 	}
@@ -326,7 +356,11 @@ func (r *run) buildOne(number int, sides [2][]byte) (res CardResult) {
 		}
 		defer os.RemoveAll(dir)
 	}
+	res.Flip = flip
 	r.withSlot(r.slots, func() { res.Err = r.write(dir, res.Name, c.size, flip, sideMeta, front, back) })
+	if res.Err == nil && r.wantComponents {
+		res.Outputs = append(res.Outputs, componentOutput(dir, res.Name))
+	}
 	if res.Err == nil && (len(r.codecs) > 0 || r.wantUpload) {
 		r.withSlot(r.slots, func() { res.ConvertErr = r.convert(&res, dir) })
 		if !r.wantComponents && res.ConvertErr != nil {
@@ -416,21 +450,26 @@ func (r *run) convert(res *CardResult, dir string) (err error) {
 		}
 		for _, fw := range fws {
 			// O_EXCL on shared files lets concurrent cards race safely, and leaves a hand-edited one alone.
-			if _, err := fw.WriteFile(r.opts.OutDir, !fw.Shared); err != nil && !(fw.Shared && errors.Is(err, fs.ErrExist)) {
+			_, err := fw.WriteFile(r.opts.OutDir, !fw.Shared)
+			if fw.Shared && errors.Is(err, fs.ErrExist) {
+				continue
+			}
+			if err != nil {
 				return fmt.Errorf("%s: %w", fw.Filename, err)
 			}
+			out := Output{Format: codec.Name(), Path: fw.Filename}
+			if info, err := os.Stat(filepath.Join(r.opts.OutDir, fw.Filename)); err == nil {
+				out.Bytes = info.Size()
+			}
+			res.Outputs = append(res.Outputs, out)
 		}
 	}
 	if r.wantUpload {
-		uri, skipped, err := pdsupload.UploadPostcard(r.atClient, pc, &r.encOpts, false, true)
+		uri, _, err := pdsupload.UploadPostcard(r.atClient, pc, &r.encOpts, false, true)
 		if err != nil {
 			return fmt.Errorf("atproto: %w", err)
 		}
-		note := "uploaded to " + uri
-		if skipped {
-			note = "already uploaded as " + uri
-		}
-		res.Notes = append(res.Notes, note)
+		res.Outputs = append(res.Outputs, Output{Format: "ATProto", Path: uri})
 	}
 	return nil
 }
@@ -559,4 +598,18 @@ func (r *run) report() Report {
 	rep := Report{Cards: append([]CardResult(nil), r.results...)}
 	sort.Slice(rep.Cards, func(i, j int) bool { return rep.Cards[i].Number < rep.Cards[j].Number })
 	return rep
+}
+
+func componentOutput(dir, name string) Output {
+	out := Output{Format: "Component files"}
+	var paths []string
+	for _, suffix := range []string{"front.png", "back.png", "meta.yaml"} {
+		file := name + "-" + suffix
+		paths = append(paths, file)
+		if info, err := os.Stat(filepath.Join(dir, file)); err == nil {
+			out.Bytes += info.Size()
+		}
+	}
+	out.Path = strings.Join(paths, ", ")
+	return out
 }

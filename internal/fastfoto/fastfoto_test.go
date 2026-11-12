@@ -718,3 +718,32 @@ func TestArchivalWebOutputIsLosslessWebP(t *testing.T) {
 	require.NoError(t, err)
 	assert.FileExists(t, filepath.Join(dir, "0001.postcard.webp"), "JPEG can't be lossless")
 }
+
+func TestOnCardReportsEachOutputWritten(t *testing.T) {
+	var cards []CardResult
+	started := -1
+	_, err := runSides(t, t.TempDir(), smallCard(), func(o *Options) {
+		o.Formats = []string{"web"}
+		o.OnStart = func(n int) { started = n }
+		o.OnCard = func(c CardResult) { cards = append(cards, c) }
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, 1, started)
+	require.Len(t, cards, 1)
+	require.Len(t, cards[0].Outputs, 1)
+	out := cards[0].Outputs[0]
+	assert.Equal(t, "Web", out.Format)
+	assert.Contains(t, out.Path, "0001.postcard.")
+	assert.NotZero(t, out.Bytes)
+}
+
+func TestOnStartIsNotCalledForAnUnknownFormat(t *testing.T) {
+	called := false
+	_, err := runScan(t, t.TempDir(), newFakeScanner(nil, 0, false), func(o *Options) {
+		o.Formats = []string{"nonsense"}
+		o.OnStart = func(int) { called = true }
+	})
+	assert.Error(t, err)
+	assert.False(t, called)
+}

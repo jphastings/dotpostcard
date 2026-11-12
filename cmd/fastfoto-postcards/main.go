@@ -8,12 +8,14 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 
 	postcards "github.com/jphastings/dotpostcard"
 	"github.com/jphastings/dotpostcard/internal/cmdhelp"
 	"github.com/jphastings/dotpostcard/internal/fastfoto"
+	"github.com/jphastings/dotpostcard/types"
 	"github.com/spf13/cobra"
 )
 
@@ -62,6 +64,8 @@ func newCommand(run runFunc, stdout, stderr io.Writer) *cobra.Command {
 				return err
 			}
 			opts.Log = stderr
+			opts.OnStart = func(formats int) { printStart(stdout, formats) }
+			opts.OnCard = func(c fastfoto.CardResult) { printCard(stdout, c) }
 
 			ctx, stopNow := context.WithCancel(cmd.Context())
 			defer stopNow()
@@ -99,48 +103,80 @@ func newCommand(run runFunc, stdout, stderr io.Writer) *cobra.Command {
 	return cmd
 }
 
+func count(n int, singular string) string {
+	if n == 1 {
+		return fmt.Sprintf("%d %s", n, singular)
+	}
+	return fmt.Sprintf("%d %ss", n, singular)
+}
+
+func humanBytes(n int64) string {
+	switch {
+	case n >= 1_000_000:
+		return fmt.Sprintf("%.1f MB", float64(n)/1e6)
+	case n >= 1000:
+		return fmt.Sprintf("%.0f KB", float64(n)/1e3)
+	}
+	return fmt.Sprintf("%d B", n)
+}
+
+func printStart(w io.Writer, formats int) {
+	fmt.Fprintf(w, "⚙︎ Scanning postcards into %s…\n", count(formats, "different format"))
+}
+
+// printCard writes a card's whole block in one call, so blocks never interleave.
+func printCard(w io.Writer, c fastfoto.CardResult) {
+	var b strings.Builder
+	switch {
+	case c.Err != nil:
+		fmt.Fprintf(&b, "✗ %s: %v\n", c.Name, c.Err)
+	case c.Rescan:
+		fmt.Fprintf(&b, "%s set aside: scanned skewed, feed it again (%s)\n", c.Name, c.Outputs[0].Path)
+	default:
+		details := []string{fmt.Sprintf("%.2f x %.2f cm", c.WidthCm, c.HeightCm)}
+		if c.Flip != types.FlipBook {
+			details = append(details, fmt.Sprintf("detected %s flip", c.Flip))
+		}
+		if c.Described {
+			details = append(details, "LLM description")
+		}
+		details = append(details, fmt.Sprintf("%.1fs", c.Elapsed.Seconds()))
+		fmt.Fprintf(&b, "%s (%s)\n", c.Name, strings.Join(details, ", "))
+		for _, o := range c.Outputs {
+			if o.Bytes == 0 {
+				fmt.Fprintf(&b, "- (%s) %s\n", o.Format, o.Path)
+			} else {
+				fmt.Fprintf(&b, "- (%s) %s (%s)\n", o.Format, o.Path, humanBytes(o.Bytes))
+			}
+		}
+		for _, warning := range slices.Concat(c.Flags, c.Notes, convertWarning(c)) {
+			fmt.Fprintf(&b, "⚠︎ %s\n", warning)
+		}
+	}
+	io.WriteString(w, b.String())
+}
+
+func convertWarning(c fastfoto.CardResult) []string {
+	if c.ConvertErr == nil {
+		return nil
+	}
+	return []string{fmt.Sprintf("converting failed: %v", c.ConvertErr)}
+}
+
+// printReport says only what needs acting on once the run is over.
 func printReport(w io.Writer, r fastfoto.Report, outDir string) {
-	built, llmFailed := 0, 0
 	rescan := 0
 	for _, c := range r.Cards {
-		if c.Err != nil {
-			fmt.Fprintf(w, "%s  FAILED: %v\n", c.Name, c.Err)
-			continue
-		}
-		if c.LLMFailed {
-			llmFailed++
-		}
 		if c.Rescan {
 			rescan++
-			fmt.Fprintf(w, "%s  scanned skewed, needs a rescan  tilt %.1f/%.1f deg\n", c.Name, c.TiltFront, c.TiltBack)
-		} else {
-			built++
-			fmt.Fprintf(w, "%s  %.2f x %.2f cm  tilt %.1f/%.1f deg\n", c.Name, c.WidthCm, c.HeightCm, c.TiltFront, c.TiltBack)
 		}
-		for _, note := range c.Notes {
-			fmt.Fprintf(w, "  %s\n", note)
-		}
-		for _, flag := range c.Flags {
-			fmt.Fprintf(w, "  ! %s\n", flag)
-		}
-		if c.ConvertErr != nil {
-			fmt.Fprintf(w, "  ! converting failed: %v\n", c.ConvertErr)
-		}
+	}
+	if rescan > 0 {
+		fmt.Fprintf(w, "%s set aside to feed again. See %s\n", count(rescan, "card"), filepath.Join(outDir, "for-rescan-*.jpg"))
 	}
 	if r.Unpaired {
 		fmt.Fprintln(w, "a card's second side never arrived: that side was dropped, feed the card again")
 	}
-	if llmFailed > 0 {
-		fmt.Fprintf(w, "%d cards left as scanned: the LLM step failed\n", llmFailed)
-	}
-	if rescan > 0 {
-		subject := "cards were scanned skewed, and need"
-		if rescan == 1 {
-			subject = "card was scanned skewed, and needs"
-		}
-		fmt.Fprintf(w, "%d %s a rescan. See %s\n", rescan, subject, filepath.Join(outDir, "for-rescan-*.jpg"))
-	}
-	fmt.Fprintf(w, "%d cards\n", built)
 }
 
 func main() {
