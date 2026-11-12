@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.38.1 (2026-11-12)
+
+### Fix
+
+- release the scanner cleanly on Ctrl-C
+
 ## v0.38.0 (2026-11-12)
 
 ### Feat
