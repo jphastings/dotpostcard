@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	postcards "github.com/jphastings/dotpostcard"
+	"github.com/jphastings/dotpostcard/internal/cmdhelp"
 	"github.com/jphastings/dotpostcard/internal/fastfoto"
 	"github.com/spf13/cobra"
 )
@@ -92,10 +93,7 @@ func newCommand(run runFunc, stdout, stderr io.Writer) *cobra.Command {
 	f.StringSliceVarP(&opts.Formats, "formats", "f", nil, fmt.Sprintf("also convert each card to these formats (comma separated, any of: %s, atproto)", strings.Join(postcards.Codecs, ", ")))
 	f.StringVar(&opts.ATUser, "at-user", "", "atproto handle or DID to upload as (format atproto only; falls back to $GOAT_USERNAME/$ATP_USERNAME/$ATP_AUTH_USERNAME)")
 	f.StringVar(&opts.ATPassword, "at-password", "", "atproto PDS app password (format atproto only; falls back to $GOAT_PASSWORD/$ATP_PASSWORD/$ATP_AUTH_PASSWORD)")
-	f.StringVar(&opts.LLM.Backend, "llm", "", "describe and orient each card with: claude-code (with web search; the default when given bare), anthropic (ANTHROPIC_API_KEY) or openai (OPENAI_API_KEY). Name a backend with --llm=anthropic, not --llm anthropic. The anthropic and openai backends haven't been tested live")
-	f.Lookup("llm").NoOptDefVal = "claude-code"
-	f.StringVar(&opts.LLM.Model, "llm-model", "", "model for --llm (default "+fastfoto.DefaultLLMModel+" for the Claude backends; required for openai)")
-	f.StringVar(&opts.LLM.BaseURL, "llm-base-url", "", "OpenAI-compatible endpoint for --llm openai")
+	cmdhelp.AddLLMFlags(f, &opts.LLM, "describe and orient each card")
 	cmd.SetOut(stdout)
 	cmd.SetErr(stderr)
 	return cmd

@@ -16,6 +16,7 @@ import (
 
 	postcards "github.com/jphastings/dotpostcard"
 	"github.com/jphastings/dotpostcard/formats"
+	"github.com/jphastings/dotpostcard/pkg/describe"
 	"github.com/jphastings/dotpostcard/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -298,9 +299,9 @@ func TestSkewedCardIsSetAsideForRescan(t *testing.T) {
 	sides := scanOf(s, s)
 	described := false
 	report, err := runSides(t, dir, sides, func(o *Options) {
-		o.Describe = func(context.Context, image.Image, image.Image) (Description, error) {
+		o.Describe = func(context.Context, image.Image, image.Image) (describe.Description, error) {
 			described = true
-			return Description{}, nil
+			return describe.Description{}, nil
 		}
 	})
 	require.NoError(t, err)
@@ -625,8 +626,8 @@ func TestFailedConversionKeepsTheStagedComponentsInOutDir(t *testing.T) {
 	report, err := runSides(t, dir, smallCard(), func(o *Options) {
 		o.Formats = []string{"web"}
 		// Taking the output's name after the card is numbered makes its conversion fail.
-		o.Describe = func(context.Context, image.Image, image.Image) (Description, error) {
-			return Description{}, os.Mkdir(filepath.Join(dir, "0001.postcard.jpeg"), 0o755)
+		o.Describe = func(context.Context, image.Image, image.Image) (describe.Description, error) {
+			return describe.Description{}, os.Mkdir(filepath.Join(dir, "0001.postcard.jpeg"), 0o755)
 		}
 	})
 	require.Error(t, err)

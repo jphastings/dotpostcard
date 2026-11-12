@@ -1,6 +1,10 @@
 package main
 
 import (
+	"context"
+	"image"
+
+	"github.com/jphastings/dotpostcard/pkg/describe"
 	"io"
 	"os"
 	"path/filepath"
@@ -121,4 +125,43 @@ func TestRunEMultiCardSupportFilesDontCollide(t *testing.T) {
 	assert.FileExists(t, filepath.Join(dir, "postcards.css"))
 	assert.FileExists(t, filepath.Join(dir, "card-a.html"))
 	assert.FileExists(t, filepath.Join(dir, "card-b.html"))
+}
+
+func withFakeDescriber(t *testing.T, calls *int) {
+	t.Helper()
+	old := newDescriber
+	t.Cleanup(func() { newDescriber = old })
+	newDescriber = func(context.Context, describe.Config) (describe.Describer, error) {
+		return func(context.Context, image.Image, image.Image) (describe.Description, error) {
+			*calls++
+			return describe.Description{Front: describe.Side{Description: "A harbour"}}, nil
+		}, nil
+	}
+}
+
+func TestLLMDescribesOnlyUndescribedCards(t *testing.T) {
+	for name, c := range map[string]struct {
+		meta  string
+		want  string
+		calls int
+	}{
+		"undescribed": {`{"flip":"none"}`, "A harbour", 1},
+		"described":   {`{"flip":"none","front":{"description":"Mine"}}`, "Mine", 0},
+	} {
+		dir := t.TempDir()
+		front := writeComponentFixture(t, dir, "sample", testhelpers.RawTestImage("sample-front.png"))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "sample-meta.json"), []byte(c.meta), 0644))
+		outDir := t.TempDir()
+		calls := 0
+		withFakeDescriber(t, &calls)
+
+		resetRootCmd()
+		rootCmd.SetArgs([]string{"-f", "json", "--llm", "--out-dir", outDir, front})
+		require.NoError(t, rootCmd.Execute(), name)
+
+		out, err := os.ReadFile(filepath.Join(outDir, "sample-meta.json"))
+		require.NoError(t, err, name)
+		assert.Contains(t, string(out), c.want, name)
+		assert.Equal(t, c.calls, calls, name)
+	}
 }
