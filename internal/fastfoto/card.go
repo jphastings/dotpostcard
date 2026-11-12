@@ -627,7 +627,7 @@ func (f *frame) image() image.Image {
 	return img
 }
 
-func buildCard(front, back *frame, threshold, feedScale float64) (*card, error) {
+func buildCard(front, back *frame, threshold float64) (*card, error) {
 	frames := [2]*frame{front, back}
 	var sigs, lums [2]*image.Gray
 	var geos [2]geometry
@@ -674,7 +674,7 @@ func buildCard(front, back *frame, threshold, feedScale float64) (*card, error) 
 
 	c.size = types.Size{PxWidth: c.front.Bounds().Dx(), PxHeight: c.front.Bounds().Dy()}
 	xRes := new(big.Rat).SetFloat64(pxPerCm)
-	yRes := new(big.Rat).SetFloat64(pxPerCm / feedScale)
+	yRes := new(big.Rat).SetFloat64(pxPerCm)
 	c.size.SetResolution(xRes, yRes)
 	return c, nil
 }

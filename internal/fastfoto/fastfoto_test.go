@@ -8,7 +8,6 @@ import (
 	"image/draw"
 	"image/jpeg"
 	"image/png"
-	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -464,16 +463,6 @@ func TestStoppingBeforeFeedingLeavesNothingHalfScanned(t *testing.T) {
 	assert.True(t, scanner.sentFIN())
 }
 
-func TestSizesMeasuredAlongTheFeedAreScaled(t *testing.T) {
-	dir := t.TempDir()
-	s := defaultSynth()
-	sides := scanOf(s, s)
-	report, err := runSides(t, dir, sides, func(o *Options) { o.FeedScale = 1.25 })
-	require.NoError(t, err)
-	assert.InDelta(t, 3.4*1.25, report.Cards[0].HeightCm, 0.1)
-	assert.InDelta(t, 5.0, report.Cards[0].WidthCm, 0.1)
-}
-
 func TestStaleRepliesFromAnEarlierSessionDoNotStopARun(t *testing.T) {
 	dir := t.TempDir()
 	s := defaultSynth()
@@ -555,13 +544,6 @@ func TestCreatedFilesAreWorldReadable(t *testing.T) {
 	info, err := os.Stat(filepath.Join(dir, "0001-front.png"))
 	require.NoError(t, err)
 	assert.Equal(t, os.FileMode(0o644), info.Mode().Perm())
-}
-
-func TestNonPositiveFeedScaleIsRejected(t *testing.T) {
-	for _, scale := range []float64{-1, math.NaN(), math.Inf(1)} {
-		_, err := runSides(t, t.TempDir(), scanOf(defaultSynth(), defaultSynth()), func(o *Options) { o.FeedScale = scale })
-		assert.Error(t, err)
-	}
 }
 
 func TestUntiltedCardKeepsItsExactSourcePixels(t *testing.T) {
