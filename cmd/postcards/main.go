@@ -15,6 +15,7 @@ import (
 	postcards "github.com/jphastings/dotpostcard"
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/formats/atproto"
+	"github.com/jphastings/dotpostcard/formats/atproto/pdsupload"
 	"github.com/jphastings/dotpostcard/internal/cmdhelp"
 	"github.com/jphastings/dotpostcard/internal/version"
 	"github.com/jphastings/dotpostcard/types"
@@ -78,11 +79,13 @@ var rootCmd = &cobra.Command{
 
 		var atClient *atproto.Client
 		if uploadToATProto {
-			user, password, err := atCredentials(cmd)
+			user, _ := cmd.Flags().GetString("at-user")
+			password, _ := cmd.Flags().GetString("at-password")
+			user, password, err := cmdhelp.ATCredentials(user, password)
 			if err != nil {
 				return err
 			}
-			atClient, err = atproto.Login(user, password, atPDSHostOverride(), atPLCHostOverride())
+			atClient, err = atproto.Login(user, password, cmdhelp.ATPDSHostOverride(), cmdhelp.ATPLCHostOverride())
 			if err != nil {
 				return fmt.Errorf("logging in to atproto: %w", err)
 			}
@@ -101,7 +104,7 @@ var rootCmd = &cobra.Command{
 		}
 		var failures atomic.Int32
 		if len(atURIs) > 0 {
-			atBundles := atBundlesFromURIs(atURIs, atPDSHostOverride(), atPLCHostOverride(), func(uri, msg string) {
+			atBundles := atBundlesFromURIs(atURIs, cmdhelp.ATPDSHostOverride(), cmdhelp.ATPLCHostOverride(), func(uri, msg string) {
 				fmt.Fprintf(sso, "⚠︎ %s: %s\n", uri, msg)
 			})
 			failures.Add(int32(len(atURIs) - len(atBundles)))
@@ -205,9 +208,9 @@ var rootCmd = &cobra.Command{
 					defer wg.Done()
 
 					fileStartT := time.Now()
-					atURI, skip, err := uploadPostcard(atClient, pc, &encOpts, overwrite, skipExisting)
+					atURI, skip, err := pdsupload.UploadPostcard(atClient, pc, &encOpts, overwrite, skipExisting)
 					if err != nil {
-						if errors.Is(err, errRecordExists) {
+						if errors.Is(err, pdsupload.ErrRecordExists) {
 							fmt.Fprintf(sso, "✗ %s: %v\n", filename, err)
 						} else {
 							fmt.Fprintf(sso, "⚠︎ %s: %v\n", filename, err)

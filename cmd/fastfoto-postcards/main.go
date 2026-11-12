@@ -11,6 +11,7 @@ import (
 	"strings"
 	"syscall"
 
+	postcards "github.com/jphastings/dotpostcard"
 	"github.com/jphastings/dotpostcard/internal/fastfoto"
 	"github.com/spf13/cobra"
 )
@@ -18,7 +19,7 @@ import (
 const guide = `Scan a stack of postcards through an Epson FastFoto FF-680W (macOS, USB).
 
 Per card you get NNNN-front.png, NNNN-back.png and NNNN-meta.yaml in --out-dir,
-ready for the postcards tool. Raw scans are kept in raw/ so a run can be resumed.
+ready for the postcards tool; -f also converts each card, as postcards -f would. Raw scans are kept in raw/ so a run can be resumed.
 To redo a card, delete its NNNN-meta.yaml and run again with --no-scan.
 
 Loading: top edge first, back of the card facing you. Keep the paper guides
@@ -86,7 +87,11 @@ func newCommand(run runFunc, stdout, stderr io.Writer) *cobra.Command {
 	f.Float64Var(&opts.CardThreshold, "card-threshold", fastfoto.DefaultCardThreshold, "how far a pixel must differ from the backing to count as card")
 	f.Float64Var(&opts.FeedScale, "feed-scale", 1, "multiplier for sizes along the feed direction")
 	f.BoolVar(&opts.NoScan, "no-scan", false, "only process pages already in raw/")
-	f.StringVar(&opts.LLM.Backend, "llm", "", "describe and orient each card with: claude-code (with web search), anthropic (ANTHROPIC_API_KEY) or openai (OPENAI_API_KEY). The anthropic and openai backends haven't been tested live")
+	f.StringSliceVarP(&opts.Formats, "formats", "f", nil, fmt.Sprintf("also convert each card to these formats (comma separated, any of: %s, atproto)", strings.Join(postcards.Codecs, ", ")))
+	f.StringVar(&opts.ATUser, "at-user", "", "atproto handle or DID to upload as (format atproto only; falls back to $GOAT_USERNAME/$ATP_USERNAME/$ATP_AUTH_USERNAME)")
+	f.StringVar(&opts.ATPassword, "at-password", "", "atproto PDS app password (format atproto only; falls back to $GOAT_PASSWORD/$ATP_PASSWORD/$ATP_AUTH_PASSWORD)")
+	f.StringVar(&opts.LLM.Backend, "llm", "", "describe and orient each card with: claude-code (with web search; the default when given bare), anthropic (ANTHROPIC_API_KEY) or openai (OPENAI_API_KEY). Name a backend with --llm=anthropic, not --llm anthropic. The anthropic and openai backends haven't been tested live")
+	f.Lookup("llm").NoOptDefVal = "claude-code"
 	f.StringVar(&opts.LLM.Model, "llm-model", "", "model for --llm (default "+fastfoto.DefaultLLMModel+" for the Claude backends; required for openai)")
 	f.StringVar(&opts.LLM.BaseURL, "llm-base-url", "", "OpenAI-compatible endpoint for --llm openai")
 	cmd.SetOut(stdout)
@@ -117,6 +122,9 @@ func printReport(w io.Writer, r fastfoto.Report, outDir string) {
 		}
 		for _, flag := range c.Flags {
 			fmt.Fprintf(w, "  ! %s\n", flag)
+		}
+		if c.ConvertErr != nil {
+			fmt.Fprintf(w, "  ! converting failed: %v\n", c.ConvertErr)
 		}
 	}
 	if len(r.Orphans) > 0 {
