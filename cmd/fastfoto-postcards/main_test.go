@@ -5,9 +5,11 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/jphastings/dotpostcard/internal/fastfoto"
 	"github.com/jphastings/dotpostcard/pkg/describe"
+	"github.com/jphastings/dotpostcard/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -47,48 +49,11 @@ func TestBadTopSideIsRejected(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestReportListsFlagsAndUnpairedSides(t *testing.T) {
-	out, _, err := execute(t, func(context.Context, fastfoto.Options) (fastfoto.Report, error) {
-		return fastfoto.Report{
-			Cards:    []fastfoto.CardResult{{Name: "0001", WidthCm: 14.8, HeightCm: 10.5, Flags: []string{"clipped"}}},
-			Unpaired: true,
-		}, nil
-	})
-	assert.NoError(t, err)
-	assert.Contains(t, out, "0001")
-	assert.Contains(t, out, "clipped")
-	assert.Contains(t, out, "feed the card again")
-}
-
-func TestReportSummarisesCardsToRescan(t *testing.T) {
-	run := func(cards ...fastfoto.CardResult) func(context.Context, fastfoto.Options) (fastfoto.Report, error) {
-		return func(context.Context, fastfoto.Options) (fastfoto.Report, error) {
-			return fastfoto.Report{Cards: cards}, nil
-		}
-	}
-	out, _, _ := execute(t, run(fastfoto.CardResult{Name: "0001"}, fastfoto.CardResult{Name: "0002", Rescan: true}, fastfoto.CardResult{Name: "0003", Rescan: true}))
-	assert.Contains(t, out, "2 cards were scanned skewed, and need a rescan. See for-rescan-*.jpg\n")
-	assert.Contains(t, out, "1 cards\n")
-
-	out, _, _ = execute(t, run(fastfoto.CardResult{Name: "0002", Rescan: true}), "--out-dir", "scans")
-	assert.Contains(t, out, "1 card was scanned skewed, and needs a rescan. See scans/for-rescan-*.jpg\n")
-}
-
 func TestHelpCarriesTheLoadingAdvice(t *testing.T) {
 	out, _, err := execute(t, nil, "--help")
 	assert.NoError(t, err)
 	assert.Contains(t, out, "straightest edge")
 	assert.Contains(t, out, "snug")
-}
-
-func TestFailedCardsAreReportedAndNotCounted(t *testing.T) {
-	out, _, _ := execute(t, func(context.Context, fastfoto.Options) (fastfoto.Report, error) {
-		return fastfoto.Report{
-			Cards: []fastfoto.CardResult{{Name: "0001"}, {Name: "0002", Err: errors.New("no card found")}},
-		}, nil
-	})
-	assert.Contains(t, out, "no card found")
-	assert.Contains(t, out, "1 cards")
 }
 
 func TestNonPositiveFeedScaleIsRejected(t *testing.T) {
@@ -115,14 +80,6 @@ func TestLLMFlagsReachTheRun(t *testing.T) {
 	assert.Equal(t, describe.Config{Backend: "openai", Model: "m", BaseURL: "http://x"}, got.LLM)
 }
 
-func TestSummaryCountsCardsLeftAsScanned(t *testing.T) {
-	out, _, err := execute(t, func(context.Context, fastfoto.Options) (fastfoto.Report, error) {
-		return fastfoto.Report{Cards: []fastfoto.CardResult{{Name: "0001", LLMFailed: true}, {Name: "0002", LLMFailed: true}, {Name: "0003"}}}, nil
-	})
-	assert.NoError(t, err)
-	assert.Contains(t, out, "2 cards left as scanned: the LLM step failed")
-}
-
 func TestFormatsAndBareLLMReachTheRun(t *testing.T) {
 	var got fastfoto.Options
 	_, _, err := execute(t, func(_ context.Context, o fastfoto.Options) (fastfoto.Report, error) {
@@ -132,4 +89,66 @@ func TestFormatsAndBareLLMReachTheRun(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"web", "usdz"}, got.Formats)
 	assert.Equal(t, "claude-code", got.LLM.Backend)
+}
+
+func TestRunPrintsEachCardAsItFinishes(t *testing.T) {
+	out, _, err := execute(t, func(_ context.Context, o fastfoto.Options) (fastfoto.Report, error) {
+		o.OnStart(2)
+		o.OnCard(fastfoto.CardResult{
+			Name: "0001", WidthCm: 10.71, HeightCm: 14.83, Flip: types.FlipBook, Elapsed: 2300 * time.Millisecond,
+			TiltFront: 1.5,
+			Outputs: []fastfoto.Output{
+				{Format: "Web", Path: "0001.postcard.webp", Bytes: 494_000},
+				{Format: "USDZ 3D model", Path: "0001.postcard.usdz", Bytes: 316_000},
+			},
+		})
+		o.OnCard(fastfoto.CardResult{
+			Name: "0003", WidthCm: 14.8, HeightCm: 10.5, Flip: types.FlipLeftHand, Described: true, Elapsed: 16300 * time.Millisecond,
+			Outputs:    []fastfoto.Output{{Format: "Component files", Path: "0003-front.png, 0003-back.png, 0003-meta.yaml", Bytes: 24_100_000}, {Format: "ATProto", Path: "at://did:plc:x/app.postcards/0003"}},
+			Flags:      []string{"clipped"},
+			Notes:      []string{"LLM step failed, left as scanned: quota"},
+			ConvertErr: errors.New("disk full"),
+		})
+		o.OnCard(fastfoto.CardResult{Name: "0002", Rescan: true, Outputs: []fastfoto.Output{{Path: "for-rescan-0002.jpg"}}})
+		o.OnCard(fastfoto.CardResult{Name: "0004", Err: errors.New("no card found")})
+		return fastfoto.Report{
+			Cards:    []fastfoto.CardResult{{Name: "0002", Rescan: true}},
+			Unpaired: true,
+		}, nil
+	}, "--out-dir", "scans")
+	assert.NoError(t, err)
+	t.Log("\n" + out)
+
+	assert.Equal(t, `⚙︎ Scanning postcards into 2 different formats…
+0001 (10.71 x 14.83 cm, 2.3s)
+- (Web) 0001.postcard.webp (494 KB)
+- (USDZ 3D model) 0001.postcard.usdz (316 KB)
+0003 (14.80 x 10.50 cm, detected left-hand flip, LLM description, 16.3s)
+- (Component files) 0003-front.png, 0003-back.png, 0003-meta.yaml (24.1 MB)
+- (ATProto) at://did:plc:x/app.postcards/0003
+⚠︎ clipped
+⚠︎ LLM step failed, left as scanned: quota
+⚠︎ converting failed: disk full
+0002 set aside: scanned skewed, feed it again (for-rescan-0002.jpg)
+✗ 0004: no card found
+1 card set aside to feed again. See scans/for-rescan-*.jpg
+a card's second side never arrived: that side was dropped, feed the card again
+`, out)
+	assert.NotContains(t, out, "tilt")
+}
+
+func TestNothingIsPrintedWhenTheRunFailsBeforeFeeding(t *testing.T) {
+	out, _, err := execute(t, func(context.Context, fastfoto.Options) (fastfoto.Report, error) {
+		return fastfoto.Report{}, errors.New("bad format")
+	})
+	assert.Error(t, err)
+	assert.Empty(t, out)
+}
+
+func TestSingleFormatHeaderIsSingular(t *testing.T) {
+	out, _, _ := execute(t, func(_ context.Context, o fastfoto.Options) (fastfoto.Report, error) {
+		o.OnStart(1)
+		return fastfoto.Report{}, nil
+	})
+	assert.Equal(t, "⚙︎ Scanning postcards into 1 different format…\n", out)
 }

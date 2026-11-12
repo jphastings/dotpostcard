@@ -34,7 +34,8 @@ func TestHeterorientedAnswerTurnsTheSidesAndSetsTheFlip(t *testing.T) {
 		Back:  describe.Side{Rotation: "0", Description: "A map of the bay"},
 	}, nil))
 	require.NoError(t, err)
-	assert.Contains(t, report.Cards[0].Notes[0], "left-hand")
+	assert.Equal(t, types.FlipLeftHand, report.Cards[0].Flip)
+	assert.True(t, report.Cards[0].Described)
 
 	bundles, err := postcards.MakeBundles([]string{filepath.Join(dir, "0001-front.png"), filepath.Join(dir, "0001-back.png"), filepath.Join(dir, "0001-meta.yaml")})
 	require.NoError(t, err)
