@@ -383,6 +383,16 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.36.0 (2026-11-12)
+
+### Feat
+
+- convert each scanned card with fastfoto-postcards -f
+
+### Fix
+
+- stop USDZ encoding changing the options other formats use
+
 ## v0.35.0 (2026-11-12)
 
 ### Feat
