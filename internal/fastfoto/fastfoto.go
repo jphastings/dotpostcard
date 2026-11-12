@@ -122,6 +122,8 @@ type run struct {
 	encOpts    formats.EncodeOptions
 	atClient   *atproto.Client
 	wantUpload bool
+	// wantComponents is whether component files belong in OutDir; otherwise they are staged in rawDir.
+	wantComponents bool
 }
 
 // Run scans a stack (unless NoScan) and processes every complete pair of pages that
@@ -213,6 +215,10 @@ func (r *run) inventory() (pages, finished map[int]bool, highest int, err error)
 		if m := rawPageRE.FindStringSubmatch(e.Name()); m != nil {
 			n, _ := strconv.Atoi(m[1])
 			pages[n] = true
+		} else if m := outputRE.FindStringSubmatch(e.Name()); m != nil && strings.HasSuffix(e.Name(), "-meta.yaml") {
+			n, _ := strconv.Atoi(m[1])
+			highest = max(highest, n)
+			finished[n] = true
 		}
 	}
 	outs, err := os.ReadDir(r.opts.OutDir)
@@ -349,9 +355,21 @@ func (r *run) buildOne(number int) (res CardResult) {
 		}
 	}
 
-	r.withSlot(r.slots, func() { res.Err = r.write(res.Name, c.size, flip, sideMeta, front, back) })
+	dir := r.opts.OutDir
+	if !r.wantComponents {
+		dir = r.rawDir
+	}
+	r.withSlot(r.slots, func() { res.Err = r.write(dir, res.Name, c.size, flip, sideMeta, front, back) })
 	if res.Err == nil && (len(r.codecs) > 0 || r.wantUpload) {
-		r.withSlot(r.slots, func() { res.ConvertErr = r.convert(&res) })
+		r.withSlot(r.slots, func() { res.ConvertErr = r.convert(&res, dir) })
+		if !r.wantComponents {
+			if res.ConvertErr != nil {
+				res.ConvertErr = fmt.Errorf("%w (components kept in %s)", res.ConvertErr, r.rawDir)
+			} else {
+				os.Remove(filepath.Join(dir, res.Name+"-front.png"))
+				os.Remove(filepath.Join(dir, res.Name+"-back.png"))
+			}
+		}
 	}
 	return
 }
@@ -360,10 +378,15 @@ func (r *run) buildOne(number int) (res CardResult) {
 // mistakes surface before a stack is fed.
 func (r *run) prepareFormats() error {
 	names := make([]string, 0, len(r.opts.Formats))
+	r.wantComponents = len(r.opts.Formats) == 0
 	for _, name := range r.opts.Formats {
-		if name == "atproto" {
+		switch name {
+		case "atproto":
 			r.wantUpload = true
-		} else {
+		case "component":
+			// Written natively; converting would rewrite the files being decoded.
+			r.wantComponents = true
+		default:
 			names = append(names, name)
 		}
 	}
@@ -389,13 +412,13 @@ func (r *run) prepareFormats() error {
 
 // convert does what `postcards -f ...` would do to the card just written, decoding from its
 // component files so the output is identical to a later run of that tool.
-func (r *run) convert(res *CardResult) (err error) {
+func (r *run) convert(res *CardResult, dir string) (err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			err = fmt.Errorf("converting: %v", p)
 		}
 	}()
-	bundles, err := postcards.MakeBundles([]string{filepath.Join(r.opts.OutDir, res.Name+"-front.png")})
+	bundles, err := postcards.MakeBundles([]string{filepath.Join(dir, res.Name+"-front.png")})
 	if err != nil {
 		return err
 	}
@@ -490,7 +513,7 @@ func (r *run) writeRescanPreview(number int, front image.Image) error {
 	})
 }
 
-func (r *run) write(name string, size types.Size, flip types.Flip, sides [2]types.Side, front, back image.Image) error {
+func (r *run) write(dir, name string, size types.Size, flip types.Flip, sides [2]types.Side, front, back image.Image) error {
 	meta, err := metadata.Codec(metadata.AsYAML).Encode(types.Postcard{
 		Name: name,
 		Meta: types.Metadata{
@@ -520,7 +543,7 @@ func (r *run) write(name string, size types.Size, flip types.Flip, sides [2]type
 			return err
 		}},
 	} {
-		if err := writeAtomic(filepath.Join(r.opts.OutDir, name+"-"+w.suffix), w.write); err != nil {
+		if err := writeAtomic(filepath.Join(dir, name+"-"+w.suffix), w.write); err != nil {
 			return err
 		}
 	}

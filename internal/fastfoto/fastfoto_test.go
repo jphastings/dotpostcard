@@ -673,7 +673,42 @@ func writeSmallCard(t *testing.T, dir string) {
 	writeRaw(t, dir, 2, s)
 }
 
-func TestFormatsConvertEachBuiltCardNextToItsComponents(t *testing.T) {
+func componentFiles(t *testing.T, dir string) []string {
+	t.Helper()
+	got, err := filepath.Glob(filepath.Join(dir, "0001-*"))
+	require.NoError(t, err)
+	return got
+}
+
+func TestFormatsWithoutComponentLeaveNoComponentsInOutDirAndResumeSkipsTheCard(t *testing.T) {
+	dir := t.TempDir()
+	writeSmallCard(t, dir)
+	opts := func(o *Options) { o.Formats = []string{"web"} }
+
+	_, err := runNoScan(t, dir, opts)
+	require.NoError(t, err)
+	assert.Empty(t, componentFiles(t, dir))
+	staged, _ := filepath.Glob(filepath.Join(dir, "raw", "0001-*"))
+	assert.Equal(t, []string{filepath.Join(dir, "raw", "0001-meta.yaml")}, staged)
+
+	rep, err := runNoScan(t, dir, opts)
+	require.NoError(t, err)
+	assert.Empty(t, rep.Cards)
+}
+
+func TestFormatsWithComponentKeepComponentsInOutDir(t *testing.T) {
+	dir := t.TempDir()
+	writeSmallCard(t, dir)
+
+	_, err := runNoScan(t, dir, func(o *Options) { o.Formats = []string{"web", "component"} })
+	require.NoError(t, err)
+
+	assert.Len(t, componentFiles(t, dir), 3)
+	written, _ := filepath.Glob(filepath.Join(dir, "0001.postcard.*"))
+	assert.Len(t, written, 1)
+}
+
+func TestFormatsConvertEachBuiltCard(t *testing.T) {
 	dir := t.TempDir()
 	writeSmallCard(t, dir)
 
