@@ -64,6 +64,9 @@ type Options struct {
 	OnStart func(formats int)
 	// OnCard is called as each card finishes, in the order they finish and never concurrently.
 	OnCard func(CardResult)
+	// OnScanned is called as soon as the scanner has delivered both sides of a card, before any
+	// processing, and never concurrently with OnCard.
+	OnScanned func()
 	// OnScannerStopped is called once Stop has halted the scanner and released it, with how
 	// many scanned cards are still being processed.
 	OnScannerStopped func(unsaved int)
@@ -181,6 +184,9 @@ func Run(ctx context.Context, opts Options) (Report, error) {
 	if opts.OnCard == nil {
 		opts.OnCard = func(CardResult) {}
 	}
+	if opts.OnScanned == nil {
+		opts.OnScanned = func() {}
+	}
 	if opts.OnScannerStopped == nil {
 		opts.OnScannerStopped = func(int) {}
 	}
@@ -297,6 +303,7 @@ func (r *run) process(card int, sides [2][]byte) {
 	r.wg.Add(1)
 	r.mu.Lock()
 	r.pending++
+	r.opts.OnScanned()
 	r.mu.Unlock()
 	go func() {
 		defer r.wg.Done()

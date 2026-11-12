@@ -16,7 +16,6 @@ import (
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/internal/cmdhelp"
 	"github.com/jphastings/dotpostcard/internal/fastfoto"
-	"github.com/jphastings/dotpostcard/types"
 	"github.com/spf13/cobra"
 )
 
@@ -69,6 +68,11 @@ func newCommand(run runFunc, stdout, stderr io.Writer) *cobra.Command {
 			}
 			opts.Log = stderr
 			opts.OnStart = func(formats int) { printStart(stdout, formats) }
+			scannedLine := "⊕ Postcard scanned, writing postcard files…\n"
+			if opts.LLM.Backend != "" {
+				scannedLine = "⊕ Postcard scanned, analysing with your LLM…\n"
+			}
+			opts.OnScanned = func() { io.WriteString(stdout, scannedLine) }
 			opts.OnCard = func(c fastfoto.CardResult) { printCard(stdout, c) }
 			opts.OnScannerStopped = func(unsaved int) {
 				if unsaved > 0 {
@@ -156,11 +160,11 @@ func count(n int, singular string) string {
 func humanBytes(n int64) string {
 	switch {
 	case n >= 1_000_000:
-		return fmt.Sprintf("%.1f MB", float64(n)/1e6)
+		return strings.TrimSuffix(fmt.Sprintf("%.1f", float64(n)/1e6), ".0") + "MB"
 	case n >= 1000:
-		return fmt.Sprintf("%.0f KB", float64(n)/1e3)
+		return fmt.Sprintf("%.0fKB", float64(n)/1e3)
 	}
-	return fmt.Sprintf("%d B", n)
+	return fmt.Sprintf("%dB", n)
 }
 
 func printStart(w io.Writer, formats int) {
@@ -176,34 +180,23 @@ func printCard(w io.Writer, c fastfoto.CardResult) {
 	case c.Rescan:
 		fmt.Fprintf(&b, "%s set aside: scanned skewed, feed it again (%s)\n", c.Name, c.Outputs[0].Path)
 	default:
-		details := []string{fmt.Sprintf("%.2f x %.2f cm", c.WidthCm, c.HeightCm)}
-		if c.Flip != types.FlipBook {
-			details = append(details, fmt.Sprintf("detected %s flip", c.Flip))
+		if c.ConvertErr != nil {
+			fmt.Fprintf(&b, "✗ %s: converting failed: %v\n", c.Name, c.ConvertErr)
+		} else {
+			fmt.Fprintf(&b, "✓ %s ready\n", c.Name)
 		}
-		if c.Described {
-			details = append(details, "LLM description")
-		}
-		details = append(details, fmt.Sprintf("%.1fs", c.Elapsed.Seconds()))
-		fmt.Fprintf(&b, "%s (%s)\n", c.Name, strings.Join(details, ", "))
 		for _, o := range c.Outputs {
-			if o.Bytes == 0 {
-				fmt.Fprintf(&b, "- (%s) %s\n", o.Format, o.Path)
-			} else {
-				fmt.Fprintf(&b, "- (%s) %s (%s)\n", o.Format, o.Path, humanBytes(o.Bytes))
+			detail := o.Path
+			if o.Bytes != 0 {
+				detail = humanBytes(o.Bytes)
 			}
+			fmt.Fprintf(&b, "  ↳ %s (%s)\n", o.Format, detail)
 		}
-		for _, warning := range slices.Concat(c.Flags, c.Notes, convertWarning(c)) {
-			fmt.Fprintf(&b, "⚠︎ %s\n", warning)
+		for _, warning := range slices.Concat(c.Flags, c.Notes) {
+			fmt.Fprintf(&b, "  ⚠︎ %s\n", warning)
 		}
 	}
 	io.WriteString(w, b.String())
-}
-
-func convertWarning(c fastfoto.CardResult) []string {
-	if c.ConvertErr == nil {
-		return nil
-	}
-	return []string{fmt.Sprintf("converting failed: %v", c.ConvertErr)}
 }
 
 // printReport says only what needs acting on once the run is over.
