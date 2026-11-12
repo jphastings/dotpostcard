@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"math"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -58,9 +57,6 @@ func newCommand(run runFunc, stdout, stderr io.Writer) *cobra.Command {
 			default:
 				return fmt.Errorf("--top-side must be front or back, not %q", topSide)
 			}
-			if !(opts.FeedScale > 0) || math.IsInf(opts.FeedScale, 0) {
-				return fmt.Errorf("--feed-scale must be a positive number, not %v", opts.FeedScale)
-			}
 			if err := opts.LLM.Validate(); err != nil {
 				return err
 			}
@@ -93,7 +89,6 @@ func newCommand(run runFunc, stdout, stderr io.Writer) *cobra.Command {
 	f.StringVar(&opts.OutDir, "out-dir", ".", "where to write cards")
 	f.StringVar(&topSide, "top-side", "back", "which side of the cards faces outward in the feeder: front or back")
 	f.Float64Var(&opts.CardThreshold, "card-threshold", fastfoto.DefaultCardThreshold, "how far a pixel must differ from the backing to count as card")
-	f.Float64Var(&opts.FeedScale, "feed-scale", 1, "multiplier for sizes along the feed direction")
 	f.BoolVarP(&opts.Archival, "archival", "A", false, "Turn off image resizing, use lossless compression")
 	f.StringSliceVarP(&opts.Formats, "formats", "f", nil, fmt.Sprintf("also convert each card to these formats (comma separated, any of: %s, atproto)", strings.Join(postcards.Codecs, ", ")))
 	f.StringVar(&opts.ATUser, "at-user", "", "atproto handle or DID to upload as (format atproto only; falls back to $GOAT_USERNAME/$ATP_USERNAME/$ATP_AUTH_USERNAME)")

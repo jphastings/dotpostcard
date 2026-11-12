@@ -11,7 +11,6 @@ import (
 	"image/png"
 	"io"
 	"io/fs"
-	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -45,8 +44,6 @@ type Options struct {
 	// Archival turns off image resizing and uses lossless compression in converted formats.
 	Archival      bool
 	CardThreshold float64
-	// FeedScale stretches the feed-direction measurement to correct the scanner's feed error.
-	FeedScale float64
 	// Open connects to the scanner; the default is the real USB scanner.
 	Open func() (Transport, error)
 	// Stop is cancelled to finish the current card and then stop feeding.
@@ -155,12 +152,6 @@ type run struct {
 func Run(ctx context.Context, opts Options) (Report, error) {
 	if opts.CardThreshold == 0 {
 		opts.CardThreshold = DefaultCardThreshold
-	}
-	if opts.FeedScale == 0 {
-		opts.FeedScale = 1
-	}
-	if !(opts.FeedScale > 0) || math.IsInf(opts.FeedScale, 0) {
-		return Report{}, fmt.Errorf("the feed scale must be a positive number, not %v", opts.FeedScale)
 	}
 	if opts.Open == nil {
 		opts.Open = OpenUSB
@@ -557,7 +548,7 @@ func (r *run) loadCard(sides [2][]byte) (*card, error) {
 	if r.opts.TopSideFront {
 		front, back = back, front
 	}
-	return buildCard(front, back, r.opts.CardThreshold, r.opts.FeedScale)
+	return buildCard(front, back, r.opts.CardThreshold)
 }
 
 func (r *run) writeRescanPreview(number int, front image.Image) error {

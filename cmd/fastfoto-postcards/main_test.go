@@ -27,13 +27,12 @@ func TestFlagsReachTheRun(t *testing.T) {
 	_, _, err := execute(t, func(_ context.Context, o fastfoto.Options) (fastfoto.Report, error) {
 		got = o
 		return fastfoto.Report{}, nil
-	}, "--out-dir", "cards", "--top-side", "front", "--card-threshold", "30", "--feed-scale", "1.01", "-A")
+	}, "--out-dir", "cards", "--top-side", "front", "--card-threshold", "30", "-A")
 
 	assert.NoError(t, err)
 	assert.Equal(t, "cards", got.OutDir)
 	assert.True(t, got.TopSideFront)
 	assert.Equal(t, 30.0, got.CardThreshold)
-	assert.Equal(t, 1.01, got.FeedScale)
 	assert.True(t, got.Archival)
 }
 
@@ -54,13 +53,6 @@ func TestHelpCarriesTheLoadingAdvice(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, out, "straightest edge")
 	assert.Contains(t, out, "snug")
-}
-
-func TestNonPositiveFeedScaleIsRejected(t *testing.T) {
-	for _, scale := range []string{"0", "-1", "NaN", "Inf"} {
-		_, _, err := execute(t, nil, "--feed-scale="+scale)
-		assert.Error(t, err, scale)
-	}
 }
 
 func TestBadLLMFlagsAreRejected(t *testing.T) {
