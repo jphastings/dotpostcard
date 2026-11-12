@@ -8,6 +8,11 @@ on:
 permissions:
   contents: write
 
+# Runs that overlap each bump from their own commit, then clash when pushing.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   bump-version:
     if: ${{ !startsWith(github.event.head_commit.message, 'bump:') }}
@@ -19,6 +24,7 @@ jobs:
       - name: Check out
         uses: actions/checkout@v6
         with:
+          ref: main
           fetch-depth: 0
       - name: Create bump and changelog
         uses: commitizen-tools/commitizen-action@master
