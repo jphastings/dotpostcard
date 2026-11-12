@@ -2,6 +2,7 @@ package formats
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -129,18 +130,24 @@ func NewSharedFileWriter(filename, mimetype string, fn func(w io.Writer) error) 
 }
 
 func (fw FileWriter) WriteFile(dir string, overwrite bool) (string, error) {
+	data, err := fw.Bytes()
+	if err != nil {
+		return "", err
+	}
+
 	flags := os.O_CREATE | os.O_WRONLY | os.O_TRUNC
 	if !overwrite {
 		flags |= os.O_EXCL
 	}
 
-	f, err := os.OpenFile(path.Join(dir, fw.Filename), flags, 0644)
+	target := path.Join(dir, fw.Filename)
+	f, err := os.OpenFile(target, flags, 0644)
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
-
-	if err := fw.fn(f); err != nil {
+	_, err = f.Write(data)
+	if err = errors.Join(err, f.Close()); err != nil {
+		os.Remove(target)
 		return "", err
 	}
 
