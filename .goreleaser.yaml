@@ -78,7 +78,9 @@ builds:
       - -s -w -X "main.Date={{.CommitDate}}"
 
 archives:
-  - formats: [tar.gz]
+  - id: default
+    ids: [postcards, postoffice, postoffice-serviceworker]
+    formats: [tar.gz]
     # this name template makes the OS and Arch compatible with the results of `uname`.
     name_template: >-
       {{ .ProjectName }}_
@@ -92,6 +94,15 @@ archives:
       - goos: windows
         formats: [zip]
     allow_different_binary_count: true
+  # Separate so the postcards cask doesn't download the large fastfoto-postcards binary.
+  - id: fastfoto-postcards
+    ids: [fastfoto-postcards]
+    formats: [tar.gz]
+    name_template: >-
+      fastfoto-postcards_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else }}{{ .Arch }}{{ end }}
 
 changelog:
   sort: asc
@@ -130,6 +141,7 @@ release:
     - glob: ./internal/www/postoffice/sw.js
 homebrew_casks:
 - name: postcards
+  ids: [default]
   repository:
     owner: jphastings
     name: homebrew-tools
@@ -139,3 +151,22 @@ homebrew_casks:
     verified: github.com/jphastings/dotpostcard
   description: "Tool for creating digital versions of physical postcards"
   license: "MIT"
+- name: fastfoto-postcards
+  ids: [fastfoto-postcards]
+  binaries: [fastfoto-postcards]
+  repository:
+    owner: jphastings
+    name: homebrew-tools
+    token: "{{ .Env.GITHUB_TOKEN }}"
+  homepage: "https://github.com/jphastings/dotpostcard/tree/main/cmd/fastfoto-postcards"
+  url:
+    verified: github.com/jphastings/dotpostcard
+  description: "Scan postcards from an Epson FastFoto FF-680W"
+  license: "MIT"
+  # Not notarized, so drop the quarantine flag or Gatekeeper blocks it.
+  hooks:
+    post:
+      install: |
+        if system_command("/usr/bin/xattr", args: ["-h"], print_stderr: false).exit_status == 0
+          system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/fastfoto-postcards"]
+        end
