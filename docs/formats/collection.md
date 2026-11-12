@@ -7,7 +7,7 @@ Each card in a collection is stored as the raw bytes of its [web](web.md) format
 Those extracted fields are also indexed in a SQLite FTS5 virtual table, so free-text search across names, people, places, descriptions, and transcriptions is fast even for large collections.
 
 > [!TIP]
-> Only web-format postcard files (`*.postcard.webp`, `*.postcard.jpg`, `*.postcard.jpeg`, `*.postcard.png`) can be added to a collection. Convert component bundles to the web format first with `postcards -f web`.
+> Only web-format postcard files (`*.postcard`, `*.postcard.webp`, `*.postcard.jpg`, `*.postcard.jpeg`, `*.postcard.png`) can be added to a collection. Convert component bundles to the web format first with `postcards -f web`.
 
 Collections carry a schema version (in both a `meta` table and `PRAGMA user_version`), so future versions of this tool can detect and migrate older collection files.
 
