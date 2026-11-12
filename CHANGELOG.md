@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.40.0 (2026-11-12)
+
+### Feat
+
+- **fastfoto**: report each card as scanned, then as ready
+
 ## v0.39.2 (2026-11-12)
 
 ### Fix
