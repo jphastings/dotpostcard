@@ -383,6 +383,21 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.35.0 (2026-11-12)
+
+### Feat
+
+- set skewed cards aside for a rescan
+- list skewed cards to rescan after a run
+- orient and describe cards with an LLM
+
+### Fix
+
+- let the scanner crop, so skewed cards keep their corners
+- set cards aside once they lose 1.75 mm
+- keep shadowed backing out of a card's outline
+- take a card's outline from its lighter side
+
 ## v0.34.1 (2026-11-11)
 
 ### Fix
