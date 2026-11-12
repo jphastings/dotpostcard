@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.39.1 (2026-11-12)
+
+### Fix
+
+- collect bare .postcard files from directories
+
 ## v0.39.0 (2026-11-12)
 
 ### BREAKING CHANGE
