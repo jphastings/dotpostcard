@@ -10,6 +10,7 @@ import (
 	"image"
 	"image/png"
 	"io"
+	"io/fs"
 	"math"
 	"os"
 	"path/filepath"
@@ -20,7 +21,12 @@ import (
 	"sync"
 	"time"
 
+	postcards "github.com/jphastings/dotpostcard"
+	"github.com/jphastings/dotpostcard/formats"
+	"github.com/jphastings/dotpostcard/formats/atproto"
+	"github.com/jphastings/dotpostcard/formats/atproto/pdsupload"
 	"github.com/jphastings/dotpostcard/formats/metadata"
+	"github.com/jphastings/dotpostcard/internal/cmdhelp"
 	"github.com/jphastings/dotpostcard/internal/images"
 	"github.com/jphastings/dotpostcard/types"
 )
@@ -46,6 +52,12 @@ type Options struct {
 	// LLM, when set, orients and describes each card; Describe overrides the backend it names.
 	LLM      LLMConfig
 	Describe Describer
+	// Formats are converted for every card built, as `postcards -f` would: any name
+	// postcards.CodecsByFormat accepts, or "atproto" to upload. Unknown names fail the run
+	// before anything is scanned.
+	Formats []string
+	// ATUser and ATPassword fall back to the same environment variables as the postcards tool.
+	ATUser, ATPassword string
 }
 
 type CardResult struct {
@@ -67,6 +79,9 @@ type CardResult struct {
 	LLMFailed bool
 	Elapsed   time.Duration
 	Err       error
+	// ConvertErr is set when converting or uploading the built card failed; the card's
+	// components are still complete.
+	ConvertErr error
 }
 
 type Report struct {
@@ -102,6 +117,11 @@ type run struct {
 	inflight chan struct{}
 	// llmSlots is separate so slow model calls never hold up image processing.
 	llmSlots chan struct{}
+
+	codecs     []formats.Codec
+	encOpts    formats.EncodeOptions
+	atClient   *atproto.Client
+	wantUpload bool
 }
 
 // Run scans a stack (unless NoScan) and processes every complete pair of pages that
@@ -142,6 +162,9 @@ func Run(ctx context.Context, opts Options) (Report, error) {
 		inflight: make(chan struct{}, maxInFlight),
 		llmSlots: make(chan struct{}, llmConcurrency),
 	}
+	if err := r.prepareFormats(); err != nil {
+		return Report{}, err
+	}
 	if err := os.MkdirAll(r.rawDir, 0o755); err != nil {
 		return Report{}, err
 	}
@@ -170,6 +193,9 @@ func Run(ctx context.Context, opts Options) (Report, error) {
 	for _, c := range report.Cards {
 		if c.Err != nil {
 			errs = append(errs, fmt.Errorf("card %s: %w", c.Name, c.Err))
+		}
+		if c.ConvertErr != nil {
+			errs = append(errs, fmt.Errorf("card %s: %w", c.Name, c.ConvertErr))
 		}
 	}
 	return report, errors.Join(errs...)
@@ -324,7 +350,86 @@ func (r *run) buildOne(number int) (res CardResult) {
 	}
 
 	r.withSlot(r.slots, func() { res.Err = r.write(res.Name, c.size, flip, sideMeta, front, back) })
+	if res.Err == nil && (len(r.codecs) > 0 || r.wantUpload) {
+		r.withSlot(r.slots, func() { res.ConvertErr = r.convert(&res) })
+	}
 	return
+}
+
+// prepareFormats validates the requested formats and logs in to atproto if asked, so that
+// mistakes surface before a stack is fed.
+func (r *run) prepareFormats() error {
+	names := make([]string, 0, len(r.opts.Formats))
+	for _, name := range r.opts.Formats {
+		if name == "atproto" {
+			r.wantUpload = true
+		} else {
+			names = append(names, name)
+		}
+	}
+	codecs, supportFiles, err := postcards.CodecsByFormat(names)
+	if err != nil {
+		return err
+	}
+	r.codecs = codecs
+	r.encOpts = formats.EncodeOptions{IncludeSupportFiles: supportFiles}
+	if !r.wantUpload {
+		return nil
+	}
+	user, password, err := cmdhelp.ATCredentials(r.opts.ATUser, r.opts.ATPassword)
+	if err != nil {
+		return err
+	}
+	r.atClient, err = atproto.Login(user, password, cmdhelp.ATPDSHostOverride(), cmdhelp.ATPLCHostOverride())
+	if err != nil {
+		return fmt.Errorf("logging in to atproto: %w", err)
+	}
+	return nil
+}
+
+// convert does what `postcards -f ...` would do to the card just written, decoding from its
+// component files so the output is identical to a later run of that tool.
+func (r *run) convert(res *CardResult) (err error) {
+	defer func() {
+		if p := recover(); p != nil {
+			err = fmt.Errorf("converting: %v", p)
+		}
+	}()
+	bundles, err := postcards.MakeBundles([]string{filepath.Join(r.opts.OutDir, res.Name+"-front.png")})
+	if err != nil {
+		return err
+	}
+	if len(bundles) != 1 {
+		return fmt.Errorf("expected one postcard in %s's components, found %d", res.Name, len(bundles))
+	}
+	pc, err := bundles[0].Decode(formats.DecodeOptions{})
+	if err != nil {
+		return fmt.Errorf("decoding: %w", err)
+	}
+	for _, codec := range r.codecs {
+		fws, err := codec.Encode(pc, &r.encOpts)
+		if err != nil {
+			return fmt.Errorf("%s: %w", codec.Name(), err)
+		}
+		for _, fw := range fws {
+			// O_EXCL on shared files lets concurrent cards race safely, and leaves a hand-edited one alone.
+			if _, err := fw.WriteFile(r.opts.OutDir, !fw.Shared); err != nil && !(fw.Shared && errors.Is(err, fs.ErrExist)) {
+				return fmt.Errorf("%s: %w", fw.Filename, err)
+			}
+		}
+	}
+	if r.wantUpload {
+		uri, skipped, err := pdsupload.UploadPostcard(r.atClient, pc, &r.encOpts, false, true)
+		if err != nil {
+			return fmt.Errorf("atproto: %w", err)
+		}
+		note := "uploaded to " + uri
+		if skipped {
+			note = "already uploaded as " + uri
+		}
+		res.Notes = append(res.Notes, note)
+	}
+	return nil
 }
 
 // describeTimeout stops a hung model call holding an LLM slot for ever.

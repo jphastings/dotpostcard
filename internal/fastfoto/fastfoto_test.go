@@ -665,3 +665,54 @@ func TestUntiltedCardKeepsItsExactSourcePixels(t *testing.T) {
 	}
 	assert.True(t, found, "interior pixels are copied, not blended with neighbours")
 }
+
+func writeSmallCard(t *testing.T, dir string) {
+	t.Helper()
+	s := croppedSynth(5, 3.4, 0, 115)
+	writeRaw(t, dir, 1, s)
+	writeRaw(t, dir, 2, s)
+}
+
+func TestFormatsConvertEachBuiltCardNextToItsComponents(t *testing.T) {
+	dir := t.TempDir()
+	writeSmallCard(t, dir)
+
+	rep, err := runNoScan(t, dir, func(o *Options) { o.Formats = []string{"web"} })
+	require.NoError(t, err)
+	require.Len(t, rep.Cards, 1)
+
+	written, err := filepath.Glob(filepath.Join(dir, "0001.postcard.*"))
+	require.NoError(t, err)
+	require.Len(t, written, 1)
+	bundles, err := postcards.MakeBundles(written)
+	require.NoError(t, err)
+	require.Len(t, bundles, 1)
+	pc, err := bundles[0].Decode(formats.DecodeOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, "0001", pc.Name)
+}
+
+func TestConvertingLeavesAnExistingSharedFileAlone(t *testing.T) {
+	dir := t.TempDir()
+	writeSmallCard(t, dir)
+	css := filepath.Join(dir, "postcards.css")
+	require.NoError(t, os.WriteFile(css, []byte("hand-edited"), 0o644))
+
+	_, err := runNoScan(t, dir, func(o *Options) { o.Formats = []string{"web", "css"} })
+	require.NoError(t, err)
+
+	got, err := os.ReadFile(css)
+	require.NoError(t, err)
+	assert.Equal(t, "hand-edited", string(got))
+}
+
+func TestUnknownFormatFailsBeforeScanning(t *testing.T) {
+	dir := t.TempDir()
+	opened := false
+	_, err := runScan(t, dir, newFakeScanner(nil, 0, false), func(o *Options) {
+		o.Formats = []string{"web", "nonsense"}
+		o.Open = func() (Transport, error) { opened = true; return nil, nil }
+	})
+	assert.Error(t, err)
+	assert.False(t, opened)
+}
