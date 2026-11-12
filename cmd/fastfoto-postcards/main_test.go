@@ -96,6 +96,7 @@ func TestFormatsAndBareLLMReachTheRun(t *testing.T) {
 func TestRunPrintsEachCardAsItFinishes(t *testing.T) {
 	out, _, err := execute(t, func(_ context.Context, o fastfoto.Options) (fastfoto.Report, error) {
 		o.OnStart(2)
+		o.OnScanned()
 		o.OnCard(fastfoto.CardResult{
 			Name: "0001", WidthCm: 10.71, HeightCm: 14.83, Flip: types.FlipBook, Elapsed: 2300 * time.Millisecond,
 			TiltFront: 1.5,
@@ -104,6 +105,7 @@ func TestRunPrintsEachCardAsItFinishes(t *testing.T) {
 				{Format: "USDZ 3D model", Path: "0001.postcard.usdz", Bytes: 316_000},
 			},
 		})
+		o.OnScanned()
 		o.OnCard(fastfoto.CardResult{
 			Name: "0003", WidthCm: 14.8, HeightCm: 10.5, Flip: types.FlipLeftHand, Described: true, Elapsed: 16300 * time.Millisecond,
 			Outputs:    []fastfoto.Output{{Format: "Component files", Path: "0003-front.png, 0003-back.png, 0003-meta.yaml", Bytes: 24_100_000}, {Format: "ATProto", Path: "at://did:plc:x/app.postcards/0003"}},
@@ -122,21 +124,31 @@ func TestRunPrintsEachCardAsItFinishes(t *testing.T) {
 	t.Log("\n" + out)
 
 	assert.Equal(t, `⚙︎ Scanning postcards into 2 different formats…
-0001 (10.71 x 14.83 cm, 2.3s)
-- (Web) 0001.postcard.webp (494 KB)
-- (USDZ 3D model) 0001.postcard.usdz (316 KB)
-0003 (14.80 x 10.50 cm, detected left-hand flip, LLM description, 16.3s)
-- (Component files) 0003-front.png, 0003-back.png, 0003-meta.yaml (24.1 MB)
-- (ATProto) at://did:plc:x/app.postcards/0003
-⚠︎ clipped
-⚠︎ LLM step failed, left as scanned: quota
-⚠︎ converting failed: disk full
+⊕ Postcard scanned, writing postcard files…
+✓ 0001 ready
+  ↳ Web (494KB)
+  ↳ USDZ 3D model (316KB)
+⊕ Postcard scanned, writing postcard files…
+✗ 0003: converting failed: disk full
+  ↳ Component files (24.1MB)
+  ↳ ATProto (at://did:plc:x/app.postcards/0003)
+  ⚠︎ clipped
+  ⚠︎ LLM step failed, left as scanned: quota
 0002 set aside: scanned skewed, feed it again (for-rescan-0002.jpg)
 ✗ 0004: no card found
 1 card set aside to feed again. See scans/for-rescan-*.jpg
 a card's second side never arrived: that side was dropped, feed the card again
 `, out)
 	assert.NotContains(t, out, "tilt")
+}
+
+func TestScannedLineSaysWhenAnLLMIsAnalysing(t *testing.T) {
+	out, _, err := execute(t, func(_ context.Context, o fastfoto.Options) (fastfoto.Report, error) {
+		o.OnScanned()
+		return fastfoto.Report{}, nil
+	}, "--llm")
+	assert.NoError(t, err)
+	assert.Equal(t, "⊕ Postcard scanned, analysing with your LLM…\n", out)
 }
 
 func TestNothingIsPrintedWhenTheRunFailsBeforeFeeding(t *testing.T) {

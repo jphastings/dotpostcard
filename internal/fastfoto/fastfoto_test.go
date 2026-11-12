@@ -719,6 +719,16 @@ func TestOnCardReportsEachOutputWritten(t *testing.T) {
 	assert.NotZero(t, out.Bytes)
 }
 
+func TestOnScannedFiresOncePerCardFed(t *testing.T) {
+	scanned := 0
+	_, err := runSides(t, t.TempDir(), smallCard(), func(o *Options) {
+		o.Formats = []string{"web"}
+		o.OnScanned = func() { scanned++ }
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 1, scanned)
+}
+
 func TestOnStartIsNotCalledForAnUnknownFormat(t *testing.T) {
 	called := false
 	_, err := runScan(t, t.TempDir(), newFakeScanner(nil, 0, false), func(o *Options) {
