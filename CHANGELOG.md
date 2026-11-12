@@ -383,6 +383,19 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.38.0 (2026-11-12)
+
+### Feat
+
+- name scanned cards from an LLM title
+- print one block per card as it's scanned
+- describe cards with postcards --llm too
+- scan in memory, add -A and --top-side
+
+### Refactor
+
+- drop fastfoto-postcards --feed-scale
+
 ## v0.37.0 (2026-11-12)
 
 ### Feat
