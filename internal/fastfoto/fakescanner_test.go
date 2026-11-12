@@ -23,6 +23,9 @@ type fakeScanner struct {
 	closed  bool
 	// statData is the data block of STAT replies, where the scanner reports its state.
 	statData string
+	// onIMG is called with the 1-based count of IMG polls, before the reply is chosen.
+	onIMG func(n int)
+	imgs  int
 }
 
 // newFakeScanner feeds the sides in order, A then B, optionally failing with a jam
@@ -86,6 +89,10 @@ func (f *fakeScanner) handle(name string) {
 	case "STAT":
 		f.reply(name, nil, []byte(f.statData))
 	case "IMG":
+		f.imgs++
+		if f.onIMG != nil {
+			f.onIMG(f.imgs)
+		}
 		var r fakeReply
 		if f.next < len(f.replies) {
 			r = f.replies[f.next]

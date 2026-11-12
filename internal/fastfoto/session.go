@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -82,6 +83,12 @@ func (s *session) readFull(p []byte) error {
 // command sends one ESC/I-2 command and returns the tokens of its 64-byte reply plus
 // whatever data the reply announces.
 func (s *session) command(name, payload string) (tokens []string, data []byte, err error) {
+	if os.Getenv("FASTFOTO_TRACE") != "" { // for diagnosing the scanner
+		start := time.Now()
+		defer func() {
+			s.log(fmt.Sprintf("%s %s -> %v +%d bytes, err=%v, took %s", start.Format("15:04:05.000"), name, tokens, len(data), err, time.Since(start).Round(time.Millisecond)))
+		}()
+	}
 	if err = s.write([]byte(fmt.Sprintf("%-4sx%07x", name, len(payload)))); err != nil {
 		return
 	}
@@ -279,14 +286,17 @@ func values(s string) []int {
 }
 
 // feed polls IMG until the scanner reports the batch finished, calling save with each
-// completed side's JPEG. Once stop is done, it stops after the current card (every
-// second side). FIN is always sent once the scanner is locked.
-func (s *session) feed(ctx, stop context.Context, save func(jpeg []byte) error) (err error) {
+// completed side's JPEG. When stop is done it finishes the card whose sides have started
+// (the one in the scanner, or the one it has just begun) and no more; when ctx is done it
+// stops at once. Either way the scanner is told CAN, between replies as Epson's driver does,
+// then FIN. FIN is always sent once the scanner is locked. cutShort is whether the stop left
+// a card part-scanned.
+func (s *session) feed(ctx, stop context.Context, save func(jpeg []byte) error) (cutShort bool, err error) {
 	if err = s.resync(); err != nil {
-		return err
+		return false, err
 	}
 	if err = s.lock(); err != nil {
-		return err
+		return false, err
 	}
 	defer func() {
 		if _, _, finErr := s.command("FIN", ""); finErr != nil && err == nil {
@@ -294,10 +304,11 @@ func (s *session) feed(ctx, stop context.Context, save func(jpeg []byte) error) 
 		}
 	}()
 	if err = s.setup(ctx); err != nil {
-		return err
+		return false, err
 	}
+	halting := false
 	defer func() {
-		if err != nil {
+		if err != nil || halting {
 			s.command("CAN", "")
 		}
 	}()
@@ -305,18 +316,29 @@ func (s *session) feed(ctx, stop context.Context, save func(jpeg []byte) error) 
 	open := map[byte]*side{}
 	var cur byte
 	sides := 0
+	stopAt := -1 // the side count at which a requested stop is complete
 	lastProgress := time.Now()
 	for {
-		if err := ctx.Err(); err != nil {
-			return err
+		if ctx.Err() != nil {
+			halting = true
+			return len(open) > 0 || sides%2 != 0, nil
 		}
-		if stop.Err() != nil && len(open) == 0 && sides%2 == 0 {
-			return nil
+		if stop.Err() != nil {
+			if stopAt < 0 {
+				stopAt = sides + sides%2
+				if sides%2 == 0 && len(open) > 0 {
+					stopAt += 2
+				}
+			}
+			if sides >= stopAt {
+				halting = true
+				return len(open) > 0, nil
+			}
 		}
 
 		tokens, data, err := s.command("IMG", "")
 		if err != nil {
-			return err
+			return false, err
 		}
 
 		var target *side
@@ -339,13 +361,13 @@ func (s *session) feed(ctx, stop context.Context, save func(jpeg []byte) error) 
 			switch {
 			case strings.HasPrefix(tok, "pst"):
 				if open[cur] != nil {
-					return fmt.Errorf("the scanner started side %c twice; a side was lost", cur)
+					return false, fmt.Errorf("the scanner started side %c twice; a side was lost", cur)
 				}
 				open[cur] = &side{}
 			case strings.HasPrefix(tok, "pen"):
 				sd := open[cur]
 				if sd == nil {
-					return fmt.Errorf("the scanner ended side %c that never started; a side was lost", cur)
+					return false, fmt.Errorf("the scanner ended side %c that never started; a side was lost", cur)
 				}
 				if !targetSet {
 					target, targetSet = sd, true
@@ -367,38 +389,36 @@ func (s *session) feed(ctx, stop context.Context, save func(jpeg []byte) error) 
 		// Sides finished in a reply that also carries an error are still saved.
 		for _, letter := range finished {
 			if want := "AB"[sides%2]; letter != want {
-				return fmt.Errorf("side %c finished where %c was expected; a side was lost", letter, want)
+				return false, fmt.Errorf("side %c finished where %c was expected; a side was lost", letter, want)
 			}
 			sd := open[letter]
 			delete(open, letter)
 			jpeg, perr := patchHeight(sd.data, sd.height)
 			if perr != nil {
-				return perr
+				return false, perr
 			}
 			if err := save(jpeg); err != nil {
-				return err
+				return false, err
 			}
 			sides++
 		}
 		if tokErr != nil {
-			return tokErr
+			return false, tokErr
 		}
 		if batchDone && (len(open) > 0 || sides%2 != 0) {
-			return errors.New("the scanner finished its batch with a side missing")
+			return false, errors.New("the scanner finished its batch with a side missing")
 		}
 
 		switch {
 		case len(tokens) > 0 || len(data) > 0:
 			lastProgress = time.Now()
 		case time.Since(lastProgress) > idleLimit:
-			return ErrWedged
+			return false, ErrWedged
 		default:
-			if err := sleep(ctx, time.Millisecond); err != nil {
-				return err
-			}
+			sleep(ctx, time.Millisecond) // a cancelled ctx is handled at the top of the loop
 		}
 		if batchDone {
-			return nil
+			return false, nil
 		}
 	}
 }
