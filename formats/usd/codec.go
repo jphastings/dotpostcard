@@ -128,17 +128,19 @@ type usdParams struct {
 func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats.FileWriter, error) {
 	usdFilename := pc.Name + extension
 
-	if opts == nil {
-		opts = &formats.EncodeOptions{}
+	// Callers share one options value across cards and formats, so work on a copy.
+	textureOpts := formats.EncodeOptions{}
+	if opts != nil {
+		textureOpts = *opts
 	}
 	// We can scrub the transparency data (it's represented in mesh points)
 	// And make a significantly smaller (JPEG powered) texture.
 	// We must not do this for archival requests, as it loses the transparency data forever.
-	opts.NoTransparency = !opts.WantsLossless()
-	opts.IncludeSupportFiles = false
+	textureOpts.NoTransparency = !textureOpts.WantsLossless()
+	textureOpts.IncludeSupportFiles = false
 
 	webImg, _ := web.Codec("jpeg", "png")
-	fws, err := webImg.Encode(pc, opts)
+	fws, err := webImg.Encode(pc, &textureOpts)
 	if err != nil {
 		return nil, err
 	}
