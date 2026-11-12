@@ -115,7 +115,8 @@ type Report struct {
 }
 
 var (
-	usedNumberRE = regexp.MustCompile(`^(?:for-rescan-)?(\d+)(?:[-.]|$)`)
+	usedNumberRE = regexp.MustCompile(`^(?:for-rescan-)?(\d+)(?:-(?:front|back|meta)\.|\.|$)`)
+	allDigitsRE  = regexp.MustCompile(`^\d+$`)
 )
 
 func cardName(card int) string   { return fmt.Sprintf("%04d", card) }
@@ -135,6 +136,10 @@ type run struct {
 	inflight chan struct{}
 	// llmSlots is separate so slow model calls never hold up image processing.
 	llmSlots chan struct{}
+
+	namesMu sync.Mutex
+	// taken holds the titled names already given to cards in this run.
+	taken map[string]bool
 
 	codecs     []formats.Codec
 	encOpts    formats.EncodeOptions
@@ -186,6 +191,7 @@ func Run(ctx context.Context, opts Options) (Report, error) {
 		slots:    make(chan struct{}, workers),
 		inflight: make(chan struct{}, maxInFlight),
 		llmSlots: make(chan struct{}, llmConcurrency),
+		taken:    map[string]bool{},
 	}
 	if err := r.prepareFormats(); err != nil {
 		return Report{}, err
@@ -326,6 +332,9 @@ func (r *run) buildOne(number int, sides [2][]byte) (res CardResult) {
 			res.Notes = append(res.Notes, fmt.Sprintf("LLM step failed, left as scanned: %v", err))
 		} else {
 			res.Described = true
+			if slug := describe.Slug(d.Title); slug != "" && !allDigitsRE.MatchString(slug) {
+				res.Name = r.claimName(slug)
+			}
 			var sides types.Metadata
 			d.Fill(&sides)
 			sideMeta = [2]types.Side{sides.Front, sides.Back}
@@ -372,6 +381,39 @@ func (r *run) buildOne(number int, sides [2][]byte) (res CardResult) {
 		}
 	}
 	return
+}
+
+// claimName reserves slug, or slug-2, slug-3, ... for the first one that no other card in this
+// run has and none of whose files already exist in OutDir.
+func (r *run) claimName(slug string) string {
+	r.namesMu.Lock()
+	defer r.namesMu.Unlock()
+	for n := 1; ; n++ {
+		name := slug
+		if n > 1 {
+			name = fmt.Sprintf("%s-%d", slug, n)
+		}
+		if !r.taken[name] && !r.filesExist(name) {
+			r.taken[name] = true
+			return name
+		}
+	}
+}
+
+func (r *run) filesExist(name string) bool {
+	var files []string
+	if r.wantComponents {
+		files = []string{name + "-front.png", name + "-back.png", name + "-meta.yaml"}
+	}
+	for _, codec := range r.codecs {
+		files = append(files, codec.OutputNames(name, &r.encOpts)...)
+	}
+	for _, f := range files {
+		if _, err := os.Lstat(filepath.Join(r.opts.OutDir, f)); err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 // keepStaged moves a card's staged components into OutDir so a failed conversion doesn't lose it.

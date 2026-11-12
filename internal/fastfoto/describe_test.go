@@ -140,3 +140,62 @@ func TestDeniedWebSearchIsANoteNotAnError(t *testing.T) {
 	assert.False(t, report.Cards[0].LLMFailed)
 	assert.Contains(t, report.Cards[0].Notes[0], "WebSearch")
 }
+
+func titled(title string) func(*Options) {
+	return describing(describe.Description{
+		Front: describe.Side{Rotation: "0"}, Back: describe.Side{Rotation: "0"}, Title: title,
+	}, nil)
+}
+
+func twoCards() [][]byte {
+	return scanOf(defaultSynth(), defaultSynth(), defaultSynth(), defaultSynth())
+}
+
+func TestTitleNamesTheCardAndRepeatsAreNumbered(t *testing.T) {
+	dir := t.TempDir()
+	report, err := runSides(t, dir, twoCards(), titled("CNN Center"), func(o *Options) { o.Formats = []string{"web", "component"} })
+	require.NoError(t, err)
+	require.Len(t, report.Cards, 2)
+
+	assert.ElementsMatch(t, []string{"cnn-center", "cnn-center-2"}, []string{report.Cards[0].Name, report.Cards[1].Name})
+	assert.Equal(t, []int{1, 2}, []int{report.Cards[0].Number, report.Cards[1].Number})
+	for _, name := range []string{"cnn-center", "cnn-center-2"} {
+		assert.FileExists(t, filepath.Join(dir, name+"-front.png"))
+		assert.FileExists(t, filepath.Join(dir, name+"-meta.yaml"))
+		written, _ := filepath.Glob(filepath.Join(dir, name+".postcard.*"))
+		assert.Len(t, written, 1, name)
+	}
+}
+
+func TestTitleNameAvoidsFilesFromAnEarlierRun(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "cnn-center.postcard.webp"), nil, 0o644))
+	report, err := runDefaultCard(t, dir, titled("CNN Center"), func(o *Options) { o.Formats = []string{"web"} })
+	require.NoError(t, err)
+	assert.Equal(t, "cnn-center-2", report.Cards[0].Name)
+}
+
+func TestWithoutAUsableTitleCardsKeepTheirNumber(t *testing.T) {
+	for name, mutate := range map[string]func(*Options){
+		"empty title":  titled(""),
+		"digits only":  titled("1950"),
+		"failed call":  describing(describe.Description{}, errors.New("quota")),
+		"no describer": func(*Options) {},
+	} {
+		dir := t.TempDir()
+		report, err := runDefaultCard(t, dir, mutate)
+		require.NoError(t, err, name)
+		assert.Equal(t, "0001", report.Cards[0].Name, name)
+		assert.FileExists(t, filepath.Join(dir, "0001-front.png"), name)
+	}
+}
+
+func TestTitledNamesStartingWithDigitsDoNotShiftNumbering(t *testing.T) {
+	for _, existing := range []string{"1950-diner-front.png", "1950-diner-meta.yaml", "1950-diner.postcard.webp", "1950-diner.html"} {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, existing), nil, 0o644))
+		report, err := runDefaultCard(t, dir)
+		require.NoError(t, err)
+		assert.Equal(t, 1, report.Cards[0].Number, existing)
+	}
+}

@@ -24,7 +24,8 @@ const guide = `Scan a stack of postcards through an Epson FastFoto FF-680W (macO
 By default each card is NNNN-front.png, NNNN-back.png and NNNN-meta.yaml in --out-dir,
 ready for the postcards tool. -f converts each card as postcards -f would, and
 replaces those files unless it includes component (-f web,component). Cards
-number on from the highest number already in --out-dir. Scans are processed in
+number on from the highest number already in --out-dir; with --llm they're named
+from a short title instead (cnn-center-front.png). Scans are processed in
 memory and not kept: to redo a card, feed it again.
 
 Loading: top edge first, back of the card facing you. Keep the paper guides
