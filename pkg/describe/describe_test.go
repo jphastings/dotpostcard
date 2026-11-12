@@ -35,6 +35,11 @@ func TestParseReplyAcceptsFencesAndRejectsBadRotations(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "90", d.Front.Rotation)
 	assert.Equal(t, "hi", d.Back.Transcription)
+	assert.Empty(t, d.Title)
+
+	d, err = parseReply(`{"title":"CNN Center","front":{"rotation":"0","description":"","transcription":""},"back":{"rotation":"0","description":"","transcription":""},"orientation_evidence":"x"}`)
+	require.NoError(t, err)
+	assert.Equal(t, "CNN Center", d.Title)
 
 	_, err = parseReply(`{"front":{"rotation":"45","description":"","transcription":""},"back":{"rotation":"0","description":"","transcription":""}}`)
 	assert.Error(t, err)
@@ -69,5 +74,20 @@ func TestFillKeepsWhatIsAlreadyThere(t *testing.T) {
 		meta := c.before
 		model.Fill(&meta)
 		assert.Equal(t, c.after, meta, name)
+	}
+}
+
+func TestSlug(t *testing.T) {
+	for in, want := range map[string]string{
+		"CNN Center":          "cnn-center",
+		"Notre-Dame":          "notre-dame",
+		"Façade de l'Église":  "facade-de-leglise",
+		"St Paul’s":           "st-pauls",
+		"  Radley  Beagles! ": "radley-beagles",
+		"a b c d e":           "a-b-c",
+		"!!!":                 "",
+		"":                    "",
+	} {
+		assert.Equal(t, want, Slug(in), in)
 	}
 }

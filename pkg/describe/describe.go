@@ -12,8 +12,10 @@ import (
 	"image/color"
 	"image/jpeg"
 	"os"
+	"regexp"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/cloudwego/eino-ext/components/model/claude"
 	"github.com/cloudwego/eino-ext/components/model/openai"
@@ -22,6 +24,9 @@ import (
 	"github.com/jphastings/dotpostcard/pkg/claudecode"
 	"github.com/jphastings/dotpostcard/types"
 	xdraw "golang.org/x/image/draw"
+	"golang.org/x/text/runes"
+	"golang.org/x/text/transform"
+	"golang.org/x/text/unicode/norm"
 )
 
 // DefaultModel is used by the Claude backends when no model is given.
@@ -67,6 +72,8 @@ type Side struct {
 type Description struct {
 	Front Side `json:"front"`
 	Back  Side `json:"back"`
+	// Title is a short phrase for what the card shows; see Slug.
+	Title string `json:"title"`
 	// Notes are things worth telling the user that didn't stop the description working.
 	Notes []string `json:"-"`
 }
@@ -76,7 +83,7 @@ type Describer func(ctx context.Context, front, back image.Image) (Description, 
 
 const rotationEnum = `{"type":"string","enum":["0","90","180","270","unknown"]}`
 const sideSchema = `{"type":"object","additionalProperties":false,"required":["rotation","description","transcription"],"properties":{"rotation":` + rotationEnum + `,"description":{"type":"string"},"transcription":{"type":"string"}}}`
-const replySchema = `{"type":"object","additionalProperties":false,"required":["front","back","orientation_evidence"],"properties":{"front":` + sideSchema + `,"back":` + sideSchema + `,"orientation_evidence":{"type":"string"}}}`
+const replySchema = `{"type":"object","additionalProperties":false,"required":["front","back","title","orientation_evidence"],"properties":{"title":{"type":"string"},"front":` + sideSchema + `,"back":` + sideSchema + `,"orientation_evidence":{"type":"string"}}}`
 
 const prompt = `These are the two sides of one postcard as scanned: first the front, then the back. Neither side is necessarily upright.
 
@@ -86,6 +93,7 @@ Other fields (an empty string means none):
 - add a description for the front of the postcard in front.description (we're talking alt text; no need to describe it as a postcard as that's already contextual, imagine answering "what is this a postcard of?" in an alt-text concise manner for people who can't see it).
 - if you think the back has anything worth describing then you can add a description in back.description just like the front description, but it should be something worth describing rather than just it's the back of a postcard. Things like copyright notices and names of photographers aren't worth adding here.
 - transcription (for front or back) is only necessary if there has been text written/typed by someone sending the postcard — something added *after* it was created — a message. Try to capture that message as closely as possible in the transcription.
+- title is a short title of 1 to 3 words saying what the card shows, using both sides, in plain words without punctuation and without the word "postcard" (for example "CNN Center", "Notre-Dame", "Radley Beagles").
 Keep each description to a single sentence of no more than about 20 words. If the card names the place shown, include it.`
 
 // New connects the configured backend. Web search is only available with claude-code.
@@ -179,6 +187,7 @@ func parseReply(s string) (Description, error) {
 	var flat struct {
 		Front    *Side   `json:"front"`
 		Back     *Side   `json:"back"`
+		Title    string  `json:"title"`
 		Evidence *string `json:"orientation_evidence"`
 	}
 	if err := dec.Decode(&flat); err != nil {
@@ -192,7 +201,7 @@ func parseReply(s string) (Description, error) {
 			return Description{}, fmt.Errorf("the model gave an invalid rotation %q", r)
 		}
 	}
-	return Description{Front: *flat.Front, Back: *flat.Back}, nil
+	return Description{Front: *flat.Front, Back: *flat.Back, Title: flat.Title}, nil
 }
 
 // ShrunkJPEG flattens img onto white (the model can't see transparency), shrinks its long edge
@@ -255,4 +264,22 @@ func (d Description) Turns() (f, b int, flip types.Flip) {
 		b = (4 - f) % 4
 	}
 	return f, b, [4]types.Flip{types.FlipBook, types.FlipLeftHand, types.FlipCalendar, types.FlipRightHand}[(f+b)%4]
+}
+
+var (
+	stripAccents = runes.Remove(runes.In(unicode.Mn))
+	nonSlug      = regexp.MustCompile(`[^a-z0-9]+`)
+)
+
+// Slug turns a title into a lowercase kebab-case name of at most three words, with accents
+// stripped; it is empty when nothing usable is left.
+func Slug(title string) string {
+	plain, _, err := transform.String(transform.Chain(norm.NFD, stripAccents, norm.NFC), strings.ToLower(title))
+	if err != nil {
+		return ""
+	}
+	// Apostrophes join rather than split, so "St Paul's" is "st-pauls", not "st-paul-s".
+	plain = strings.NewReplacer("'", "", "’", "").Replace(plain)
+	words := strings.Fields(nonSlug.ReplaceAllString(plain, " "))
+	return strings.Join(words[:min(len(words), 3)], "-")
 }
