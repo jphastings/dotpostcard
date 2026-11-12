@@ -155,7 +155,7 @@ type run struct {
 	encOpts    formats.EncodeOptions
 	atClient   *atproto.Client
 	wantUpload bool
-	// wantComponents is whether component files belong in OutDir; otherwise they are staged in a temporary directory in OutDir.
+	// wantComponents is whether component files belong in OutDir; otherwise they are staged in the system temp folder.
 	wantComponents bool
 }
 
@@ -400,7 +400,7 @@ func (r *run) buildOne(number int, sides [2][]byte) (res CardResult, dropped boo
 
 	dir := r.opts.OutDir
 	if !r.wantComponents {
-		dir, res.Err = os.MkdirTemp(r.opts.OutDir, ".fastfoto-*")
+		dir, res.Err = os.MkdirTemp("", "fastfoto-*")
 		if res.Err != nil {
 			return
 		}
@@ -460,14 +460,18 @@ func (r *run) filesExist(name string) bool {
 	return false
 }
 
-// keepStaged moves a card's staged components into OutDir so a failed conversion doesn't lose it.
+// keepStaged copies a card's staged components into OutDir so a failed conversion doesn't lose it.
 func (r *run) keepStaged(dir string) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return err
 	}
 	for _, e := range entries {
-		if err := os.Rename(filepath.Join(dir, e.Name()), filepath.Join(r.opts.OutDir, e.Name())); err != nil {
+		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(r.opts.OutDir, e.Name()), b, 0o644); err != nil {
 			return err
 		}
 	}
@@ -613,7 +617,7 @@ func (r *run) writeRescanPreview(number int, front image.Image) error {
 	if err != nil {
 		return err
 	}
-	return writeAtomic(filepath.Join(r.opts.OutDir, rescanName(number)), func(w io.Writer) error {
+	return writeWhole(filepath.Join(r.opts.OutDir, rescanName(number)), func(w io.Writer) error {
 		_, err := w.Write(b)
 		return err
 	})
@@ -648,45 +652,19 @@ func (r *run) write(dir, name string, size types.Size, flip types.Flip, sides [2
 			return err
 		}},
 	} {
-		if err := writeAtomic(filepath.Join(dir, name+"-"+w.suffix), w.write); err != nil {
+		if err := writeWhole(filepath.Join(dir, name+"-"+w.suffix), w.write); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func writeAtomic(path string, write func(io.Writer) error) error {
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".tmp-*")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(tmp.Name())
+func writeWhole(path string, write func(io.Writer) error) error {
 	var buf bytes.Buffer
 	if err := write(&buf); err != nil {
-		tmp.Close()
 		return err
 	}
-	if _, err := tmp.Write(buf.Bytes()); err != nil {
-		tmp.Close()
-		return err
-	}
-	// CreateTemp makes 0600 files. The sync means a power loss can't leave a zero-length
-	// file that looks complete.
-	if err := errors.Join(tmp.Chmod(0o644), tmp.Sync()); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	if err := os.Rename(tmp.Name(), path); err != nil {
-		return err
-	}
-	// A full disk has left 0-byte files under their final names with no error reported.
-	if info, err := os.Stat(path); err != nil || info.Size() != int64(buf.Len()) {
-		return fmt.Errorf("the disk didn't keep %s (is it full?)", filepath.Base(path))
-	}
-	return nil
+	return os.WriteFile(path, buf.Bytes(), 0o644)
 }
 
 func (r *run) report() Report {

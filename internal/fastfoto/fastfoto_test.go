@@ -593,7 +593,7 @@ func componentFiles(t *testing.T, dir string) []string {
 	return got
 }
 
-func TestFormatsWithoutComponentLeaveNoComponentsOrTempDirInOutDir(t *testing.T) {
+func TestFormatsWithoutComponentLeaveNoComponentsInOutDir(t *testing.T) {
 	dir := t.TempDir()
 	_, err := runSides(t, dir, smallCard(), func(o *Options) { o.Formats = []string{"web"} })
 	require.NoError(t, err)
@@ -616,8 +616,6 @@ func TestFailedConversionKeepsTheStagedComponentsInOutDir(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, report.Cards[0].ConvertErr.Error(), "kept in "+dir)
 	assert.Len(t, componentFiles(t, dir), 3)
-	hidden, _ := filepath.Glob(filepath.Join(dir, ".fastfoto-*"))
-	assert.Empty(t, hidden)
 }
 
 func TestNumberingContinuesAfterAnyFileAlreadyInOutDir(t *testing.T) {
