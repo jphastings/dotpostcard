@@ -6,6 +6,7 @@ import (
 	"image"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -125,6 +126,8 @@ func TestHungDescriberTimesOutAndLeavesTheCardAsScanned(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.True(t, report.Cards[0].LLMFailed)
+	assert.Contains(t, strings.Join(report.Cards[0].Notes, "\n"), "the model didn't answer within")
+	assert.NotContains(t, strings.Join(report.Cards[0].Notes, "\n"), "deadline exceeded")
 	assert.FileExists(t, filepath.Join(dir, "0001-meta.yaml"))
 }
 

@@ -94,6 +94,7 @@ func (m *Model) Generate(ctx context.Context, input []*schema.Message, opts ...m
 	cmd.Dir = dir
 	cmd.Stdin = bytes.NewReader(line)
 	cmd.WaitDelay = killGrace
+	detachFromTerminal(cmd)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	waitErr := cmd.Run()
