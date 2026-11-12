@@ -10,12 +10,22 @@ import (
 	"io"
 
 	"github.com/gen2brain/jpegli"
+	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/pkg/xmpinject"
 )
 
-func WriteJPEG(w io.Writer, combinedImg image.Image, xmpData []byte, bgColor color.RGBA) error {
+const (
+	efficientJPEGQuality = 70
+	detailJPEGQuality    = 90
+)
+
+func WriteJPEG(w io.Writer, combinedImg image.Image, xmpData []byte, bgColor color.RGBA, quality formats.Quality) error {
+	jpegQuality := efficientJPEGQuality
+	if quality == formats.Detail {
+		jpegQuality = detailJPEGQuality
+	}
 	jpegliOpts := &jpegli.EncodingOptions{
-		Quality:           70,
+		Quality:           jpegQuality,
 		ProgressiveLevel:  2,
 		FancyDownsampling: true,
 	}

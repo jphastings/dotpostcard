@@ -695,9 +695,9 @@ func TestUnknownFormatFailsBeforeScanning(t *testing.T) {
 	assert.False(t, opened)
 }
 
-func TestArchivalWebOutputIsLosslessWebP(t *testing.T) {
+func TestArchiveWebOutputIsLosslessWebP(t *testing.T) {
 	dir := t.TempDir()
-	_, err := runSides(t, dir, smallCard(), func(o *Options) { o.Formats = []string{"web"}; o.Archival = true })
+	_, err := runSides(t, dir, smallCard(), func(o *Options) { o.Formats = []string{"web"}; o.Quality = formats.Archive })
 	require.NoError(t, err)
 	assert.FileExists(t, filepath.Join(dir, "0001.postcard.webp"), "JPEG can't be lossless")
 }

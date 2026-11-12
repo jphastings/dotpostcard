@@ -64,4 +64,10 @@ Here we've produced:
 - The [CSS](docs/formats/css.md) needed to display the HTML format in a pretty way
 
 > [!IMPORTANT]
-> Most formats can be converted between each other (web, usdz, component). If this is likely use the `--archival` flag to turn on lossless conversion so quality remains high until the final conversion.
+> Most formats can be converted between each other (web, usdz, component). If this is likely use `--quality archive` so quality remains high until the final conversion.
+
+The `--quality` (`-Q`) flag chooses how much is kept:
+
+- `efficient` (the default): resized and compressed for sharing
+- `detail`: higher resolution, with very few compression artefacts
+- `archive`: full resolution, lossless

@@ -16,7 +16,7 @@ import (
 // flag combination that can change what web predicts, it encodes a fixture postcard and
 // asserts every (non-shared) filename Encode actually produced was among the names
 // OutputNames predicted for it beforehand. Not every codec supports every combination
-// (eg. svg can't be archival) — when Encode itself errors, there's nothing to check.
+// (eg. svg can't be lossless) — when Encode itself errors, there's nothing to check.
 func TestOutputNamesPredictEncodedFilenames(t *testing.T) {
 	pc := testhelpers.SamplePostcard
 	// testhelpers.SamplePostcard.Front/Back are nil: fixtures.go builds that struct
@@ -29,7 +29,8 @@ func TestOutputNamesPredictEncodedFilenames(t *testing.T) {
 
 	variants := map[string]formats.EncodeOptions{
 		"default":         {},
-		"archival":        {Archival: true},
+		"detail":          {Quality: formats.Detail},
+		"archive":         {Quality: formats.Archive},
 		"no-transparency": {NoTransparency: true},
 	}
 

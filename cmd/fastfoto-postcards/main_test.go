@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/internal/fastfoto"
 	"github.com/jphastings/dotpostcard/pkg/describe"
 	"github.com/jphastings/dotpostcard/types"
@@ -28,13 +29,21 @@ func TestFlagsReachTheRun(t *testing.T) {
 	_, _, err := execute(t, func(_ context.Context, o fastfoto.Options) (fastfoto.Report, error) {
 		got = o
 		return fastfoto.Report{}, nil
-	}, "--out-dir", "cards", "--top-side", "front", "--card-threshold", "30", "-A")
+	}, "--out-dir", "cards", "--top-side", "front", "--card-threshold", "30", "-Q", "archive")
 
 	assert.NoError(t, err)
 	assert.Equal(t, "cards", got.OutDir)
 	assert.True(t, got.TopSideFront)
 	assert.Equal(t, 30.0, got.CardThreshold)
-	assert.True(t, got.Archival)
+	assert.Equal(t, formats.Archive, got.Quality)
+}
+
+func TestUnknownQualityIsRejected(t *testing.T) {
+	_, _, err := execute(t, func(context.Context, fastfoto.Options) (fastfoto.Report, error) {
+		return fastfoto.Report{}, nil
+	}, "--quality", "lossless")
+
+	assert.ErrorContains(t, err, "efficient, detail, archive")
 }
 
 func TestRunFailureIsAnError(t *testing.T) {

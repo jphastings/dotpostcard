@@ -9,17 +9,24 @@ import (
 	"io"
 
 	"git.sr.ht/~jackmordaunt/go-libwebp/v2/webp"
+	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/pkg/xmpinject"
 )
 
-const quality = 0.8
+const (
+	efficientWebPQuality = 0.8
+	detailWebPQuality    = 0.9
+)
 
-func WriteWebP(w io.Writer, img image.Image, xmpData []byte, archival, hasAlpha bool) error {
+func WriteWebP(w io.Writer, img image.Image, xmpData []byte, quality formats.Quality, hasAlpha bool) error {
 	var webpOpts []webp.EncodeOption
-	if archival {
+	switch quality {
+	case formats.Archive:
 		webpOpts = []webp.EncodeOption{webp.Lossless()}
-	} else {
-		webpOpts = []webp.EncodeOption{webp.Quality(quality)}
+	case formats.Detail:
+		webpOpts = []webp.EncodeOption{webp.Quality(detailWebPQuality)}
+	default:
+		webpOpts = []webp.EncodeOption{webp.Quality(efficientWebPQuality)}
 	}
 
 	webpData := new(bytes.Buffer)

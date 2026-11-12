@@ -12,8 +12,8 @@ func TestOutputNamesDefaultOffersBothFormats(t *testing.T) {
 	assert.ElementsMatch(t, []string{"sample.postcard.jpeg", "sample.postcard.webp"}, names)
 }
 
-func TestOutputNamesArchivalIsLosslessOnly(t *testing.T) {
-	names := DefaultCodec.OutputNames("sample", &formats.EncodeOptions{Archival: true})
+func TestOutputNamesArchiveIsLosslessOnly(t *testing.T) {
+	names := DefaultCodec.OutputNames("sample", &formats.EncodeOptions{Quality: formats.Archive})
 	assert.Equal(t, []string{"sample.postcard.webp"}, names)
 }
 

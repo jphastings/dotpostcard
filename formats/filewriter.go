@@ -2,31 +2,66 @@ package formats
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/jphastings/dotpostcard/types"
 )
 
+// Quality is how much fidelity an encode preserves. The zero value is Efficient.
+type Quality int
+
+const (
+	// Efficient resizes and compresses postcards for sharing.
+	Efficient Quality = iota
+	// Detail keeps higher resolution, with very few compression artefacts.
+	Detail
+	// Archive keeps full resolution and compresses losslessly; this may require some *upsampling*, depending on the requested format.
+	Archive
+)
+
+var qualityNames = []string{"efficient", "detail", "archive"}
+
+func (q Quality) String() string { return qualityNames[q] }
+
+// ParseQuality converts a name (as produced by String) back to a Quality.
+func ParseQuality(name string) (Quality, error) {
+	for q, n := range qualityNames {
+		if n == name {
+			return Quality(q), nil
+		}
+	}
+	return Efficient, fmt.Errorf("unknown quality %q: choose one of %s", name, strings.Join(qualityNames, ", "))
+}
+
 type EncodeOptions struct {
-	// Creates archival quality postcard files; this may require some *upsampling*, depending on the requested format
-	Archival bool
-	// Indicates the maximum width or height (in pixels) a postcard should have. Will be ignored if Archival is true
+	Quality Quality
+	// Indicates the maximum width or height (in pixels) a postcard should have. Will be ignored if Quality is Archive
 	MaxDimension int
-	// Forces an encode without transparency — filling ant in with the provided card colour. This destroys information, so it will be ignored if archival==true.
+	// Forces an encode without transparency — filling ant in with the provided card colour. This destroys information, so it will be ignored for Archive quality.
 	NoTransparency bool
 	// Will produce support files alongside the postcard (eg. HTML & CSS with the web file)
 	IncludeSupportFiles bool
 }
 
+// QualityLevel is nil-safe: nil options mean Efficient.
+func (opts *EncodeOptions) QualityLevel() Quality {
+	if opts == nil {
+		return Efficient
+	}
+	return opts.Quality
+}
+
 func (opts *EncodeOptions) WantsLossless() bool {
-	return (opts != nil) && opts.Archival
+	return opts.QualityLevel() == Archive
 }
 
 func (opts *EncodeOptions) IgnoreTransparency() bool {
-	return (opts != nil) && opts.NoTransparency && !opts.Archival
+	return (opts != nil) && opts.NoTransparency && !opts.WantsLossless()
 }
 
 type DecodeOptions struct {

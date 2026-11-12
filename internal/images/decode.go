@@ -25,7 +25,7 @@ type format struct {
 	decoder
 }
 
-var formats = []format{
+var imageFormats = []format{
 	{"\xff\xd8", ReadJPEG},
 	{"\x89PNG\r\n\x1a\n", ReadPNG},
 	{"RIFF????WEBPVP8", ReadWebP},
@@ -56,7 +56,7 @@ func asReadPeeker(r io.Reader) readPeeker {
 }
 
 func sniff(r readPeeker) (format, bool) {
-	for _, f := range formats {
+	for _, f := range imageFormats {
 		b, err := r.Peek(len(f.magic))
 		if err == nil && match(f.magic, b) {
 			return f, true
