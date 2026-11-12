@@ -162,7 +162,6 @@ homebrew_casks:
     # Not notarized, so drop the quarantine flag or Gatekeeper blocks it.
     hooks:
       post:
+        # Homebrew's install-steps DSL, not Ruby; relative paths are inside staged_path.
         install_steps: |
-          if system_command("/usr/bin/xattr", args: ["-h"], print_stderr: false).exit_status == 0
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/fastfoto-postcards"]
-          end
+          run "/usr/bin/xattr", args: ["-d", "com.apple.quarantine", "fastfoto-postcards"], chdir: ".", must_succeed: false, print_stderr: false
