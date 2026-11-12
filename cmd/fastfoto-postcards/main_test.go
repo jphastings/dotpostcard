@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/jphastings/dotpostcard/internal/fastfoto"
+	"github.com/jphastings/dotpostcard/pkg/describe"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -111,7 +112,7 @@ func TestLLMFlagsReachTheRun(t *testing.T) {
 		return fastfoto.Report{}, nil
 	}, "--llm=openai", "--llm-model", "m", "--llm-base-url", "http://x")
 	assert.NoError(t, err)
-	assert.Equal(t, fastfoto.LLMConfig{Backend: "openai", Model: "m", BaseURL: "http://x"}, got.LLM)
+	assert.Equal(t, describe.Config{Backend: "openai", Model: "m", BaseURL: "http://x"}, got.LLM)
 }
 
 func TestSummaryCountsCardsLeftAsScanned(t *testing.T) {

@@ -1,4 +1,5 @@
-package fastfoto
+// Package describe asks a vision model to describe, transcribe and orient the two sides of a postcard.
+package describe
 
 import (
 	"bytes"
@@ -12,6 +13,7 @@ import (
 	"image/jpeg"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/cloudwego/eino-ext/components/model/claude"
 	"github.com/cloudwego/eino-ext/components/model/openai"
@@ -22,16 +24,16 @@ import (
 	xdraw "golang.org/x/image/draw"
 )
 
-// DefaultLLMModel is used by the Claude backends when no model is given.
-const DefaultLLMModel = "claude-opus-5-5"
+// DefaultModel is used by the Claude backends when no model is given.
+const DefaultModel = "claude-opus-5-5"
 
-const (
-	llmConcurrency = 3
-	llmImageEdgePx = 1200
-)
+// Timeout is how long one Describer call should be allowed to take.
+const Timeout = 5 * time.Minute
 
-// LLMConfig selects the model that orients and describes each card; the zero value turns it off.
-type LLMConfig struct {
+const llmImageEdgePx = 1200
+
+// Config selects the model that describes and orients each card; the zero value turns it off.
+type Config struct {
 	// Backend is "claude-code", "anthropic" or "openai".
 	Backend string
 	// Model is passed straight through as the model ID (or `claude --model` value).
@@ -40,7 +42,7 @@ type LLMConfig struct {
 }
 
 // Validate checks the configuration without contacting anything.
-func (c LLMConfig) Validate() error {
+func (c Config) Validate() error {
 	switch c.Backend {
 	case "", "claude-code", "anthropic":
 	case "openai":
@@ -53,17 +55,18 @@ func (c LLMConfig) Validate() error {
 	return nil
 }
 
-// SideDescription is what the model says about one side. Rotation is the clockwise turn
+// Side is what the model says about one side. Rotation is the clockwise turn
 // ("0", "90", "180", "270" or "unknown") that makes the side upright.
-type SideDescription struct {
+type Side struct {
 	Rotation      string `json:"rotation"`
 	Description   string `json:"description"`
 	Transcription string `json:"transcription"`
 }
 
+// Description is what the model says about a card.
 type Description struct {
-	Front SideDescription `json:"front"`
-	Back  SideDescription `json:"back"`
+	Front Side `json:"front"`
+	Back  Side `json:"back"`
 	// Notes are things worth telling the user that didn't stop the description working.
 	Notes []string `json:"-"`
 }
@@ -85,8 +88,8 @@ Other fields (an empty string means none):
 - transcription (for front or back) is only necessary if there has been text written/typed by someone sending the postcard — something added *after* it was created — a message. Try to capture that message as closely as possible in the transcription.
 Keep each description to a single sentence of no more than about 20 words. If the card names the place shown, include it.`
 
-// NewDescriber connects the configured backend. Web search is only available with claude-code.
-func NewDescriber(ctx context.Context, c LLMConfig) (Describer, error) {
+// New connects the configured backend. Web search is only available with claude-code.
+func New(ctx context.Context, c Config) (Describer, error) {
 	if err := c.Validate(); err != nil {
 		return nil, err
 	}
@@ -99,7 +102,7 @@ func NewDescriber(ctx context.Context, c LLMConfig) (Describer, error) {
 		}
 		name := c.Model
 		if name == "" {
-			name = DefaultLLMModel
+			name = DefaultModel
 		}
 		m = &claudecode.Model{Name: name}
 		opts = []model.Option{claudecode.WithJSONSchema(replySchema), claudecode.WithAllowedTools("WebSearch")}
@@ -110,7 +113,7 @@ func NewDescriber(ctx context.Context, c LLMConfig) (Describer, error) {
 		}
 		name := c.Model
 		if name == "" {
-			name = DefaultLLMModel
+			name = DefaultModel
 		}
 		cm, err := claude.NewChatModel(ctx, &claude.Config{APIKey: key, Model: name, MaxTokens: 2000})
 		if err != nil {
@@ -174,9 +177,9 @@ func parseReply(s string) (Description, error) {
 	dec := json.NewDecoder(strings.NewReader(s))
 	dec.DisallowUnknownFields()
 	var flat struct {
-		Front    *SideDescription `json:"front"`
-		Back     *SideDescription `json:"back"`
-		Evidence *string          `json:"orientation_evidence"`
+		Front    *Side   `json:"front"`
+		Back     *Side   `json:"back"`
+		Evidence *string `json:"orientation_evidence"`
 	}
 	if err := dec.Decode(&flat); err != nil {
 		return Description{}, fmt.Errorf("the model's reply isn't the expected JSON: %w", err)
@@ -192,9 +195,9 @@ func parseReply(s string) (Description, error) {
 	return Description{Front: *flat.Front, Back: *flat.Back}, nil
 }
 
-// shrunkJPEG flattens img onto white (the model can't see transparency), shrinks its long edge
+// ShrunkJPEG flattens img onto white (the model can't see transparency), shrinks its long edge
 // to llmImageEdgePx and encodes it.
-func shrunkJPEG(img image.Image) ([]byte, error) {
+func ShrunkJPEG(img image.Image) ([]byte, error) {
 	b := img.Bounds()
 	flat := image.NewRGBA(b)
 	xdraw.Draw(flat, b, image.NewUniform(color.White), image.Point{}, xdraw.Src)
@@ -213,7 +216,7 @@ func shrunkJPEG(img image.Image) ([]byte, error) {
 }
 
 func jpegPart(img image.Image) (schema.MessageInputPart, error) {
-	b, err := shrunkJPEG(img)
+	b, err := ShrunkJPEG(img)
 	if err != nil {
 		return schema.MessageInputPart{}, err
 	}
@@ -225,11 +228,24 @@ func jpegPart(img image.Image) (schema.MessageInputPart, error) {
 
 var quarterTurns = map[string]int{"0": 0, "90": 1, "180": 2, "270": 3, "unknown": -1}
 
-// resolveTurns turns the model's rotations into clockwise quarter turns for each side and the
-// flip they imply. A side with no clear up takes the turn that makes the card book-flip with
-// the other side; two such sides stay as scanned.
-func resolveTurns(front, back string) (f, b int, flip types.Flip) {
-	f, b = quarterTurns[front], quarterTurns[back]
+// Fill sets the sides' descriptions and transcriptions from the model, only where they're empty.
+func (d Description) Fill(meta *types.Metadata) {
+	fill := func(dst *string, v string) {
+		if *dst == "" {
+			*dst = v
+		}
+	}
+	fill(&meta.Front.Description, d.Front.Description)
+	fill(&meta.Front.Transcription.Text, d.Front.Transcription)
+	fill(&meta.Back.Description, d.Back.Description)
+	fill(&meta.Back.Transcription.Text, d.Back.Transcription)
+}
+
+// Turns gives the clockwise quarter turns for each side and the flip they imply. A side with
+// no clear up takes the turn that makes the card book-flip with the other side; two such
+// sides stay as scanned.
+func (d Description) Turns() (f, b int, flip types.Flip) {
+	f, b = quarterTurns[d.Front.Rotation], quarterTurns[d.Back.Rotation]
 	switch {
 	case f < 0 && b < 0:
 		f, b = 0, 0

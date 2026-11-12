@@ -91,6 +91,13 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
+		var describeCard describeFunc
+		if describeSetup != nil {
+			if describeCard, err = describeSetup(cmd); err != nil {
+				return err
+			}
+		}
+
 		sso := &safeWrite{w: os.Stdout}
 
 		localPaths, atURIs := partitionInputs(inputPaths)
@@ -157,6 +164,13 @@ var rootCmd = &cobra.Command{
 			pc, err := bundle.Decode(decOpts)
 			if err != nil {
 				return fmt.Errorf("unable to decode bundle '%s': %w", filename, err)
+			}
+
+			if describeCard != nil {
+				// ponytail: one model call at a time, as this loop is sequential; run them in a bounded worker pool (as internal/fastfoto does) if big batches get slow.
+				if err := describeCard(&pc); err != nil {
+					fmt.Fprintf(sso, "⚠︎ %s: %v\n", filename, err)
+				}
 			}
 
 			for _, codec := range codecs {
@@ -238,6 +252,11 @@ var rootCmd = &cobra.Command{
 	},
 }
 
+type describeFunc func(pc *types.Postcard) error
+
+// describeSetup is set by llm.go (not built for wasm) to prepare --llm; nil means unsupported.
+var describeSetup func(cmd *cobra.Command) (describeFunc, error)
+
 type safeWrite struct {
 	w  io.Writer
 	mu sync.Mutex
@@ -279,6 +298,7 @@ func registerRootFlags() {
 
 	rootCmd.Flags().String("at-user", "", "atproto handle or DID to upload as (format atproto only; falls back to $GOAT_USERNAME/$ATP_USERNAME/$ATP_AUTH_USERNAME)")
 	rootCmd.Flags().String("at-password", "", "atproto PDS app password (format atproto only; falls back to $GOAT_PASSWORD/$ATP_PASSWORD/$ATP_AUTH_PASSWORD)")
+	registerLLMFlags()
 }
 
 func main() {
@@ -308,5 +328,8 @@ Postcards can also be uploaded to, and downloaded from, an atproto PDS. Use
 "-f atproto" (with --at-user/--at-password, or the same environment variables
 goat uses) to upload, and an at://... record URI in place of a file to
 download.
+
+--llm has a model describe each card that has no description yet; existing
+descriptions and transcriptions are never replaced.
 `
 }
