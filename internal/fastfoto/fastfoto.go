@@ -27,6 +27,7 @@ import (
 	"github.com/jphastings/dotpostcard/formats/metadata"
 	"github.com/jphastings/dotpostcard/internal/cmdhelp"
 	"github.com/jphastings/dotpostcard/internal/images"
+	"github.com/jphastings/dotpostcard/pkg/describe"
 	"github.com/jphastings/dotpostcard/types"
 )
 
@@ -51,8 +52,8 @@ type Options struct {
 	Stop context.Context
 	Log  io.Writer
 	// LLM, when set, orients and describes each card; Describe overrides the backend it names.
-	LLM      LLMConfig
-	Describe Describer
+	LLM      describe.Config
+	Describe describe.Describer
 	// Formats are converted for every card built, as `postcards -f` would: any name
 	// postcards.CodecsByFormat accepts, or "atproto" to upload. Unknown names fail the run
 	// before anything is scanned.
@@ -145,7 +146,7 @@ func Run(ctx context.Context, opts Options) (Report, error) {
 		opts.Log = io.Discard
 	}
 	if opts.Describe == nil && opts.LLM.Backend != "" {
-		d, err := NewDescriber(ctx, opts.LLM)
+		d, err := describe.New(ctx, opts.LLM)
 		if err != nil {
 			return Report{}, err
 		}
@@ -286,7 +287,7 @@ func (r *run) buildOne(number int, sides [2][]byte) (res CardResult) {
 	flip, sideMeta := types.FlipBook, [2]types.Side{}
 	front, back := image.Image(c.front), image.Image(c.back)
 	if r.opts.Describe != nil {
-		var d Description
+		var d describe.Description
 		var err error
 		r.withSlot(r.llmSlots, func() { d, err = r.describe(front, back) })
 		res.Notes = append(res.Notes, d.Notes...)
@@ -294,9 +295,10 @@ func (r *run) buildOne(number int, sides [2][]byte) (res CardResult) {
 			res.LLMFailed = true
 			res.Notes = append(res.Notes, fmt.Sprintf("LLM step failed, card left as scanned: %v", err))
 		} else {
-			sideMeta[0] = types.Side{Description: d.Front.Description, Transcription: types.AnnotatedText{Text: d.Front.Transcription}}
-			sideMeta[1] = types.Side{Description: d.Back.Description, Transcription: types.AnnotatedText{Text: d.Back.Transcription}}
-			f, b, wantFlip := resolveTurns(d.Front.Rotation, d.Back.Rotation)
+			var sides types.Metadata
+			d.Fill(&sides)
+			sideMeta = [2]types.Side{sides.Front, sides.Back}
+			f, b, wantFlip := d.Turns()
 			rf, rb := turn(front, f), turn(back, b)
 			size := c.size
 			if f%2 == 1 {
@@ -433,11 +435,13 @@ func (r *run) convert(res *CardResult, dir string) (err error) {
 	return nil
 }
 
+const llmConcurrency = 3
+
 // describeTimeout stops a hung model call holding an LLM slot for ever.
-var describeTimeout = 5 * time.Minute
+var describeTimeout = describe.Timeout
 
 // describe keeps a panicking describer or model adapter from failing the card.
-func (r *run) describe(front, back image.Image) (d Description, err error) {
+func (r *run) describe(front, back image.Image) (d describe.Description, err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			err = fmt.Errorf("panic: %v", p)
@@ -476,7 +480,7 @@ func (r *run) loadCard(sides [2][]byte) (*card, error) {
 }
 
 func (r *run) writeRescanPreview(number int, front image.Image) error {
-	b, err := shrunkJPEG(front)
+	b, err := describe.ShrunkJPEG(front)
 	if err != nil {
 		return err
 	}

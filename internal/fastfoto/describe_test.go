@@ -11,59 +11,27 @@ import (
 
 	postcards "github.com/jphastings/dotpostcard"
 	"github.com/jphastings/dotpostcard/formats"
+	"github.com/jphastings/dotpostcard/pkg/describe"
 	"github.com/jphastings/dotpostcard/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestResolveTurns(t *testing.T) {
-	for name, c := range map[string]struct {
-		front, back string
-		f, b        int
-		flip        types.Flip
-	}{
-		"upright":          {"0", "0", 0, 0, types.FlipBook},
-		"back unknown":     {"270", "unknown", 3, 1, types.FlipBook},
-		"both upside down": {"180", "180", 2, 2, types.FlipBook},
-		"sideways front":   {"90", "0", 1, 0, types.FlipLeftHand},
-		"calendar":         {"0", "180", 0, 2, types.FlipCalendar},
-		"right hand":       {"270", "0", 3, 0, types.FlipRightHand},
-		"front unknown":    {"unknown", "90", 3, 1, types.FlipBook},
-		"both unknown":     {"unknown", "unknown", 0, 0, types.FlipBook},
-	} {
-		f, b, flip := resolveTurns(c.front, c.back)
-		assert.Equal(t, [3]any{c.f, c.b, c.flip}, [3]any{f, b, flip}, name)
-	}
-}
-
-func TestParseReplyAcceptsFencesAndRejectsBadRotations(t *testing.T) {
-	good := "```json\n" + `{"front":{"rotation":"90","description":"d","transcription":""},"back":{"rotation":"unknown","description":"","transcription":"hi"},"orientation_evidence":"x"}` + "\n```"
-	d, err := parseReply(good)
-	require.NoError(t, err)
-	assert.Equal(t, "90", d.Front.Rotation)
-	assert.Equal(t, "hi", d.Back.Transcription)
-
-	_, err = parseReply(`{"front":{"rotation":"45","description":"","transcription":""},"back":{"rotation":"0","description":"","transcription":""}}`)
-	assert.Error(t, err)
-	_, err = parseReply(`not json`)
-	assert.Error(t, err)
-}
-
 func twoSidedDir(t *testing.T) string {
 	return t.TempDir()
 }
 
-func describing(d Description, err error) func(*Options) {
+func describing(d describe.Description, err error) func(*Options) {
 	return func(o *Options) {
-		o.Describe = func(context.Context, image.Image, image.Image) (Description, error) { return d, err }
+		o.Describe = func(context.Context, image.Image, image.Image) (describe.Description, error) { return d, err }
 	}
 }
 
 func TestHeterorientedAnswerTurnsTheSidesAndSetsTheFlip(t *testing.T) {
 	dir := twoSidedDir(t)
-	report, err := runDefaultCard(t, dir, describing(Description{
-		Front: SideDescription{Rotation: "90", Description: "A harbour at dusk", Transcription: "Wish you were here"},
-		Back:  SideDescription{Rotation: "0", Description: "A map of the bay"},
+	report, err := runDefaultCard(t, dir, describing(describe.Description{
+		Front: describe.Side{Rotation: "90", Description: "A harbour at dusk", Transcription: "Wish you were here"},
+		Back:  describe.Side{Rotation: "0", Description: "A map of the bay"},
 	}, nil))
 	require.NoError(t, err)
 	assert.Contains(t, report.Cards[0].Notes[0], "left-hand")
@@ -87,7 +55,7 @@ func TestHeterorientedAnswerTurnsTheSidesAndSetsTheFlip(t *testing.T) {
 
 func TestDescriberFailureLeavesTheCardAsScanned(t *testing.T) {
 	dir := twoSidedDir(t)
-	report, err := runDefaultCard(t, dir, describing(Description{}, errors.New("quota")))
+	report, err := runDefaultCard(t, dir, describing(describe.Description{}, errors.New("quota")))
 	require.NoError(t, err)
 	assert.Contains(t, report.Cards[0].Notes[0], "quota")
 
@@ -102,7 +70,7 @@ func TestDescriberFailureLeavesTheCardAsScanned(t *testing.T) {
 func TestDescriberPanicLeavesTheCardAsScanned(t *testing.T) {
 	dir := twoSidedDir(t)
 	report, err := runDefaultCard(t, dir, func(o *Options) {
-		o.Describe = func(context.Context, image.Image, image.Image) (Description, error) { panic("boom") }
+		o.Describe = func(context.Context, image.Image, image.Image) (describe.Description, error) { panic("boom") }
 	})
 	require.NoError(t, err)
 	assert.Contains(t, report.Cards[0].Notes[0], "boom")
@@ -119,7 +87,7 @@ func TestClaudeCodeBackendDescribesCardsWithoutScanning(t *testing.T) {
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 
 	dir := twoSidedDir(t)
-	report, err := runDefaultCard(t, dir, func(o *Options) { o.LLM = LLMConfig{Backend: "claude-code"} })
+	report, err := runDefaultCard(t, dir, func(o *Options) { o.LLM = describe.Config{Backend: "claude-code"} })
 	require.NoError(t, err)
 	require.NoError(t, report.Cards[0].Err)
 	assert.Empty(t, report.Cards[0].Notes)
@@ -134,9 +102,9 @@ func TestClaudeCodeBackendDescribesCardsWithoutScanning(t *testing.T) {
 func TestDescriberGetsTheRunsContext(t *testing.T) {
 	dir := twoSidedDir(t)
 	_, err := runDefaultCard(t, dir, func(o *Options) {
-		o.Describe = func(ctx context.Context, _, _ image.Image) (Description, error) {
+		o.Describe = func(ctx context.Context, _, _ image.Image) (describe.Description, error) {
 			require.NotNil(t, ctx)
-			return Description{}, ctx.Err()
+			return describe.Description{}, ctx.Err()
 		}
 	})
 	require.NoError(t, err)
@@ -149,9 +117,9 @@ func TestHungDescriberTimesOutAndLeavesTheCardAsScanned(t *testing.T) {
 
 	dir := twoSidedDir(t)
 	report, err := runDefaultCard(t, dir, func(o *Options) {
-		o.Describe = func(ctx context.Context, _, _ image.Image) (Description, error) {
+		o.Describe = func(ctx context.Context, _, _ image.Image) (describe.Description, error) {
 			<-ctx.Done()
-			return Description{}, ctx.Err()
+			return describe.Description{}, ctx.Err()
 		}
 	})
 	require.NoError(t, err)
@@ -166,7 +134,7 @@ func TestDeniedWebSearchIsANoteNotAnError(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(bin, "claude"), []byte(script), 0o755))
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 
-	report, err := runDefaultCard(t, twoSidedDir(t), func(o *Options) { o.LLM = LLMConfig{Backend: "claude-code"} })
+	report, err := runDefaultCard(t, twoSidedDir(t), func(o *Options) { o.LLM = describe.Config{Backend: "claude-code"} })
 	require.NoError(t, err)
 	assert.False(t, report.Cards[0].LLMFailed)
 	assert.Contains(t, report.Cards[0].Notes[0], "WebSearch")
