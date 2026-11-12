@@ -42,8 +42,8 @@ type Options struct {
 	OutDir string
 	// TopSideFront is whether the front of each card faces outward in the feeder.
 	TopSideFront bool
-	// Archival turns off image resizing and uses lossless compression in converted formats.
-	Archival      bool
+	// Quality sets how much resolution and fidelity converted formats keep.
+	Quality       formats.Quality
 	CardThreshold float64
 	// Open connects to the scanner; the default is the real USB scanner.
 	Open func() (Transport, error)
@@ -495,7 +495,7 @@ func (r *run) prepareFormats() error {
 		return err
 	}
 	r.codecs = codecs
-	r.encOpts = formats.EncodeOptions{IncludeSupportFiles: supportFiles, Archival: r.opts.Archival}
+	r.encOpts = formats.EncodeOptions{IncludeSupportFiles: supportFiles, Quality: r.opts.Quality}
 	if !r.wantUpload {
 		return nil
 	}

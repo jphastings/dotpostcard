@@ -25,7 +25,7 @@ import (
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:     "postcards --formats=output,formats [flags] postcard-file.ext...",
-	Example: "  postcards -f web,json postcard1-front.jpg postcard2.webp directory/*\n  postcards -f components --archival --overwrite pc.webp\n  postcards -f atproto --at-user alice.example --at-password xxxx-xxxx-xxxx-xxxx pc.webp\n  postcards -f web at://alice.example/org.dotpostcard.postcard/3jzfcijpj2z2a",
+	Example: "  postcards -f web,json postcard1-front.jpg postcard2.webp directory/*\n  postcards -f component --quality archive --overwrite pc.webp\n  postcards -f atproto --at-user alice.example --at-password xxxx-xxxx-xxxx-xxxx pc.webp\n  postcards -f web at://alice.example/org.dotpostcard.postcard/3jzfcijpj2z2a",
 	Short:   "A tool for converting between formats for representing images of postcards",
 	Long:    longMessage(),
 	Version: version.Version,
@@ -42,9 +42,13 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			panic("Formats flag doesn't seem to be a string slice")
 		}
-		archival, err := cmd.Flags().GetBool("archival")
+		qualityName, err := cmd.Flags().GetString("quality")
 		if err != nil {
-			panic("Archival flag doesn't seem to be boolean")
+			panic("Quality flag doesn't seem to be a string")
+		}
+		quality, err := formats.ParseQuality(qualityName)
+		if err != nil {
+			return err
 		}
 		overwrite, err := cmd.Flags().GetBool("overwrite")
 		if err != nil {
@@ -72,7 +76,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		encOpts := formats.EncodeOptions{
-			Archival:            archival,
+			Quality:             quality,
 			IncludeSupportFiles: incSupportFiles,
 			NoTransparency:      ignoreTransparency && !removeBorder,
 		}
@@ -289,7 +293,7 @@ func registerRootFlags() {
 
 	formatsExpl := fmt.Sprintf("Formats to convert to (comma separated, any of: %s, atproto)", strings.Join(postcards.Codecs, ", "))
 	rootCmd.Flags().StringSliceP("formats", "f", []string{}, formatsExpl)
-	rootCmd.Flags().BoolP("archival", "A", false, "Turn off image resizing, use lossless compression")
+	rootCmd.Flags().StringP("quality", "Q", "efficient", "Image quality: efficient (resized for sharing), detail (higher resolution, few artefacts) or archive (full resolution, lossless)")
 	rootCmd.Flags().BoolP("remove-border", "B", false, "Attempts to turn the border around a postcard scan transparent (experimental; component input only)")
 	rootCmd.Flags().BoolP("ignore-transparency", "T", false, "Ignores any transparency in the source images")
 	rootCmd.Flags().Bool("overwrite", false, "Overwrite output files")

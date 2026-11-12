@@ -102,9 +102,12 @@ func requestToPostcard(codecChoices CodecChoices, r *http.Request) (types.Postca
 		RemoveBorder:       checkboxBool(r.FormValue("remove-border")),
 	}
 	encOpts := formats.EncodeOptions{
-		Archival: checkboxBool(r.FormValue("archival")),
 
 		IncludeSupportFiles: true,
+	}
+
+	if checkboxBool(r.FormValue("archival")) {
+		encOpts.Quality = formats.Archive
 	}
 
 	var meta types.Metadata

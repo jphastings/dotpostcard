@@ -135,7 +135,7 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 	}
 	// We can scrub the transparency data (it's represented in mesh points)
 	// And make a significantly smaller (JPEG powered) texture.
-	// We must not do this for archival requests, as it loses the transparency data forever.
+	// We must not do this for archive-quality requests, as it loses the transparency data forever.
 	textureOpts.NoTransparency = !textureOpts.WantsLossless()
 	textureOpts.IncludeSupportFiles = false
 

@@ -17,8 +17,8 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 
 	encImg := func(side image.Image) func(io.Writer) error {
 		return func(w io.Writer) error {
-			if opts != nil && opts.Archival {
-				return images.WriteWebP(w, side, nil, true, pc.Meta.HasTransparency)
+			if opts.WantsLossless() {
+				return images.WriteWebP(w, side, nil, formats.Archive, pc.Meta.HasTransparency)
 			}
 
 			startSize := side.Bounds()
@@ -41,7 +41,7 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 				side = resizedImg
 			}
 
-			return images.WriteWebP(w, side, nil, opts.Archival, pc.Meta.HasTransparency)
+			return images.WriteWebP(w, side, nil, opts.QualityLevel(), pc.Meta.HasTransparency)
 		}
 	}
 

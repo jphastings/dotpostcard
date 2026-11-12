@@ -11,13 +11,21 @@ import (
 	"image/color"
 	"image/jpeg"
 
+	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/pkg/xmpinject"
 )
 
-func WriteJPEG(w io.Writer, combinedImg image.Image, xmpData []byte, bgColor color.RGBA) error {
-	jpegOpts := &jpeg.Options{
-		Quality: 75,
+const (
+	efficientJPEGQuality = 75
+	detailJPEGQuality    = 90
+)
+
+func WriteJPEG(w io.Writer, combinedImg image.Image, xmpData []byte, bgColor color.RGBA, quality formats.Quality) error {
+	jpegQuality := efficientJPEGQuality
+	if quality == formats.Detail {
+		jpegQuality = detailJPEGQuality
 	}
+	jpegOpts := &jpeg.Options{Quality: jpegQuality}
 
 	jpgData := new(bytes.Buffer)
 	if err := jpeg.Encode(jpgData, WithBackgroundColor(combinedImg, bgColor), jpegOpts); err != nil {

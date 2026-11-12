@@ -70,7 +70,11 @@ func CompilePostcard(name, metaJSON string, front, back []byte, removeBorder, ar
 		return nil, fmt.Errorf("compiling postcard: %w", err)
 	}
 
-	fws, err := web.DefaultCodec.Encode(pc, &formats.EncodeOptions{Archival: archival})
+	quality := formats.Efficient
+	if archival {
+		quality = formats.Archive
+	}
+	fws, err := web.DefaultCodec.Encode(pc, &formats.EncodeOptions{Quality: quality})
 	if err != nil {
 		return nil, fmt.Errorf("encoding postcard: %w", err)
 	}

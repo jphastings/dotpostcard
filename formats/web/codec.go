@@ -24,7 +24,7 @@ var _ formats.Codec = codec{}
 type codec struct {
 	// This holds a list of formats, the first will be tried, and if it's unsuitable, the next etc.
 	// This is particularly useful for transparency. Eg. A `web.Codec("jpeg", "webp")` would save as jpg
-	// if there is no transparency, and WebP if there is transparency to encode, or if "archival" was
+	// if there is no transparency, and WebP if there is transparency to encode, or if archive quality was
 	// specified (as JPEG can't encode images losslessly).
 	formats []string
 	// When true, the encoder omits the trailing image-format extension so the file is named

@@ -8,6 +8,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/internal/geom3d"
 	"github.com/jphastings/dotpostcard/internal/images"
 	"github.com/jphastings/dotpostcard/types"
@@ -24,7 +25,7 @@ type svgVars struct {
 }
 
 // This keeps the whole JPEG in memory. TODO: Figure out how to do this while streaming
-func writeSVG(w io.Writer, pc types.Postcard, combinedImg image.Image, xmpData []byte, hasTransparency bool) error {
+func writeSVG(w io.Writer, pc types.Postcard, combinedImg image.Image, xmpData []byte, hasTransparency bool, quality formats.Quality) error {
 	v := svgVars{
 		size:    pc.Meta.Physical.FrontDimensions,
 		hasBack: pc.Back != nil,
@@ -53,7 +54,7 @@ func writeSVG(w io.Writer, pc types.Postcard, combinedImg image.Image, xmpData [
 
 	var buf bytes.Buffer
 	b64W := base64.NewEncoder(base64.StdEncoding, &buf)
-	if err := images.WriteJPEG(b64W, combinedImg, xmpData, pc.Meta.Physical.GetCardColor()); err != nil {
+	if err := images.WriteJPEG(b64W, combinedImg, xmpData, pc.Meta.Physical.GetCardColor(), quality); err != nil {
 		return err
 	}
 	v.b64Img = buf.String()

@@ -128,13 +128,13 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 
 		switch format {
 		case "webp":
-			err = images.WriteWebP(w, combinedImg, xmpData, opts.WantsLossless(), pc.Meta.HasTransparency)
+			err = images.WriteWebP(w, combinedImg, xmpData, opts.QualityLevel(), pc.Meta.HasTransparency)
 		case "png":
 			err = images.WritePNG(w, combinedImg, xmpData, opts.WantsLossless())
 		case "jpeg":
-			err = images.WriteJPEG(w, combinedImg, xmpData, pc.Meta.Physical.GetCardColor())
+			err = images.WriteJPEG(w, combinedImg, xmpData, pc.Meta.Physical.GetCardColor(), opts.QualityLevel())
 		case "svg":
-			err = writeSVG(w, pc, combinedImg, xmpData, pc.Meta.HasTransparency)
+			err = writeSVG(w, pc, combinedImg, xmpData, pc.Meta.HasTransparency, opts.QualityLevel())
 		default:
 			err = fmt.Errorf("unsupported output image format: %s", format)
 		}
