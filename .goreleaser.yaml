@@ -10,8 +10,7 @@ before:
     - go generate ./...
 
 builds:
-  -
-    main: ./cmd/postcards
+  - main: ./cmd/postcards
     id: postcards
     binary: postcards
     env:
@@ -27,8 +26,7 @@ builds:
       - wasm
     ldflags:
       - -s -w -X "main.Date={{.CommitDate}}"
-  -
-    main: ./cmd/fastfoto-postcards
+  - main: ./cmd/fastfoto-postcards
     id: fastfoto-postcards
     binary: fastfoto-postcards
     env:
@@ -41,8 +39,7 @@ builds:
       - arm64
     ldflags:
       - -s -w -X "main.Date={{.CommitDate}}"
-  -
-    main: ./cmd/postoffice-serviceworker
+  - main: ./cmd/postoffice-serviceworker
     id: postoffice-serviceworker
     binary: postoffice-serviceworker
     tool: tinygo
@@ -59,8 +56,7 @@ builds:
   # It's important the postoffice native binary is built after the WASM blob
   # As the WASM blob is baked into this server as part of an embed directive.
   # This needs to be done by calling goreleaser twice, specifying IDs to build.
-  -
-    main: ./cmd/postoffice
+  - main: ./cmd/postoffice
     id: postoffice
     binary: postoffice
     env:
@@ -107,27 +103,27 @@ archives:
 changelog:
   sort: asc
   groups:
-  - title: ⚠️ Breaking changes
-    regexp: "BREAKING CHANGE"
-    order: 0
-  - title: 👀 New features
-    regexp: "^feat[(\\w)]*:+.*$"
-    order: 1
-  - title: 🐛 Bug fixes
-    regexp: "^fix[(\\w)]*:+.*$"
-    order: 2
-  - title: Others
-    order: 999
+    - title: ⚠️ Breaking changes
+      regexp: "BREAKING CHANGE"
+      order: 0
+    - title: 👀 New features
+      regexp: "^feat[(\\w)]*:+.*$"
+      order: 1
+    - title: 🐛 Bug fixes
+      regexp: "^fix[(\\w)]*:+.*$"
+      order: 2
+    - title: Others
+      order: 999
   filters:
     exclude:
-    - '^docs[(\\w)]*:'
-    - '^style[(\\w)]*:'
-    - '^refactor[(\\w)]*:'
-    - '^test[(\\w)]*:'
-    - '^ci[(\\w)]*:'
-    - '^chore[(\\w)]*:'
-    - '^revert:'
-    - '^bump:'
+      - '^docs[(\\w)]*:'
+      - '^style[(\\w)]*:'
+      - '^refactor[(\\w)]*:'
+      - '^test[(\\w)]*:'
+      - '^ci[(\\w)]*:'
+      - '^chore[(\\w)]*:'
+      - "^revert:"
+      - "^bump:"
 release:
   prerelease: auto
   draft: false
@@ -140,33 +136,33 @@ release:
     - glob: ./internal/www/postoffice/wasm_exec.js
     - glob: ./internal/www/postoffice/sw.js
 homebrew_casks:
-- name: postcards
-  ids: [default]
-  repository:
-    owner: jphastings
-    name: homebrew-tools
-    token: "{{ .Env.GITHUB_TOKEN }}"
-  homepage: "https://dotpostcard.org/cli/postcards"
-  url:
-    verified: github.com/jphastings/dotpostcard
-  description: "Tool for creating digital versions of physical postcards"
-  license: "MIT"
-- name: fastfoto-postcards
-  ids: [fastfoto-postcards]
-  binaries: [fastfoto-postcards]
-  repository:
-    owner: jphastings
-    name: homebrew-tools
-    token: "{{ .Env.GITHUB_TOKEN }}"
-  homepage: "https://github.com/jphastings/dotpostcard/tree/main/cmd/fastfoto-postcards"
-  url:
-    verified: github.com/jphastings/dotpostcard
-  description: "Scan postcards from an Epson FastFoto FF-680W"
-  license: "MIT"
-  # Not notarized, so drop the quarantine flag or Gatekeeper blocks it.
-  hooks:
-    post:
-      install: |
-        if system_command("/usr/bin/xattr", args: ["-h"], print_stderr: false).exit_status == 0
-          system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/fastfoto-postcards"]
-        end
+  - name: postcards
+    ids: [default]
+    repository:
+      owner: jphastings
+      name: homebrew-tools
+      token: "{{ .Env.GITHUB_TOKEN }}"
+    homepage: "https://dotpostcard.org/cli/postcards"
+    url:
+      verified: github.com/jphastings/dotpostcard
+    description: "Tool for creating digital versions of physical postcards"
+    license: "MIT"
+  - name: fastfoto-postcards
+    ids: [fastfoto-postcards]
+    binaries: [fastfoto-postcards]
+    repository:
+      owner: jphastings
+      name: homebrew-tools
+      token: "{{ .Env.GITHUB_TOKEN }}"
+    homepage: "https://github.com/jphastings/dotpostcard/tree/main/cmd/fastfoto-postcards"
+    url:
+      verified: github.com/jphastings/dotpostcard
+    description: "Scan postcards from an Epson FastFoto FF-680W"
+    license: "MIT"
+    # Not notarized, so drop the quarantine flag or Gatekeeper blocks it.
+    hooks:
+      post:
+        install_steps: |
+          if system_command("/usr/bin/xattr", args: ["-h"], print_stderr: false).exit_status == 0
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/fastfoto-postcards"]
+          end
