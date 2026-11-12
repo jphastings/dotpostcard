@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.38.2 (2026-11-12)
+
+### Fix
+
+- use install-steps DSL in fastfoto cask
+
 ## v0.38.1 (2026-11-12)
 
 ### Fix
