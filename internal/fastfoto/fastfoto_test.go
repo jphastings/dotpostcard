@@ -23,22 +23,14 @@ import (
 
 func init() { pollInterval = 0 }
 
-func writeRaw(t *testing.T, dir string, page int, s synth) {
+func runSides(t *testing.T, dir string, sides [][]byte, mutate ...func(*Options)) (Report, error) {
 	t.Helper()
-	raw := filepath.Join(dir, "raw")
-	require.NoError(t, os.MkdirAll(raw, 0o755))
-	b, err := patchHeight(s.jpegBytes(), s.h)
-	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(filepath.Join(raw, rawName(page)), b, 0o644))
+	return runScan(t, dir, newFakeScanner(sides, -1, false), mutate...)
 }
 
-func runNoScan(t *testing.T, dir string, mutate ...func(*Options)) (Report, error) {
+func runDefaultCard(t *testing.T, dir string, mutate ...func(*Options)) (Report, error) {
 	t.Helper()
-	opts := Options{OutDir: dir, NoScan: true}
-	for _, m := range mutate {
-		m(&opts)
-	}
-	return Run(context.Background(), opts)
+	return runSides(t, dir, scanOf(defaultSynth(), defaultSynth()), mutate...)
 }
 
 func loadPNG(t *testing.T, path string) *image.NRGBA {
@@ -59,10 +51,9 @@ func TestCardRoundTripsThroughPostcardsTool(t *testing.T) {
 	dir := t.TempDir()
 	back, front := defaultSynth(), defaultSynth()
 	back.tiltDeg, front.tiltDeg = 1, -1
-	writeRaw(t, dir, 1, back)
-	writeRaw(t, dir, 2, front)
+	sides := scanOf(back, front)
 
-	report, err := runNoScan(t, dir)
+	report, err := runSides(t, dir, sides)
 	require.NoError(t, err)
 	require.Len(t, report.Cards, 1)
 
@@ -85,9 +76,8 @@ func TestTiltedCardsComeOutStraight(t *testing.T) {
 		dir := t.TempDir()
 		s := defaultSynth()
 		s.tiltDeg = tilt
-		writeRaw(t, dir, 1, s)
-		writeRaw(t, dir, 2, s)
-		_, err := runNoScan(t, dir)
+		sides := scanOf(s, s)
+		_, err := runSides(t, dir, sides)
 		require.NoError(t, err)
 
 		img := loadPNG(t, filepath.Join(dir, "0001-front.png"))
@@ -109,9 +99,8 @@ func TestStockCloseToBackingInBrightnessIsStillCard(t *testing.T) {
 	dir := t.TempDir()
 	s := defaultSynth()
 	s.paper = color.RGBA{200, 170, 142, 255} // same luminance as the backing, very different colour
-	writeRaw(t, dir, 1, s)
-	writeRaw(t, dir, 2, s)
-	report, err := runNoScan(t, dir)
+	sides := scanOf(s, s)
+	report, err := runSides(t, dir, sides)
 	require.NoError(t, err)
 
 	assert.InDelta(t, 5.0, report.Cards[0].WidthCm, 0.1)
@@ -124,9 +113,8 @@ func TestShadowBeyondTheEdgeIsNotCard(t *testing.T) {
 	dir := t.TempDir()
 	s := defaultSynth()
 	s.shadow = true
-	writeRaw(t, dir, 1, s)
-	writeRaw(t, dir, 2, s)
-	report, err := runNoScan(t, dir)
+	sides := scanOf(s, s)
+	report, err := runSides(t, dir, sides)
 	require.NoError(t, err)
 	assert.InDelta(t, 3.4, report.Cards[0].HeightCm, 0.1)
 }
@@ -135,9 +123,8 @@ func TestShadowAlongSidesDoesNotSoftenTheEdge(t *testing.T) {
 	dir := t.TempDir()
 	s := defaultSynth()
 	s.sideShadow, s.chromaNoise = true, 4
-	writeRaw(t, dir, 1, s)
-	writeRaw(t, dir, 2, s)
-	report, err := runNoScan(t, dir)
+	sides := scanOf(s, s)
+	report, err := runSides(t, dir, sides)
 	require.NoError(t, err)
 	assert.InDelta(t, 5.0, report.Cards[0].WidthCm, 0.15)
 
@@ -169,9 +156,8 @@ func TestPinkedEdgeKeepsItsTeethOnBothSides(t *testing.T) {
 	dir := t.TempDir()
 	s := defaultSynth()
 	s.zigzagPx = 14
-	writeRaw(t, dir, 1, s)
-	writeRaw(t, dir, 2, s)
-	_, err := runNoScan(t, dir)
+	sides := scanOf(s, s)
+	_, err := runSides(t, dir, sides)
 	require.NoError(t, err)
 
 	for _, side := range []string{"front", "back"} {
@@ -198,9 +184,8 @@ func TestDarkFrontBesideShadowBandsFollowsTheLightBack(t *testing.T) {
 	back, front := defaultSynth(), defaultSynth()
 	front.paper = color.RGBA{55, 55, 55, 255} // no step between this and the band beside it
 	back.bandPx, front.bandPx = [2]int{14, 14}, [2]int{14, 14}
-	writeRaw(t, dir, 1, back)
-	writeRaw(t, dir, 2, front)
-	report, err := runNoScan(t, dir)
+	sides := scanOf(back, front)
+	report, err := runSides(t, dir, sides)
 	require.NoError(t, err)
 	assert.Empty(t, report.Cards[0].Flags)
 
@@ -225,9 +210,8 @@ func TestSidesOffsetByAShadowBandAreRegistered(t *testing.T) {
 	dir := t.TempDir()
 	back, front := defaultSynth(), defaultSynth()
 	front.bandPx = [2]int{14, 0} // widens only the front's measured box, so its canvas sits 7px off the back's
-	writeRaw(t, dir, 1, back)
-	writeRaw(t, dir, 2, front)
-	_, err := runNoScan(t, dir)
+	sides := scanOf(back, front)
+	_, err := runSides(t, dir, sides)
 	require.NoError(t, err)
 
 	img := loadPNG(t, filepath.Join(dir, "0001-front.png"))
@@ -250,9 +234,8 @@ func TestBackingShadowedButRedderIsNotCard(t *testing.T) {
 	dir := t.TempDir()
 	s := defaultSynth()
 	s.redShadow = true
-	writeRaw(t, dir, 1, s)
-	writeRaw(t, dir, 2, s)
-	report, err := runNoScan(t, dir)
+	sides := scanOf(s, s)
+	report, err := runSides(t, dir, sides)
 	require.NoError(t, err)
 
 	img := loadPNG(t, filepath.Join(dir, "0001-front.png"))
@@ -265,9 +248,8 @@ func TestPrintingGreyerThanBackingUpToTheEdgeIsStillCard(t *testing.T) {
 	dir := t.TempDir()
 	s := defaultSynth()
 	s.edgeDots = true
-	writeRaw(t, dir, 1, s)
-	writeRaw(t, dir, 2, s)
-	_, err := runNoScan(t, dir)
+	sides := scanOf(s, s)
+	_, err := runSides(t, dir, sides)
 	require.NoError(t, err)
 
 	img := loadPNG(t, filepath.Join(dir, "0001-front.png"))
@@ -283,9 +265,8 @@ func TestFrontAlphaIsTheBacksMirrored(t *testing.T) {
 	back.tiltDeg, front.tiltDeg = 1, -1
 	front.bandPx = [2]int{14, 0}
 	back.zigzagPx = 14
-	writeRaw(t, dir, 1, back)
-	writeRaw(t, dir, 2, front)
-	_, err := runNoScan(t, dir)
+	sides := scanOf(back, front)
+	_, err := runSides(t, dir, sides)
 	require.NoError(t, err)
 
 	f, b := loadPNG(t, filepath.Join(dir, "0001-front.png")), loadPNG(t, filepath.Join(dir, "0001-back.png"))
@@ -302,9 +283,8 @@ func TestCardDarkOnBothSidesFallsBackAndFlagsUncertainEdges(t *testing.T) {
 	dir := t.TempDir()
 	s := defaultSynth()
 	s.paper = color.RGBA{50, 50, 50, 255}
-	writeRaw(t, dir, 1, s)
-	writeRaw(t, dir, 2, s)
-	report, err := runNoScan(t, dir)
+	sides := scanOf(s, s)
+	report, err := runSides(t, dir, sides)
 	require.NoError(t, err)
 	assert.InDelta(t, 5.0, report.Cards[0].WidthCm, 0.1)
 	assert.Contains(t, strings.Join(report.Cards[0].Flags, "\n"), "uncertain")
@@ -315,14 +295,14 @@ func TestSkewedCardIsSetAsideForRescan(t *testing.T) {
 	s := defaultSynth()
 	s.heightCm = 4
 	s.tiltDeg = 6
-	writeRaw(t, dir, 1, s)
-	writeRaw(t, dir, 2, s)
+	sides := scanOf(s, s)
 	described := false
-	opts := Options{OutDir: dir, NoScan: true, Describe: func(context.Context, image.Image, image.Image) (Description, error) {
-		described = true
-		return Description{}, nil
-	}}
-	report, err := Run(context.Background(), opts)
+	report, err := runSides(t, dir, sides, func(o *Options) {
+		o.Describe = func(context.Context, image.Image, image.Image) (Description, error) {
+			described = true
+			return Description{}, nil
+		}
+	})
 	require.NoError(t, err)
 	assert.True(t, report.Cards[0].Rescan)
 	assert.False(t, described)
@@ -334,17 +314,12 @@ func TestSkewedCardIsSetAsideForRescan(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoFileExists(t, filepath.Join(dir, "0001-front.png"))
 	assert.NoFileExists(t, filepath.Join(dir, "0001-meta.yaml"))
-
-	report, err = Run(context.Background(), opts)
-	require.NoError(t, err)
-	assert.Empty(t, report.Cards)
 }
 
 func TestTiltedCardInACroppedFrameIsMeasuredWhole(t *testing.T) {
 	dir := t.TempDir()
-	writeRaw(t, dir, 1, croppedSynth(5, 3.4, 2.5, 115))
-	writeRaw(t, dir, 2, croppedSynth(5, 3.4, -2.5, 115))
-	report, err := runNoScan(t, dir)
+	sides := scanOf(croppedSynth(5, 3.4, 2.5, 115), croppedSynth(5, 3.4, -2.5, 115))
+	report, err := runSides(t, dir, sides)
 	require.NoError(t, err)
 	require.Len(t, report.Cards, 1)
 	assert.False(t, report.Cards[0].Rescan)
@@ -363,9 +338,8 @@ func TestSlightlySkewedCardIsNotWarnedAbout(t *testing.T) {
 	dir := t.TempDir()
 	s := defaultSynth()
 	s.tiltDeg = 1
-	writeRaw(t, dir, 1, s)
-	writeRaw(t, dir, 2, s)
-	report, err := runNoScan(t, dir)
+	sides := scanOf(s, s)
+	report, err := runSides(t, dir, sides)
 	require.NoError(t, err)
 	assert.Empty(t, report.Cards[0].Flags)
 	assert.False(t, report.Cards[0].Rescan)
@@ -375,9 +349,8 @@ func TestDarkRowsAtFrameTopAndBottomAreNotTheCard(t *testing.T) {
 	dir := t.TempDir()
 	s := defaultSynth()
 	s.frameBandPx = 8
-	writeRaw(t, dir, 1, s)
-	writeRaw(t, dir, 2, s)
-	report, err := runNoScan(t, dir)
+	sides := scanOf(s, s)
+	report, err := runSides(t, dir, sides)
 	require.NoError(t, err)
 	assert.Empty(t, report.Cards[0].Flags)
 	assert.InDelta(t, 5.0, report.Cards[0].WidthCm, 0.1)
@@ -389,14 +362,13 @@ func TestShingledDoubleFeedIsFlagged(t *testing.T) {
 	s := defaultSynth()
 	s.w, s.h = 3200, 1700
 	s.doubleFeed = true
-	writeRaw(t, dir, 1, s)
-	writeRaw(t, dir, 2, s)
-	report, err := runNoScan(t, dir)
+	sides := scanOf(s, s)
+	report, err := runSides(t, dir, sides)
 	require.NoError(t, err)
 	assert.Contains(t, strings.Join(report.Cards[0].Flags, "\n"), "double-feed")
 }
 
-func TestFirstSideChoosesWhichPageIsTheFront(t *testing.T) {
+func TestTopSideChoosesWhichScanIsTheFront(t *testing.T) {
 	red, blue := defaultSynth(), defaultSynth()
 	red.paper, blue.paper = color.RGBA{230, 60, 60, 255}, color.RGBA{60, 60, 230, 255}
 
@@ -406,37 +378,16 @@ func TestFirstSideChoosesWhichPageIsTheFront(t *testing.T) {
 	}
 
 	dir := t.TempDir()
-	writeRaw(t, dir, 1, red)
-	writeRaw(t, dir, 2, blue)
-	_, err := runNoScan(t, dir)
+	sides := scanOf(red, blue)
+	_, err := runSides(t, dir, sides)
 	require.NoError(t, err)
-	assert.Greater(t, centre(dir, "0001-front.png").B, uint8(200), "second page is the front by default")
+	assert.Greater(t, centre(dir, "0001-front.png").B, uint8(200), "second scan is the front by default")
 
 	dir = t.TempDir()
-	writeRaw(t, dir, 1, red)
-	writeRaw(t, dir, 2, blue)
-	_, err = runNoScan(t, dir, func(o *Options) { o.FirstSideFront = true })
+	sides = scanOf(red, blue)
+	_, err = runSides(t, dir, sides, func(o *Options) { o.TopSideFront = true })
 	require.NoError(t, err)
 	assert.Greater(t, centre(dir, "0001-front.png").R, uint8(200))
-}
-
-func TestNoScanOnlyFinishesUnfinishedCards(t *testing.T) {
-	dir := t.TempDir()
-	s := defaultSynth()
-	writeRaw(t, dir, 1, s)
-	writeRaw(t, dir, 2, s)
-	first, err := runNoScan(t, dir)
-	require.NoError(t, err)
-	require.Len(t, first.Cards, 1)
-
-	again, err := runNoScan(t, dir)
-	require.NoError(t, err)
-	assert.Empty(t, again.Cards, "a finished card is left alone")
-
-	require.NoError(t, os.Remove(filepath.Join(dir, "0001-meta.yaml")))
-	resumed, err := runNoScan(t, dir)
-	require.NoError(t, err)
-	assert.Len(t, resumed.Cards, 1, "a card without metadata is redone")
 }
 
 func scanOf(sides ...synth) [][]byte {
@@ -449,47 +400,31 @@ func scanOf(sides ...synth) [][]byte {
 
 func runScan(t *testing.T, dir string, scanner *fakeScanner, mutate ...func(*Options)) (Report, error) {
 	t.Helper()
-	return runNoScanWith(dir, func(o *Options) {
-		o.NoScan = false
-		o.Open = func() (Transport, error) { return scanner, nil }
-		for _, m := range mutate {
-			m(o)
-		}
-	})
-}
-
-func runNoScanWith(dir string, mutate func(*Options)) (Report, error) {
-	opts := Options{OutDir: dir}
-	mutate(&opts)
+	opts := Options{OutDir: dir, Open: func() (Transport, error) { return scanner, nil }}
+	for _, m := range mutate {
+		m(&opts)
+	}
 	return Run(context.Background(), opts)
 }
 
-func TestScannedSidesAreSavedWithTheirRealHeight(t *testing.T) {
+func TestScannedSidesBecomeACardWhateverOrderTheirMarkersArrive(t *testing.T) {
 	for _, typAfterPst := range []bool{false, true} {
 		dir := t.TempDir()
-		s, red, blue := defaultSynth(), defaultSynth(), defaultSynth()
+		red, blue := defaultSynth(), defaultSynth()
 		red.paper, blue.paper = color.RGBA{230, 60, 60, 255}, color.RGBA{60, 60, 230, 255}
 		scanner := newFakeScanner(scanOf(red, blue), -1, typAfterPst)
 		report, err := runScan(t, dir, scanner)
 		require.NoError(t, err)
 		require.Len(t, report.Cards, 1)
 		assert.True(t, scanner.sentFIN())
+		assert.InDelta(t, 3.4, report.Cards[0].HeightCm, 0.1, "the scanner's claimed height is replaced by the real one")
 
-		for page, wantRed := range map[int]bool{1: true, 2: false} {
-			raw, err := os.ReadFile(filepath.Join(dir, "raw", rawName(page)))
-			require.NoError(t, err)
-			cfg, err := jpeg.DecodeConfig(bytes.NewReader(raw))
-			require.NoError(t, err)
-			assert.Equal(t, s.h, cfg.Height)
-			fr, err := decodeFrame(bytes.NewReader(raw))
-			require.NoError(t, err)
-			centre := fr.at(fr.w/2, fr.h/2)
-			assert.Equal(t, wantRed, centre[0] > centre[2], "side A is page 1, side B page 2")
-		}
+		img := loadPNG(t, filepath.Join(dir, "0001-front.png"))
+		assert.Greater(t, img.NRGBAAt(img.Bounds().Dx()/2, img.Bounds().Dy()/2).B, uint8(200), "side B is the front by default")
 	}
 }
 
-func TestJamKeepsGoodCardsAndTheOrphanThenLaterStacksContinue(t *testing.T) {
+func TestJamKeepsGoodCardsDropsTheLoneSideThenLaterStacksContinue(t *testing.T) {
 	dir := t.TempDir()
 	s := defaultSynth()
 	scanner := newFakeScanner(scanOf(s, s, s, s), 3, false)
@@ -498,9 +433,9 @@ func TestJamKeepsGoodCardsAndTheOrphanThenLaterStacksContinue(t *testing.T) {
 	require.ErrorIs(t, err, ErrJam)
 	assert.True(t, scanner.sentFIN(), "the scanner is released even after a failure")
 	require.Len(t, report.Cards, 1)
-	assert.Equal(t, []int{3}, report.Orphans)
+	assert.True(t, report.Unpaired)
 	assert.FileExists(t, filepath.Join(dir, "0001-meta.yaml"))
-	assert.FileExists(t, filepath.Join(dir, "raw", rawName(3)))
+	assert.NoFileExists(t, filepath.Join(dir, "0002-meta.yaml"))
 
 	before, err := os.ReadFile(filepath.Join(dir, "0001-front.png"))
 	require.NoError(t, err)
@@ -508,7 +443,7 @@ func TestJamKeepsGoodCardsAndTheOrphanThenLaterStacksContinue(t *testing.T) {
 	next, err := runScan(t, dir, newFakeScanner(scanOf(s, s), -1, false))
 	require.NoError(t, err)
 	require.Len(t, next.Cards, 1)
-	assert.Equal(t, 3, next.Cards[0].Number, "card numbers carry on past the orphan's")
+	assert.Equal(t, 2, next.Cards[0].Number)
 	after, err := os.ReadFile(filepath.Join(dir, "0001-front.png"))
 	require.NoError(t, err)
 	assert.Equal(t, before, after, "earlier cards are never overwritten")
@@ -523,7 +458,7 @@ func TestStoppingBeforeFeedingLeavesNothingHalfScanned(t *testing.T) {
 	report, err := runScan(t, dir, scanner, func(o *Options) { o.Stop = stop })
 	require.NoError(t, err)
 	assert.Empty(t, report.Cards)
-	assert.Empty(t, report.Orphans)
+	assert.False(t, report.Unpaired)
 	assert.NotContains(t, scanner.Sent, "IMG", "nothing is fed once stopped")
 	assert.True(t, scanner.sentFIN())
 }
@@ -531,9 +466,8 @@ func TestStoppingBeforeFeedingLeavesNothingHalfScanned(t *testing.T) {
 func TestSizesMeasuredAlongTheFeedAreScaled(t *testing.T) {
 	dir := t.TempDir()
 	s := defaultSynth()
-	writeRaw(t, dir, 1, s)
-	writeRaw(t, dir, 2, s)
-	report, err := runNoScan(t, dir, func(o *Options) { o.FeedScale = 1.25 })
+	sides := scanOf(s, s)
+	report, err := runSides(t, dir, sides, func(o *Options) { o.FeedScale = 1.25 })
 	require.NoError(t, err)
 	assert.InDelta(t, 3.4*1.25, report.Cards[0].HeightCm, 0.1)
 	assert.InDelta(t, 5.0, report.Cards[0].WidthCm, 0.1)
@@ -575,13 +509,13 @@ func sideReplies(jpeg []byte, letter string, extraEnd ...string) []fakeReply {
 	}
 }
 
-func TestErrorSharingAReplyWithTheEndOfASideStillSavesThatSide(t *testing.T) {
+func TestErrorSharingAReplyWithTheEndOfASideStillDeliversThatSide(t *testing.T) {
 	dir := t.TempDir()
 	jpegA := defaultSynth().jpegBytes()
 	scanner := &fakeScanner{replies: sideReplies(jpegA, "A", "errADF PJ")}
-	_, err := runScan(t, dir, scanner)
+	report, err := runScan(t, dir, scanner)
 	require.ErrorIs(t, err, ErrJam)
-	assert.FileExists(t, filepath.Join(dir, "raw", rawName(1)))
+	assert.True(t, report.Unpaired, "the side arrived, but has no partner")
 }
 
 func TestLostOrMisorderedSidesAreErrors(t *testing.T) {
@@ -604,9 +538,9 @@ func TestLostOrMisorderedSidesAreErrors(t *testing.T) {
 
 func TestFailedCardBuildStillFailsTheRunAfterAScanError(t *testing.T) {
 	dir := t.TempDir()
-	writeRaw(t, dir, 2, defaultSynth())
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "raw", rawName(1)), []byte("not a jpeg"), 0o644))
-	report, err := runScan(t, dir, newFakeScanner(nil, 0, false))
+	good := defaultSynth().jpegBytes()
+	truncated := good[:len(good)/2]
+	report, err := runScan(t, dir, newFakeScanner([][]byte{truncated, good, good}, 2, false))
 	require.ErrorIs(t, err, ErrJam)
 	assert.ErrorContains(t, err, "card 0001")
 	require.Len(t, report.Cards, 1)
@@ -615,9 +549,7 @@ func TestFailedCardBuildStillFailsTheRunAfterAScanError(t *testing.T) {
 
 func TestCreatedFilesAreWorldReadable(t *testing.T) {
 	dir := t.TempDir()
-	writeRaw(t, dir, 1, defaultSynth())
-	writeRaw(t, dir, 2, defaultSynth())
-	_, err := runNoScan(t, dir)
+	_, err := runDefaultCard(t, dir)
 	require.NoError(t, err)
 	info, err := os.Stat(filepath.Join(dir, "0001-front.png"))
 	require.NoError(t, err)
@@ -626,7 +558,7 @@ func TestCreatedFilesAreWorldReadable(t *testing.T) {
 
 func TestNonPositiveFeedScaleIsRejected(t *testing.T) {
 	for _, scale := range []float64{-1, math.NaN(), math.Inf(1)} {
-		_, err := runNoScan(t, t.TempDir(), func(o *Options) { o.FeedScale = scale })
+		_, err := runSides(t, t.TempDir(), scanOf(defaultSynth(), defaultSynth()), func(o *Options) { o.FeedScale = scale })
 		assert.Error(t, err)
 	}
 }
@@ -634,14 +566,13 @@ func TestNonPositiveFeedScaleIsRejected(t *testing.T) {
 func TestUntiltedCardKeepsItsExactSourcePixels(t *testing.T) {
 	dir := t.TempDir()
 	s := defaultSynth()
-	writeRaw(t, dir, 1, s)
-	writeRaw(t, dir, 2, s)
-	_, err := runNoScan(t, dir)
+	sides := scanOf(s, s)
+	_, err := runSides(t, dir, sides)
 	require.NoError(t, err)
 
-	raw, err := os.ReadFile(filepath.Join(dir, "raw", rawName(2)))
+	patched, err := patchHeight(sides[1], s.h)
 	require.NoError(t, err)
-	src, err := decodeFrame(bytes.NewReader(raw))
+	src, err := decodeFrame(bytes.NewReader(patched))
 	require.NoError(t, err)
 	out := loadPNG(t, filepath.Join(dir, "0001-front.png"))
 	b := out.Bounds()
@@ -666,11 +597,9 @@ func TestUntiltedCardKeepsItsExactSourcePixels(t *testing.T) {
 	assert.True(t, found, "interior pixels are copied, not blended with neighbours")
 }
 
-func writeSmallCard(t *testing.T, dir string) {
-	t.Helper()
+func smallCard() [][]byte {
 	s := croppedSynth(5, 3.4, 0, 115)
-	writeRaw(t, dir, 1, s)
-	writeRaw(t, dir, 2, s)
+	return scanOf(s, s)
 }
 
 func componentFiles(t *testing.T, dir string) []string {
@@ -680,27 +609,59 @@ func componentFiles(t *testing.T, dir string) []string {
 	return got
 }
 
-func TestFormatsWithoutComponentLeaveNoComponentsInOutDirAndResumeSkipsTheCard(t *testing.T) {
+func TestFormatsWithoutComponentLeaveNoComponentsOrTempDirInOutDir(t *testing.T) {
 	dir := t.TempDir()
-	writeSmallCard(t, dir)
-	opts := func(o *Options) { o.Formats = []string{"web"} }
-
-	_, err := runNoScan(t, dir, opts)
+	_, err := runSides(t, dir, smallCard(), func(o *Options) { o.Formats = []string{"web"} })
 	require.NoError(t, err)
-	assert.Empty(t, componentFiles(t, dir))
-	staged, _ := filepath.Glob(filepath.Join(dir, "raw", "0001-*"))
-	assert.Equal(t, []string{filepath.Join(dir, "raw", "0001-meta.yaml")}, staged)
 
-	rep, err := runNoScan(t, dir, opts)
+	entries, err := os.ReadDir(dir)
 	require.NoError(t, err)
-	assert.Empty(t, rep.Cards)
+	require.Len(t, entries, 1)
+	assert.Equal(t, "0001.postcard.jpeg", entries[0].Name())
+}
+
+func TestFailedConversionKeepsTheStagedComponentsInOutDir(t *testing.T) {
+	dir := t.TempDir()
+	report, err := runSides(t, dir, smallCard(), func(o *Options) {
+		o.Formats = []string{"web"}
+		// Taking the output's name after the card is numbered makes its conversion fail.
+		o.Describe = func(context.Context, image.Image, image.Image) (Description, error) {
+			return Description{}, os.Mkdir(filepath.Join(dir, "0001.postcard.jpeg"), 0o755)
+		}
+	})
+	require.Error(t, err)
+	assert.Contains(t, report.Cards[0].ConvertErr.Error(), "kept in "+dir)
+	assert.Len(t, componentFiles(t, dir), 3)
+	hidden, _ := filepath.Glob(filepath.Join(dir, ".fastfoto-*"))
+	assert.Empty(t, hidden)
+}
+
+func TestNumberingContinuesAfterAnyFileAlreadyInOutDir(t *testing.T) {
+	for _, existing := range []string{"0003-meta.yaml", "0003.postcard.webp", "0003.html", "for-rescan-0003.jpg"} {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, existing), nil, 0o644))
+		report, err := runSides(t, dir, smallCard())
+		require.NoError(t, err)
+		require.Len(t, report.Cards, 1)
+		assert.Equal(t, 4, report.Cards[0].Number, existing)
+		assert.FileExists(t, filepath.Join(dir, "0004-front.png"))
+	}
+}
+
+func TestALoneTrailingSideIsReportedAndNotWritten(t *testing.T) {
+	dir := t.TempDir()
+	s := croppedSynth(5, 3.4, 0, 115)
+	report, err := runScan(t, dir, newFakeScanner(scanOf(s, s, s), -1, false))
+	require.Error(t, err)
+	assert.True(t, report.Unpaired)
+	require.Len(t, report.Cards, 1)
+	assert.NoFileExists(t, filepath.Join(dir, "0002-front.png"))
 }
 
 func TestFormatsWithComponentKeepComponentsInOutDir(t *testing.T) {
 	dir := t.TempDir()
-	writeSmallCard(t, dir)
 
-	_, err := runNoScan(t, dir, func(o *Options) { o.Formats = []string{"web", "component"} })
+	_, err := runSides(t, dir, smallCard(), func(o *Options) { o.Formats = []string{"web", "component"} })
 	require.NoError(t, err)
 
 	assert.Len(t, componentFiles(t, dir), 3)
@@ -710,9 +671,8 @@ func TestFormatsWithComponentKeepComponentsInOutDir(t *testing.T) {
 
 func TestFormatsConvertEachBuiltCard(t *testing.T) {
 	dir := t.TempDir()
-	writeSmallCard(t, dir)
 
-	rep, err := runNoScan(t, dir, func(o *Options) { o.Formats = []string{"web"} })
+	rep, err := runSides(t, dir, smallCard(), func(o *Options) { o.Formats = []string{"web"} })
 	require.NoError(t, err)
 	require.Len(t, rep.Cards, 1)
 
@@ -729,11 +689,10 @@ func TestFormatsConvertEachBuiltCard(t *testing.T) {
 
 func TestConvertingLeavesAnExistingSharedFileAlone(t *testing.T) {
 	dir := t.TempDir()
-	writeSmallCard(t, dir)
 	css := filepath.Join(dir, "postcards.css")
 	require.NoError(t, os.WriteFile(css, []byte("hand-edited"), 0o644))
 
-	_, err := runNoScan(t, dir, func(o *Options) { o.Formats = []string{"web", "css"} })
+	_, err := runSides(t, dir, smallCard(), func(o *Options) { o.Formats = []string{"web", "css"} })
 	require.NoError(t, err)
 
 	got, err := os.ReadFile(css)
@@ -750,4 +709,11 @@ func TestUnknownFormatFailsBeforeScanning(t *testing.T) {
 	})
 	assert.Error(t, err)
 	assert.False(t, opened)
+}
+
+func TestArchivalWebOutputIsLosslessWebP(t *testing.T) {
+	dir := t.TempDir()
+	_, err := runSides(t, dir, smallCard(), func(o *Options) { o.Formats = []string{"web"}; o.Archival = true })
+	require.NoError(t, err)
+	assert.FileExists(t, filepath.Join(dir, "0001.postcard.webp"), "JPEG can't be lossless")
 }

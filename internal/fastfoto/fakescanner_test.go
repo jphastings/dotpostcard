@@ -40,7 +40,7 @@ func newFakeScanner(sides [][]byte, jamAfter int, typAfterPst bool) *fakeScanner
 			tokens = []string{start, letter}
 		}
 		half := len(jpeg) / 2
-		end := []string{fmt.Sprintf("peni0001700i%07d", 920)}
+		end := []string{fmt.Sprintf("peni0001700i%07d", realHeight(jpeg))}
 		if i == len(sides)-1 {
 			end = append(end, "lftd000")
 		}
@@ -120,4 +120,14 @@ func (f *fakeScanner) Close() error { f.closed = true; return nil }
 
 func (f *fakeScanner) sentFIN() bool {
 	return len(f.Sent) > 0 && f.Sent[len(f.Sent)-1] == "FIN"
+}
+
+// realHeight reads the height that synth.jpegBytes records, as the scanner reports it at the end of a side.
+func realHeight(jpeg []byte) int {
+	if len(jpeg) > 6 && jpeg[2] == 0xFF && jpeg[3] == 0xFE {
+		if h, err := strconv.Atoi(strings.TrimPrefix(string(jpeg[6:4+int(jpeg[5])]), "h=")); err == nil {
+			return h
+		}
+	}
+	return 920
 }
