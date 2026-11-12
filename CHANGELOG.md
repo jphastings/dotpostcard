@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.37.0 (2026-11-12)
+
+### Feat
+
+- only write components when -f asks for them
+
 ## v0.36.0 (2026-11-12)
 
 ### Feat
