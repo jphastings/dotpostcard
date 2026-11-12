@@ -1,6 +1,9 @@
 package postcards
 
 import (
+	"io"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/jphastings/dotpostcard/formats"
@@ -53,4 +56,27 @@ func TestOutputNamesPredictEncodedFilenames(t *testing.T) {
 			})
 		}
 	}
+}
+
+func TestUSDZEncodeDoesNotAlterSharedOptions(t *testing.T) {
+	pc := testhelpers.HeterorientedLeftHand()
+	codecs, _, err := CodecsByFormat([]string{"usdz", "web"})
+	assert.NoError(t, err)
+	usdzCodec, webCodec := codecs[0], codecs[1]
+	opts := &formats.EncodeOptions{IncludeSupportFiles: true}
+
+	usdzFWs, err := usdzCodec.Encode(pc, opts)
+	assert.NoError(t, err)
+	for _, fw := range usdzFWs {
+		assert.NoError(t, fw.WriteTo(io.Discard))
+	}
+
+	webFWs, err := webCodec.Encode(pc, opts)
+	assert.NoError(t, err)
+	var names []string
+	for _, fw := range webFWs {
+		names = append(names, fw.Filename)
+	}
+	assert.True(t, slices.ContainsFunc(names, func(n string) bool { return strings.HasSuffix(n, ".webp") }), "web output lost its transparent webp: %v", names)
+	assert.True(t, slices.ContainsFunc(names, func(n string) bool { return strings.HasSuffix(n, ".html") }), "web output lost its html support file: %v", names)
 }
