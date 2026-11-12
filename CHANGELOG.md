@@ -383,6 +383,16 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.39.0 (2026-11-12)
+
+### BREAKING CHANGE
+
+- `-A/--archival` is gone; use `--quality archive`.
+
+### Feat
+
+- replace --archival with --quality levels
+
 ## v0.38.2 (2026-11-12)
 
 ### Fix
