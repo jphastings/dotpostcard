@@ -33,6 +33,7 @@ import (
 
 const (
 	DefaultCardThreshold = 24
+	lowDiskBytes         = 1_000_000_000
 	workers              = 2
 	maxInFlight          = 6
 )
@@ -63,6 +64,9 @@ type Options struct {
 	OnStart func(formats int)
 	// OnCard is called as each card finishes, in the order they finish and never concurrently.
 	OnCard func(CardResult)
+	// OnScannerStopped is called once Stop has halted the scanner and released it, with how
+	// many scanned cards are still being processed.
+	OnScannerStopped func(unsaved int)
 }
 
 // Output is something written, or uploaded, for a card.
@@ -109,6 +113,12 @@ type Report struct {
 	// Unpaired is set when the scan ended with one side of a card and not its partner. That
 	// side is dropped, and the card needs feeding again.
 	Unpaired bool
+	// StoppedMidCard is set when the user stopped while a card was part-scanned; it was dropped.
+	StoppedMidCard bool
+	// Interrupted is set when the run's context was cancelled: cards not yet written were
+	// dropped, and Discarded counts the scanned ones among them.
+	Interrupted bool
+	Discarded   int
 }
 
 var (
@@ -127,8 +137,11 @@ type run struct {
 
 	mu      sync.Mutex
 	results []CardResult
-	wg      sync.WaitGroup
-	slots   chan struct{}
+	// pending is how many scanned cards haven't yet been written or dropped.
+	pending   int
+	discarded int
+	wg        sync.WaitGroup
+	slots     chan struct{}
 	// inflight bounds how many decoded cards are held in memory, including those waiting on the LLM.
 	inflight chan struct{}
 	// llmSlots is separate so slow model calls never hold up image processing.
@@ -168,6 +181,9 @@ func Run(ctx context.Context, opts Options) (Report, error) {
 	if opts.OnCard == nil {
 		opts.OnCard = func(CardResult) {}
 	}
+	if opts.OnScannerStopped == nil {
+		opts.OnScannerStopped = func(int) {}
+	}
 	if opts.Describe == nil && opts.LLM.Backend != "" {
 		d, err := describe.New(ctx, opts.LLM)
 		if err != nil {
@@ -194,20 +210,33 @@ func Run(ctx context.Context, opts Options) (Report, error) {
 	if err != nil {
 		return Report{}, err
 	}
+	if free, ok := freeBytes(opts.OutDir); ok && free < lowDiskBytes {
+		r.log("⚠︎ Only %.1f GB free on this disk; each postcard needs about 40 MB while it's being processed", float64(free)/1e9)
+	}
 
-	unpaired, scanErr := r.scan(ctx, highest)
+	unpaired, cutShort, scanErr := r.scan(ctx, highest)
 	r.wg.Wait()
 
 	report := r.report()
 	report.Unpaired = unpaired
-	errs := []error{scanErr}
+	report.StoppedMidCard = cutShort
+	report.Interrupted = ctx.Err() != nil
+	report.Discarded = r.discarded
+	if report.Interrupted && errors.Is(scanErr, ctx.Err()) {
+		scanErr = nil
+	}
+	problems := 0
 	for _, c := range report.Cards {
-		if c.Err != nil {
-			errs = append(errs, fmt.Errorf("card %s: %w", c.Name, c.Err))
+		if c.Err != nil || c.ConvertErr != nil {
+			problems++
 		}
-		if c.ConvertErr != nil {
-			errs = append(errs, fmt.Errorf("card %s: %w", c.Name, c.ConvertErr))
-		}
+	}
+	errs := []error{scanErr}
+	switch {
+	case problems == 1:
+		errs = append(errs, errors.New("1 postcard had a problem; see above"))
+	case problems > 1:
+		errs = append(errs, fmt.Errorf("%d postcards had problems; see above", problems))
 	}
 	return report, errors.Join(errs...)
 }
@@ -229,17 +258,17 @@ func (r *run) highestUsed() (highest int, err error) {
 
 // scan feeds the stack, queueing a card whenever its second side lands. New cards number on
 // from highest. unpaired is whether a side was left without its partner.
-func (r *run) scan(ctx context.Context, highest int) (unpaired bool, err error) {
+func (r *run) scan(ctx context.Context, highest int) (unpaired, cutShort bool, err error) {
 	t, err := r.opts.Open()
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 	defer t.Close()
 	r.opts.OnStart(r.formatCount())
 
 	var first []byte
 	s := &session{t: t, log: func(msg string) { r.log("%s", msg) }}
-	err = s.feed(ctx, r.opts.Stop, func(jpeg []byte) error {
+	cutShort, err = s.feed(ctx, r.opts.Stop, func(jpeg []byte) error {
 		if first == nil {
 			first = jpeg
 			return nil
@@ -249,10 +278,16 @@ func (r *run) scan(ctx context.Context, highest int) (unpaired bool, err error) 
 		first = nil
 		return nil
 	})
-	if first != nil {
+	if first != nil && !cutShort {
 		r.log("a side has no partner and is dropped: feed its card again")
 	}
-	return first != nil, err
+	if r.opts.Stop.Err() != nil && ctx.Err() == nil {
+		r.mu.Lock()
+		unsaved := r.pending
+		r.mu.Unlock()
+		r.opts.OnScannerStopped(unsaved)
+	}
+	return first != nil && !cutShort, cutShort, err
 }
 
 // process queues a card on the worker pool, which never blocks the caller.
@@ -260,17 +295,25 @@ func (r *run) scan(ctx context.Context, highest int) (unpaired bool, err error) 
 // hard bound on the queue. Bound it (block feed's callback) if scans outrun processing for long.
 func (r *run) process(card int, sides [2][]byte) {
 	r.wg.Add(1)
+	r.mu.Lock()
+	r.pending++
+	r.mu.Unlock()
 	go func() {
 		defer r.wg.Done()
 		r.inflight <- struct{}{}
 		defer func() { <-r.inflight }()
 		start := time.Now()
-		res := r.buildOne(card, sides)
+		res, dropped := r.buildOne(card, sides)
 		res.Elapsed = time.Since(start)
 		r.mu.Lock()
+		defer r.mu.Unlock()
+		r.pending--
+		if dropped {
+			r.discarded++
+			return
+		}
 		r.results = append(r.results, res)
 		r.opts.OnCard(res)
-		r.mu.Unlock()
 	}()
 }
 
@@ -286,7 +329,8 @@ func (r *run) formatCount() int {
 	return n
 }
 
-func (r *run) buildOne(number int, sides [2][]byte) (res CardResult) {
+// buildOne makes one card. dropped is set when the run was aborted before the card was written.
+func (r *run) buildOne(number int, sides [2][]byte) (res CardResult, dropped bool) {
 	res = CardResult{Number: number, Name: cardName(number)}
 	defer func() {
 		if p := recover(); p != nil {
@@ -294,6 +338,9 @@ func (r *run) buildOne(number int, sides [2][]byte) (res CardResult) {
 		}
 	}()
 
+	if r.ctx.Err() != nil {
+		return res, true
+	}
 	var c *card
 	r.withSlot(r.slots, func() { c, res.Err = r.loadCard(sides) })
 	if res.Err != nil {
@@ -317,6 +364,9 @@ func (r *run) buildOne(number int, sides [2][]byte) (res CardResult) {
 		var d describe.Description
 		var err error
 		r.withSlot(r.llmSlots, func() { d, err = r.describe(front, back) })
+		if r.ctx.Err() != nil {
+			return res, true
+		}
 		res.Notes = append(res.Notes, d.Notes...)
 		if err != nil {
 			res.LLMFailed = true
@@ -355,6 +405,9 @@ func (r *run) buildOne(number int, sides [2][]byte) (res CardResult) {
 			return
 		}
 		defer os.RemoveAll(dir)
+	}
+	if r.ctx.Err() != nil {
+		return res, true
 	}
 	res.Flip = flip
 	r.withSlot(r.slots, func() { res.Err = r.write(dir, res.Name, c.size, flip, sideMeta, front, back) })
@@ -521,7 +574,11 @@ func (r *run) describe(front, back image.Image) (d describe.Description, err err
 	}()
 	ctx, cancel := context.WithTimeout(r.ctx, describeTimeout)
 	defer cancel()
-	return r.opts.Describe(ctx, front, back)
+	d, err = r.opts.Describe(ctx, front, back)
+	if errors.Is(err, context.DeadlineExceeded) && r.ctx.Err() == nil {
+		err = fmt.Errorf("the model didn't answer within %d minutes", int(describeTimeout.Minutes()))
+	}
+	return d, err
 }
 
 // withSlot runs fn while holding one of the limited slots.
@@ -622,7 +679,14 @@ func writeAtomic(path string, write func(io.Writer) error) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	return os.Rename(tmp.Name(), path)
+	if err := os.Rename(tmp.Name(), path); err != nil {
+		return err
+	}
+	// A full disk has left 0-byte files under their final names with no error reported.
+	if info, err := os.Stat(path); err != nil || info.Size() != int64(buf.Len()) {
+		return fmt.Errorf("the disk didn't keep %s (is it full?)", filepath.Base(path))
+	}
+	return nil
 }
 
 func (r *run) report() Report {

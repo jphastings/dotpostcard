@@ -3,6 +3,7 @@ package fastfoto
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
@@ -532,7 +533,7 @@ func TestFailedCardBuildStillFailsTheRunAfterAScanError(t *testing.T) {
 	truncated := good[:len(good)/2]
 	report, err := runScan(t, dir, newFakeScanner([][]byte{truncated, good, good}, 2, false))
 	require.ErrorIs(t, err, ErrJam)
-	assert.ErrorContains(t, err, "card 0001")
+	assert.ErrorContains(t, err, "1 postcard had a problem; see above")
 	require.Len(t, report.Cards, 1)
 	assert.Error(t, report.Cards[0].Err)
 }
@@ -728,4 +729,70 @@ func TestOnStartIsNotCalledForAnUnknownFormat(t *testing.T) {
 	})
 	assert.Error(t, err)
 	assert.False(t, called)
+}
+
+func cardReplies(jpeg []byte, cards int) []fakeReply {
+	var replies []fakeReply
+	for i := 0; i < cards; i++ {
+		replies = append(replies, sideReplies(jpeg, "A")...)
+		replies = append(replies, sideReplies(jpeg, "B")...)
+	}
+	return replies
+}
+
+func TestStopFinishesTheCardInTheScannerThenCancelsAndReleases(t *testing.T) {
+	cases := map[string]struct {
+		stopAtIMG int
+		wantCards int
+	}{
+		"mid-card":                      {stopAtIMG: 2, wantCards: 1},
+		"as the next card's side opens": {stopAtIMG: 5, wantCards: 2},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			stop, finish := context.WithCancel(context.Background())
+			scanner := &fakeScanner{replies: cardReplies(defaultSynth().jpegBytes(), 3)}
+			scanner.onIMG = func(n int) {
+				if n == c.stopAtIMG {
+					finish()
+				}
+			}
+			report, err := runScan(t, dir, scanner, func(o *Options) { o.Stop = stop })
+
+			require.NoError(t, err)
+			assert.Len(t, report.Cards, c.wantCards)
+			assert.False(t, report.Interrupted)
+			assert.Equal(t, []string{"CAN", "FIN"}, scanner.Sent[len(scanner.Sent)-2:])
+			assert.LessOrEqual(t, scanner.imgs, c.wantCards*4+1, "no more of the stack is scanned")
+			assert.NoFileExists(t, filepath.Join(dir, fmt.Sprintf("%04d-meta.yaml", c.wantCards+1)))
+		})
+	}
+}
+
+func TestAbortCancelsReleasesAndDropsUnwrittenCardsQuietly(t *testing.T) {
+	dir := t.TempDir()
+	ctx, abort := context.WithCancel(context.Background())
+	scanner := &fakeScanner{replies: cardReplies(defaultSynth().jpegBytes(), 2)}
+	scanner.onIMG = func(n int) {
+		if n == 5 { // card 1 is with the LLM, card 2's first side has just opened
+			abort()
+		}
+	}
+	report, err := Run(ctx, Options{
+		OutDir: dir,
+		Open:   func() (Transport, error) { return scanner, nil },
+		Describe: func(ctx context.Context, _, _ image.Image) (describe.Description, error) {
+			<-ctx.Done()
+			return describe.Description{}, ctx.Err()
+		},
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"CAN", "FIN"}, scanner.Sent[len(scanner.Sent)-2:])
+	assert.True(t, report.Interrupted)
+	assert.True(t, report.StoppedMidCard)
+	assert.Equal(t, 1, report.Discarded)
+	assert.Empty(t, report.Cards, "a dropped card isn't reported as written, with or without a warning")
+	assert.Empty(t, componentFiles(t, dir))
 }

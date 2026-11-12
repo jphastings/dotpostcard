@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"os"
 	"testing"
 	"time"
 
@@ -143,4 +144,48 @@ func TestSingleFormatHeaderIsSingular(t *testing.T) {
 		return fastfoto.Report{}, nil
 	})
 	assert.Equal(t, "⚙︎ Scanning postcards into 1 different format…\n", out)
+}
+
+func TestInterruptsHaltThenAbort(t *testing.T) {
+	var out bytes.Buffer
+	signals := make(chan os.Signal, 2)
+	stopped, aborted, released := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	go watchSignals(signals, &out, func() { close(stopped) }, func() { close(aborted) }, func() { close(released) })
+
+	signals <- os.Interrupt
+	<-stopped
+	select {
+	case <-aborted:
+		t.Fatal("the first interrupt must not abort")
+	default:
+	}
+	signals <- os.Interrupt
+	<-aborted
+	<-released
+
+	assert.Equal(t, "⏹ Halting scanning after the card in the scanner… (Ctrl-C again to stop without saving the postcards still being processed)\n"+
+		"⏹ Stopping now; postcards not yet saved are discarded\n", out.String())
+}
+
+func TestStoppedScannerAnnouncesTheCardsStillBeingCompleted(t *testing.T) {
+	out, _, err := execute(t, func(_ context.Context, o fastfoto.Options) (fastfoto.Report, error) {
+		o.OnScannerStopped(0)
+		o.OnScannerStopped(3)
+		return fastfoto.Report{}, nil
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, "Completing 3 scanned but unsaved postcards…\n", out)
+}
+
+func TestAbortReportsUnsavedCardsAndExits130WithoutErrorText(t *testing.T) {
+	out, _, err := execute(t, func(context.Context, fastfoto.Options) (fastfoto.Report, error) {
+		return fastfoto.Report{Interrupted: true, Discarded: 2, StoppedMidCard: true}, context.Canceled
+	})
+	assert.Equal(t, "the card being scanned when you stopped wasn't saved: feed it again\n2 scanned postcards weren't saved: feed them again\n", out)
+	assert.Equal(t, 130, exitCode(err))
+	assert.Empty(t, err.Error())
+}
+
+func TestOrdinaryFailuresExitWith1(t *testing.T) {
+	assert.Equal(t, 1, exitCode(errors.New("jam")))
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -33,7 +34,8 @@ that goes in so skewed that a corner is cut off is set aside as
 for-rescan-NNNN.jpg, to feed again.
 
 Only one app can scan at a time, so close Epson FastFoto or Image Capture if they are open.
-Ctrl-C finishes the current card; press it again to abort. If the scanner
+Ctrl-C finishes the card in the scanner and saves everything scanned; press it
+again to stop without saving the postcards still being processed. If the scanner
 stops responding, switch it off and on again. Cards that overlap completely
 in the feeder can't be detected, so check the card count.`
 
@@ -63,6 +65,11 @@ func newCommand(run runFunc, stdout, stderr io.Writer) *cobra.Command {
 			opts.Log = stderr
 			opts.OnStart = func(formats int) { printStart(stdout, formats) }
 			opts.OnCard = func(c fastfoto.CardResult) { printCard(stdout, c) }
+			opts.OnScannerStopped = func(unsaved int) {
+				if unsaved > 0 {
+					fmt.Fprintf(stdout, "Completing %d scanned but unsaved %s…\n", unsaved, plural(unsaved, "postcard"))
+				}
+			}
 
 			ctx, stopNow := context.WithCancel(cmd.Context())
 			defer stopNow()
@@ -72,16 +79,13 @@ func newCommand(run runFunc, stdout, stderr io.Writer) *cobra.Command {
 			signals := make(chan os.Signal, 2)
 			signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
 			defer signal.Stop(signals)
-			go func() {
-				<-signals
-				finishCard()
-				<-signals
-				stopNow()
-				signal.Stop(signals) // a third Ctrl-C kills the process normally
-			}()
+			go watchSignals(signals, stdout, finishCard, stopNow, func() { signal.Stop(signals) })
 
 			report, err := run(ctx, opts)
 			printReport(stdout, report, opts.OutDir)
+			if report.Interrupted {
+				return &exitError{code: exitInterrupted}
+			}
 			return err
 		},
 	}
@@ -97,6 +101,44 @@ func newCommand(run runFunc, stdout, stderr io.Writer) *cobra.Command {
 	cmd.SetOut(stdout)
 	cmd.SetErr(stderr)
 	return cmd
+}
+
+const exitInterrupted = 130
+
+// exitError ends the program with a status and, when it has a message, prints it.
+type exitError struct {
+	code int
+	msg  string
+}
+
+func (e *exitError) Error() string { return e.msg }
+
+func exitCode(err error) int {
+	var ee *exitError
+	if errors.As(err, &ee) {
+		return ee.code
+	}
+	return 1
+}
+
+// watchSignals turns the first interrupt into finishing the card in the scanner and the
+// second into abandoning everything unsaved. release is called after the second, so that a
+// third kills the process.
+func watchSignals(signals <-chan os.Signal, w io.Writer, finishCard, stopNow func(), release func()) {
+	<-signals
+	fmt.Fprintln(w, "⏹ Halting scanning after the card in the scanner… (Ctrl-C again to stop without saving the postcards still being processed)")
+	finishCard()
+	<-signals
+	fmt.Fprintln(w, "⏹ Stopping now; postcards not yet saved are discarded")
+	stopNow()
+	release()
+}
+
+func plural(n int, singular string) string {
+	if n == 1 {
+		return singular
+	}
+	return singular + "s"
 }
 
 func count(n int, singular string) string {
@@ -170,6 +212,16 @@ func printReport(w io.Writer, r fastfoto.Report, outDir string) {
 	if rescan > 0 {
 		fmt.Fprintf(w, "%s set aside to feed again. See %s\n", count(rescan, "card"), filepath.Join(outDir, "for-rescan-*.jpg"))
 	}
+	if r.StoppedMidCard {
+		fmt.Fprintln(w, "the card being scanned when you stopped wasn't saved: feed it again")
+	}
+	if r.Interrupted && r.Discarded > 0 {
+		if r.Discarded == 1 {
+			fmt.Fprintln(w, "1 scanned postcard wasn't saved: feed it again")
+		} else {
+			fmt.Fprintf(w, "%d scanned postcards weren't saved: feed them again\n", r.Discarded)
+		}
+	}
 	if r.Unpaired {
 		fmt.Fprintln(w, "a card's second side never arrived: that side was dropped, feed the card again")
 	}
@@ -178,7 +230,9 @@ func printReport(w io.Writer, r fastfoto.Report, outDir string) {
 func main() {
 	cmd := newCommand(fastfoto.Run, os.Stdout, os.Stderr)
 	if err := cmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		if err.Error() != "" {
+			fmt.Fprintln(os.Stderr, err)
+		}
+		os.Exit(exitCode(err))
 	}
 }
