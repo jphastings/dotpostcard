@@ -18,9 +18,12 @@ import (
 
 const guide = `Scan a stack of postcards through an Epson FastFoto FF-680W (macOS, USB).
 
-Per card you get NNNN-front.png, NNNN-back.png and NNNN-meta.yaml in --out-dir,
-ready for the postcards tool; -f also converts each card, as postcards -f would. Raw scans are kept in raw/ so a run can be resumed.
-To redo a card, delete its NNNN-meta.yaml and run again with --no-scan.
+By default each card is NNNN-front.png, NNNN-back.png and NNNN-meta.yaml in --out-dir,
+ready for the postcards tool. -f converts each card as postcards -f would, and
+replaces those files unless it includes component (-f web,component). Raw scans
+are kept in raw/ so a run can be resumed.
+To redo a card, delete its NNNN-meta.yaml (in raw/ when -f left out component)
+and run again with --no-scan.
 
 Loading: top edge first, back of the card facing you. Keep the paper guides
 snug against the card, and put the card's straightest edge leading. A card
