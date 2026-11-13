@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.41.1 (2026-11-13)
+
+### Fix
+
+- **fastfoto**: cut out cards printed darker than the backing
+
 ## v0.41.0 (2026-11-13)
 
 ### Feat
