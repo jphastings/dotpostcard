@@ -80,6 +80,11 @@ func newCommand(run runFunc, stdout, stderr io.Writer) *cobra.Command {
 				}
 			}
 
+			opts.OnPaused = func(processing int) {
+				fmt.Fprintf(stdout, "⏸ Scanner paused while %d %s are processed…\n", processing, plural(processing, "postcard"))
+			}
+			opts.OnResumed = func() { fmt.Fprintln(stdout, "▶ Scanner resumed") }
+
 			ctx, stopNow := context.WithCancel(cmd.Context())
 			defer stopNow()
 			stop, finishCard := context.WithCancel(ctx)
