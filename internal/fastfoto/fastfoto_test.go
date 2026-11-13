@@ -804,3 +804,81 @@ func TestAbortCancelsReleasesAndDropsUnwrittenCardsQuietly(t *testing.T) {
 	assert.Empty(t, report.Cards, "a dropped card isn't reported as written, with or without a warning")
 	assert.Empty(t, componentFiles(t, dir))
 }
+
+// stackOf is n identical cards whose last side reports the end of the batch.
+func stackOf(jpeg []byte, n int) *fakeScanner {
+	replies := cardReplies(jpeg, n-1)
+	replies = append(replies, sideReplies(jpeg, "A")...)
+	replies = append(replies, sideReplies(jpeg, "B", "lftd000")...)
+	return &fakeScanner{replies: replies}
+}
+
+// heldDescriber blocks every card's description until release is closed.
+func heldDescriber(release <-chan struct{}) describe.Describer {
+	return func(context.Context, image.Image, image.Image) (describe.Description, error) {
+		<-release
+		return describe.Description{}, nil
+	}
+}
+
+func lowerPauseThresholds(t *testing.T) {
+	oldPause, oldResume := pauseAt, resumeBelow
+	pauseAt, resumeBelow = 4, 2
+	t.Cleanup(func() { pauseAt, resumeBelow = oldPause, oldResume })
+}
+
+func TestScannerPausesWhileProcessingCatchesUpThenResumesWithNothingLost(t *testing.T) {
+	lowerPauseThresholds(t)
+	release := make(chan struct{})
+	scanner := stackOf(smallCard()[0], pauseAt+2)
+	var paused, resumed int
+	report, err := runScan(t, t.TempDir(), scanner, func(o *Options) {
+		o.Describe = heldDescriber(release)
+		o.OnPaused = func(processing int) {
+			paused++
+			assert.Equal(t, pauseAt, processing)
+			close(release)
+		}
+		o.OnResumed = func() { resumed++ }
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, 1, paused)
+	assert.Equal(t, 1, resumed)
+	require.Len(t, report.Cards, pauseAt+2)
+	for i, c := range report.Cards {
+		assert.Equal(t, i+1, c.Number)
+		assert.NoError(t, c.Err)
+	}
+	assert.Equal(t, 2, countSent(scanner, "LOCK"), "a fresh session after the pause")
+	assert.Equal(t, 1, countSent(scanner, "CAN"), "only the pause cancels; the stack ending on its own doesn't")
+}
+
+func TestStackEndingAsTheCapIsReachedDoesNotPause(t *testing.T) {
+	lowerPauseThresholds(t)
+	release := make(chan struct{})
+	scanned := 0
+	paused := false
+	report, err := runScan(t, t.TempDir(), stackOf(smallCard()[0], pauseAt), func(o *Options) {
+		o.Describe = heldDescriber(release)
+		o.OnScanned = func() {
+			if scanned++; scanned == pauseAt {
+				close(release)
+			}
+		}
+		o.OnPaused = func(int) { paused = true }
+	})
+
+	require.NoError(t, err)
+	assert.False(t, paused)
+	assert.Len(t, report.Cards, pauseAt)
+}
+
+func countSent(f *fakeScanner, name string) (n int) {
+	for _, s := range f.Sent {
+		if s == name {
+			n++
+		}
+	}
+	return n
+}

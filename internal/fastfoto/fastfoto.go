@@ -38,6 +38,14 @@ const (
 	maxInFlight          = 6
 )
 
+// pauseAt is how many scanned-but-unwritten cards stop the scanner feeding, and resumeBelow
+// how few let it carry on; each waiting card holds about 24 MB of JPEG. Variables so tests
+// needn't process dozens of cards.
+var (
+	pauseAt     = 25
+	resumeBelow = 13
+)
+
 type Options struct {
 	OutDir string
 	// TopSideFront is whether the front of each card faces outward in the feeder.
@@ -70,6 +78,11 @@ type Options struct {
 	// OnScannerStopped is called once Stop has halted the scanner and released it, with how
 	// many scanned cards are still being processed.
 	OnScannerStopped func(unsaved int)
+	// OnPaused is called once the scanner has been released because too many cards are still
+	// being processed, with how many. OnResumed is called when it takes the stack up again.
+	// Both are called from the scanning goroutine, so they may run while OnCard does.
+	OnPaused  func(processing int)
+	OnResumed func()
 }
 
 // Output is something written, or uploaded, for a card.
@@ -163,8 +176,8 @@ type run struct {
 }
 
 // Run scans a stack and turns each pair of sides into a card, numbered on from the highest
-// number already used in OutDir. Cards are processed while the stack is still feeding; the
-// scanner never waits on image work.
+// number already used in OutDir. Cards are processed while the stack is still feeding; if
+// processing falls too far behind, the scanner is released until it catches up.
 func Run(ctx context.Context, opts Options) (Report, error) {
 	if opts.CardThreshold == 0 {
 		opts.CardThreshold = DefaultCardThreshold
@@ -189,6 +202,12 @@ func Run(ctx context.Context, opts Options) (Report, error) {
 	}
 	if opts.OnScannerStopped == nil {
 		opts.OnScannerStopped = func(int) {}
+	}
+	if opts.OnPaused == nil {
+		opts.OnPaused = func(int) {}
+	}
+	if opts.OnResumed == nil {
+		opts.OnResumed = func() {}
 	}
 	if opts.Describe == nil && opts.LLM.Backend != "" {
 		d, err := describe.New(ctx, opts.LLM)
@@ -273,32 +292,73 @@ func (r *run) scan(ctx context.Context, highest int) (unpaired, cutShort bool, e
 	r.opts.OnStart(r.formatCount())
 
 	var first []byte
-	s := &session{t: t, log: func(msg string) { r.log("%s", msg) }}
-	cutShort, err = s.feed(ctx, r.opts.Stop, func(jpeg []byte) error {
-		if first == nil {
-			first = jpeg
+	for resumed := false; ; resumed = true {
+		roundStop, pause := context.WithCancel(r.opts.Stop)
+		capped := false
+		s := &session{t: t, log: func(msg string) { r.log("%s", msg) }}
+		var batchDone bool
+		cutShort, batchDone, err = s.feed(ctx, roundStop, func(jpeg []byte) error {
+			if first == nil {
+				first = jpeg
+				return nil
+			}
+			highest++
+			r.process(highest, [2][]byte{first, jpeg})
+			first = nil
+			if r.processing() >= pauseAt {
+				capped = true
+				pause()
+			}
 			return nil
+		})
+		pause()
+		if resumed && errors.Is(err, ErrFeederEmpty) {
+			err = nil // the rest of the stack was taken away while paused
+			break
 		}
-		highest++
-		r.process(highest, [2][]byte{first, jpeg})
-		first = nil
-		return nil
-	})
+		if !capped || batchDone || err != nil || ctx.Err() != nil || r.opts.Stop.Err() != nil {
+			break
+		}
+		r.opts.OnPaused(r.processing())
+		if !r.waitForRoom(ctx) {
+			break
+		}
+		r.opts.OnResumed()
+	}
 	if first != nil && !cutShort {
 		r.log("a side has no partner and is dropped: feed its card again")
 	}
 	if r.opts.Stop.Err() != nil && ctx.Err() == nil {
-		r.mu.Lock()
-		unsaved := r.pending
-		r.mu.Unlock()
-		r.opts.OnScannerStopped(unsaved)
+		r.opts.OnScannerStopped(r.processing())
 	}
 	return first != nil && !cutShort, cutShort, err
 }
 
-// process queues a card on the worker pool, which never blocks the caller.
-// ponytail: cards waiting for a worker hold their JPEG bytes (about 24 MB per card), with no
-// hard bound on the queue. Bound it (block feed's callback) if scans outrun processing for long.
+func (r *run) processing() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.pending
+}
+
+// waitForRoom blocks until few enough cards are being processed to feed more, or returns false
+// if the run is cancelled or stopped first.
+func (r *run) waitForRoom(ctx context.Context) bool {
+	tick := time.NewTicker(500 * time.Millisecond)
+	defer tick.Stop()
+	for r.processing() >= resumeBelow {
+		select {
+		case <-ctx.Done():
+			return false
+		case <-r.opts.Stop.Done():
+			return false
+		case <-tick.C:
+		}
+	}
+	return true
+}
+
+// process queues a card on the worker pool, which never blocks the caller; scan pauses the
+// scanner when too many are queued.
 func (r *run) process(card int, sides [2][]byte) {
 	r.wg.Add(1)
 	r.mu.Lock()

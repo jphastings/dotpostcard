@@ -87,7 +87,11 @@ func (f *fakeScanner) handle(name string) {
 	case "PARA":
 		f.reply(name, []string{"parOK"}, nil)
 	case "STAT":
-		f.reply(name, nil, []byte(f.statData))
+		data := f.statData
+		if len(f.replies) > 0 && f.next >= len(f.replies) {
+			data = "#ERRADF PE " // whatever a cancelled session left unfed stays in the feeder
+		}
+		f.reply(name, nil, []byte(data))
 	case "IMG":
 		f.imgs++
 		if f.onIMG != nil {
