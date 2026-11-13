@@ -303,7 +303,7 @@ func (r *run) scan(ctx context.Context, highest int) (unpaired, cutShort bool, e
 				return nil
 			}
 			highest++
-			r.process(highest, [2][]byte{first, jpeg})
+			r.process(highest, &[2][]byte{first, jpeg})
 			first = nil
 			if r.processing() >= pauseAt {
 				capped = true
@@ -359,7 +359,7 @@ func (r *run) waitForRoom(ctx context.Context) bool {
 
 // process queues a card on the worker pool, which never blocks the caller; scan pauses the
 // scanner when too many are queued.
-func (r *run) process(card int, sides [2][]byte) {
+func (r *run) process(card int, sides *[2][]byte) {
 	r.wg.Add(1)
 	r.mu.Lock()
 	r.pending++
@@ -397,7 +397,7 @@ func (r *run) formatCount() int {
 }
 
 // buildOne makes one card. dropped is set when the run was aborted before the card was written.
-func (r *run) buildOne(number int, sides [2][]byte) (res CardResult, dropped bool) {
+func (r *run) buildOne(number int, sides *[2][]byte) (res CardResult, dropped bool) {
 	res = CardResult{Number: number, Name: cardName(number)}
 	defer func() {
 		if p := recover(); p != nil {
@@ -664,11 +664,14 @@ func turn(img image.Image, quarters int) image.Image {
 	return images.Orient(img, [4]int{1, 6, 3, 8}[quarters])
 }
 
-func (r *run) loadCard(sides [2][]byte) (*card, error) {
+// loadCard decodes the scanner JPEGs and drops them, so they aren't held through the rest of the build.
+func (r *run) loadCard(sides *[2][]byte) (*card, error) {
 	var frames [2]*frame
-	for i, jpeg := range sides {
+	for i := range sides {
 		var err error
-		if frames[i], err = decodeFrame(bytes.NewReader(jpeg)); err != nil {
+		frames[i], err = decodeFrame(bytes.NewReader(sides[i]))
+		sides[i] = nil
+		if err != nil {
 			return nil, fmt.Errorf("side %d: %w", i+1, err)
 		}
 	}

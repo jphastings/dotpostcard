@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime/debug"
 	"slices"
 	"strings"
 	"syscall"
@@ -231,6 +232,10 @@ func printReport(w io.Writer, r fastfoto.Report, outDir string) {
 }
 
 func main() {
+	// Scan images are big and pointer-free, so collecting often is cheap and keeps the process from holding twice what it uses.
+	if os.Getenv("GOGC") == "" {
+		debug.SetGCPercent(25)
+	}
 	cmd := newCommand(fastfoto.Run, os.Stdout, os.Stderr)
 	if err := cmd.Execute(); err != nil {
 		if err.Error() != "" {
