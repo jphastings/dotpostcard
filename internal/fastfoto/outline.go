@@ -11,7 +11,10 @@ const (
 	lightMargin      = 3
 	minLightFraction = 0.6
 	// Card sampled this far inside the box, past any shadow the box may have swallowed.
-	lightInsets = 3
+	lightInsets  = 3
+	lightInsetPx = 40
+	// Deeper in than any shadow the box can have swallowed, a card is all card whatever its ink.
+	cardCorePx = 120
 
 	// Each side's canvas comes from its own geometry estimate, so the two differ by a few
 	// pixels of offset, a fraction of a degree of tilt and a fraction of a percent of feed length.
@@ -34,7 +37,7 @@ func lightFraction(sig *image.Gray, box image.Rectangle) float64 {
 		}
 	}
 	for k := 0; k < lightInsets; k++ {
-		inset := 40 + 20*k
+		inset := lightInsetPx + 20*k
 		for t := 0.1; t <= 0.9; t += 0.02 {
 			x, y := box.Min.X+int(t*float64(box.Dx())), box.Min.Y+int(t*float64(box.Dy()))
 			probe(x, box.Min.Y+inset)
@@ -50,7 +53,9 @@ func lightFraction(sig *image.Gray, box image.Rectangle) float64 {
 // card both read as backing, so only light stock counts as card. Inside the card's box that
 // is judged on the mixed signal, because ink can be darker than the backing yet warmer than
 // it. Beyond the box there is only backing and shadow, which can be redder when darker, so
-// only brightness counts there.
+// only brightness counts there. Deep inside the box it is all card,
+// however dark its ink: otherwise a card printed darker than the backing looks, to the border
+// detector, like backing all the way in, and it takes the whole canvas for a card flush to the edge.
 func lightGuide(mixed, lum *image.Gray, box image.Rectangle) *image.Gray {
 	g := image.NewGray(mixed.Rect)
 	for y := 0; y < mixed.Rect.Dy(); y++ {
@@ -58,6 +63,10 @@ func lightGuide(mixed, lum *image.Gray, box image.Rectangle) *image.Gray {
 			sig := lum
 			if (image.Point{x, y}).In(box) {
 				sig = mixed
+			}
+			if (image.Point{x, y}).In(box.Inset(cardCorePx)) {
+				g.Pix[y*g.Stride+x] = 255
+				continue
 			}
 			g.Pix[y*g.Stride+x] = 128 + uint8(max(int(sig.Pix[y*sig.Stride+x])-128-lightMargin, 0))
 		}

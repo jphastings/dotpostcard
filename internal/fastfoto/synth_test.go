@@ -25,6 +25,7 @@ type synth struct {
 	frameBandPx int     // dark rows along the frame's very top and bottom
 	edgeDots    bool    // neutral grey halftone printed up to the top edge: darker than the backing, but warmer
 	redShadow   bool    // backing beside the left and right edges a little darker, but redder
+	inkInsetCm  float64 // everything deeper inside the card than this is dark blue, darker than the backing
 }
 
 const sideShadowPx = 100
@@ -107,6 +108,9 @@ func (s synth) image() *image.RGBA {
 				if beyond := math.Abs(u) - s.widthCm*pxPerCm/2; beyond > 0 && beyond <= sideShadowPx {
 					c = color.RGBA{c.R + 3, c.G - 8, c.B - 2, 255}
 				}
+			}
+			if s.inkInsetCm > 0 && inside && math.Abs(u) <= hw-s.inkInsetCm*pxPerCm && math.Abs(v) <= hh-s.inkInsetCm*pxPerCm {
+				c = color.RGBA{70, 70, 150, 255}
 			}
 			if y < s.frameBandPx || y >= s.h-s.frameBandPx {
 				c = bandColour

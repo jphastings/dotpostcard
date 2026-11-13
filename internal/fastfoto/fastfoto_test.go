@@ -110,6 +110,22 @@ func TestStockCloseToBackingInBrightnessIsStillCard(t *testing.T) {
 	assert.Equal(t, uint8(255), alpha(img, img.Bounds().Dx()/2, img.Bounds().Dy()/2))
 }
 
+func TestCardPrintedDarkerThanTheBackingIsStillCutOutAgainstIt(t *testing.T) {
+	dir := t.TempDir()
+	s := croppedSynth(5, 3.4, 0, 130)
+	s.paper = color.RGBA{230, 220, 218, 255}
+	s.inkInsetCm = 0.4
+	report, err := runSides(t, dir, scanOf(s, s))
+	require.NoError(t, err)
+	assert.InDelta(t, 5.0, report.Cards[0].WidthCm, 0.1)
+	assert.InDelta(t, 3.4, report.Cards[0].HeightCm, 0.1)
+}
+
+func TestSamplingBeyondEitherSideOfAPlaneIsSafe(t *testing.T) {
+	g := image.NewGray(image.Rect(0, 0, 4, 4))
+	assert.NotPanics(t, func() { sampleGray(g, -75000, -3.5); sampleGray(g, 9, 9) })
+}
+
 func TestShadowBeyondTheEdgeIsNotCard(t *testing.T) {
 	dir := t.TempDir()
 	s := defaultSynth()
