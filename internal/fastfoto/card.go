@@ -106,10 +106,11 @@ func (f *frame) sample(x, y float64) rgb {
 }
 
 func sampleGray(g *image.Gray, x, y float64) float64 {
-	x0, y0 := int(x), int(y)
-	fx, fy := x-float64(x0), y-float64(y0)
+	fx0, fy0 := math.Floor(x), math.Floor(y)
+	x0, y0 := int(fx0), int(fy0)
+	fx, fy := x-fx0, y-fy0
 	at := func(dx, dy int) float64 {
-		return float64(g.Pix[min(y0+dy, g.Rect.Dy()-1)*g.Stride+min(x0+dx, g.Rect.Dx()-1)])
+		return float64(g.Pix[min(max(y0+dy, 0), g.Rect.Dy()-1)*g.Stride+min(max(x0+dx, 0), g.Rect.Dx()-1)])
 	}
 	return at(0, 0)*(1-fx)*(1-fy) + at(1, 0)*fx*(1-fy) + at(0, 1)*(1-fx)*fy + at(1, 1)*fx*fy
 }
