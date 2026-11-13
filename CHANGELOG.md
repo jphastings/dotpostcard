@@ -383,6 +383,16 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.41.0 (2026-11-13)
+
+### Feat
+
+- **fastfoto**: pause the scanner while too many postcards are still processing
+
+### Perf
+
+- **fastfoto**: hold less memory while postcards are processing
+
 ## v0.40.0 (2026-11-12)
 
 ### Feat
