@@ -63,6 +63,9 @@ type Side struct {
 	Rotation      string `json:"rotation"`
 	Description   string `json:"description"`
 	Transcription string `json:"transcription"`
+	// AddressLines is asked for only so the model counts the address's lines before outlining
+	// them: without it the last line (often just a country) was sometimes left showing.
+	AddressLines []string `json:"address_lines"`
 	// Secrets are polygons of [x, y] fractions of the side as scanned, clamped to the side.
 	Secrets [][][2]float64 `json:"secrets"`
 }
@@ -86,7 +89,7 @@ type Description struct {
 type Describer func(ctx context.Context, front, back image.Image) (Description, error)
 
 const rotationEnum = `{"type":"string","enum":["0","90","180","270","unknown"]}`
-const sideSchema = `{"type":"object","additionalProperties":false,"required":["rotation","description","transcription","secrets"],"properties":{"rotation":` + rotationEnum + `,"description":{"type":"string"},"transcription":{"type":"string"},"secrets":{"type":"array","items":{"type":"array","items":{"type":"array","items":{"type":"number"}}}}}}`
+const sideSchema = `{"type":"object","additionalProperties":false,"required":["rotation","description","transcription","address_lines","secrets"],"properties":{"rotation":` + rotationEnum + `,"description":{"type":"string"},"transcription":{"type":"string"},"address_lines":{"type":"array","items":{"type":"string"}},"secrets":{"type":"array","items":{"type":"array","items":{"type":"array","items":{"type":"number"}}}}}}`
 const locationSchema = `{"type":"object","additionalProperties":false,"required":["name","latitude","longitude","country_code"],"properties":{"name":{"type":"string"},"latitude":{"type":["number","null"]},"longitude":{"type":["number","null"]},"country_code":{"type":"string"}}}`
 const replySchema = `{"type":"object","additionalProperties":false,"required":["front","back","title","recipient","sender","sent_on","location","locale","orientation_evidence"],"properties":{"title":{"type":"string"},"recipient":{"type":"string"},"sender":{"type":"string"},"sent_on":{"type":"string"},"location":` + locationSchema + `,"locale":{"type":"string"},"front":` + sideSchema + `,"back":` + sideSchema + `,"orientation_evidence":{"type":"string"}}}`
 
@@ -103,7 +106,8 @@ Other fields (an empty string means none):
 - sent_on is the date the card was sent, as YYYY-MM-DD. Use a date the sender wrote on the card by hand if there is one, otherwise a legible postmark; where one of them is incomplete (no day, or no year) the other may complete it. Read a postmark's day and month in the order its country uses. If you can't settle on a full date, leave sent_on empty and keep any handwritten date, as written, in the transcription.
 - location is where the card was sent from, if that is a recognisable place: what the card shows or names, the postmark, or the message may tell you. name is a short place name (e.g. "Lyme Regis, UK"), latitude and longitude are that place's decimal degrees (null if you aren't confident of them), country_code is its ISO 3166-1 alpha-3 code. Leave name empty if the place isn't recognisable.
 - locale is your best guess at the BCP-47 locale the transcription is written in (e.g. en-GB, fr-FR); empty when there is no transcription.
-- secrets (for front or back) marks the address part of a handwritten recipient address (street, town, postcode, country) so it can be hidden. Never include the recipient's name. Each secret is a polygon: a list of [x, y] points, each a fraction of that image's width and height exactly as provided (before any rotation), with [0, 0] the top left and [1, 1] the bottom right. Usually this is one secret: the four corners of a rectangle covering every address line, down to the last (often just a country), with a generous margin: a stroke of the address left showing is worse than a little more blank card hidden. If that rectangle would also cover something that matters (the name, part of the message, the stamp), draw tighter: either one polygon outlining a union of at most six rectangles, or several separate secrets. An empty list when there is no handwritten address.
+- address_lines (for front or back) lists each line of a handwritten recipient address below the name, top to bottom, one entry per line as written; empty when there is none. It is only used to check the secrets.
+- secrets (for front or back) marks the address part of a handwritten recipient address (street, town, postcode, country) so it can be hidden. Never include the recipient's name. Each secret is a polygon: a list of [x, y] points, each a fraction of that image's width and height exactly as provided (before any rotation), with [0, 0] the top left and [1, 1] the bottom right. Usually this is one secret: the four corners of a rectangle covering every address line, down to the last (often just a country), with a generous margin: a stroke of the address left showing is worse than a little more blank card hidden. Writing can be read from its top half alone, so every line must be covered to its full height: put the top edge above the tallest strokes of the first address line, in the gap under the name, even if that clips the tails of the name's letters. If that rectangle would also cover something that matters (the name, part of the message, the stamp), draw tighter: either one polygon outlining a union of at most six rectangles, or several separate secrets. Check the result against address_lines: every line listed must lie wholly inside a secret, from its first character to its last. An empty list when there is no handwritten address.
 - title is the card's title. If either side carries text that reads as a title for what is shown (a printed caption, the name of an artwork, a description of the photograph), copy that text verbatim: same language, spelling, capitalisation and punctuation. Leave out credits, publisher names and serial numbers. Only if there is no such text, write a short title of 1 to 5 words saying what the card shows. Never include the word "postcard".
 Keep each description to a single sentence of no more than about 20 words. If the card names the place shown, include it.`
 
@@ -246,18 +250,36 @@ func parseReply(s string) (Description, error) {
 	return d, nil
 }
 
-// cleanSecrets clamps points into the image and drops polygons too small to enclose anything.
+// secretMargin is how far each secret is grown, as a fraction of the side. The model places an
+// edge to within a couple of percent, and half a line of an address left showing can be read.
+const secretMargin = 0.025
+
+// cleanSecrets grows each polygon by secretMargin, clamps it into the image and drops polygons
+// too small to enclose anything.
 func cleanSecrets(polys [][][2]float64) [][][2]float64 {
 	var out [][][2]float64
 	for _, poly := range polys {
 		if len(poly) < 3 {
 			continue
 		}
-		clamped := make([][2]float64, len(poly))
-		for i, p := range poly {
-			clamped[i] = [2]float64{min(max(p[0], 0), 1), min(max(p[1], 0), 1)}
+		var centre [2]float64
+		for _, p := range poly {
+			centre[0] += p[0] / float64(len(poly))
+			centre[1] += p[1] / float64(len(poly))
 		}
-		out = append(out, clamped)
+		grown := make([][2]float64, len(poly))
+		for i, p := range poly {
+			for axis := range p {
+				// ponytail: pushes each point away from the centroid, which is only a true
+				// outward offset for convex shapes; offset the edges if concave outlines leak.
+				v := p[axis] + secretMargin
+				if p[axis] < centre[axis] {
+					v = p[axis] - secretMargin
+				}
+				grown[i][axis] = min(max(v, 0), 1)
+			}
+		}
+		out = append(out, grown)
 	}
 	return out
 }
