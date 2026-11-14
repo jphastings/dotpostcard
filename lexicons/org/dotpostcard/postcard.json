@@ -35,6 +35,11 @@
             "items": { "type": "ref", "ref": "#side" }
           },
           "physical": { "type": "ref", "ref": "#physical" },
+          "title": {
+            "type": "string",
+            "maxGraphemes": 300,
+            "description": "The postcard's human-readable title."
+          },
           "locale": {
             "type": "string",
             "format": "language",

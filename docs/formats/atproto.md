@@ -33,7 +33,9 @@ $ postcards -f web at://alice.example/org.dotpostcard.postcard/3jzfcijpj2z2a
 
 Downloads don't need to be logged in — the URI's authority (a handle or DID) is resolved independently, and its PDS is found the normal atproto way (via `.well-known/atproto-did`, a `_atproto.` DNS TXT record, or `plc.directory`/`did:web`).
 
-Since the rkey is a TID, not a name, a downloaded card is named instead from its record's location: the location name, lower-cased and kebab-ed (`"St. John's, Newfoundland"` becomes `st-john-s-newfoundland`). If there's no usable location, the card is named after the first characters of the record's own CID (skipping the `bafyrei` prefix every record CID shares).
+Since the rkey is a TID, not a name, a downloaded card is named instead from its record's title: the title, lower-cased, accent-stripped and kebab-ed, and cut at a word boundary to at most 60 characters (`"Notre-Dame de Paris"` becomes `notre-dame-de-paris`). If there's no title, the location name is used the same way (`"St. John's, Newfoundland"` becomes `st-johns-newfoundland`). If neither yields a name (no Latin letters or digits), the card is named after the first characters of the record's own CID (skipping the `bafyrei` prefix every record CID shares).
+
+Uploads write the postcard's title to the record; a postcard without one is published with the title derived from its name (`cnn-center` is published as "Cnn Center"), which doesn't count as a difference from the image's own untitled metadata.
 
 ## The record wins
 

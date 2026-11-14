@@ -112,8 +112,8 @@ func TestDiffFlagsADifferentSentOnDateButNotAnIdenticalOne(t *testing.T) {
 	same := Record{Type: RecordType, Flip: flipTokenNone, SentOn: &Date{Year: 1974, Month: 9, Day: 26}}
 	different := Record{Type: RecordType, Flip: flipTokenNone, SentOn: &Date{Year: 1974, Month: 9, Day: 27}}
 
-	assert.NotContains(t, Diff(a, same), "sentOn")
-	assert.Contains(t, Diff(a, different), "sentOn")
+	assert.NotContains(t, Diff(a, same, ""), "sentOn")
+	assert.Contains(t, Diff(a, different, ""), "sentOn")
 }
 
 func TestDiffReportsNothingForIdenticalRecords(t *testing.T) {
@@ -121,7 +121,7 @@ func TestDiffReportsNothingForIdenticalRecords(t *testing.T) {
 	a := FromMetadata(meta, testBlob)
 	b := FromMetadata(meta, testBlob)
 
-	assert.Empty(t, Diff(a, b))
+	assert.Empty(t, Diff(a, b, ""))
 }
 
 func TestDiffReportsEditedTranscription(t *testing.T) {
@@ -130,7 +130,7 @@ func TestDiffReportsEditedTranscription(t *testing.T) {
 	b := FromMetadata(meta, testBlob)
 	b.Sides[1].Transcription.Text = "Something else entirely"
 
-	assert.Equal(t, []string{"sides[1].transcription"}, Diff(a, b))
+	assert.Equal(t, []string{"sides[1].transcription"}, Diff(a, b, ""))
 }
 
 func secretMeta(prehidden bool) types.Metadata {

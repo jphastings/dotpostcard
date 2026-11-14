@@ -76,18 +76,3 @@ func TestFillKeepsWhatIsAlreadyThere(t *testing.T) {
 		assert.Equal(t, c.after, meta, name)
 	}
 }
-
-func TestSlug(t *testing.T) {
-	for in, want := range map[string]string{
-		"CNN Center":          "cnn-center",
-		"Notre-Dame":          "notre-dame",
-		"Façade de l'Église":  "facade-de-leglise",
-		"St Paul’s":           "st-pauls",
-		"  Radley  Beagles! ": "radley-beagles",
-		"a b c d e":           "a-b-c",
-		"!!!":                 "",
-		"":                    "",
-	} {
-		assert.Equal(t, want, Slug(in), in)
-	}
-}

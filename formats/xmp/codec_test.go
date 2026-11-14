@@ -84,3 +84,19 @@ func TestDecode(t *testing.T) {
 
 	assert.Equal(t, ex, pc.Meta)
 }
+
+func TestTitleRoundTrip(t *testing.T) {
+	pc := testhelpers.SamplePostcard
+	pc.Meta.Title = "Notre-Dame de Paris"
+
+	fws, err := Codec().Encode(pc, nil)
+	assert.NoError(t, err)
+	content, err := fws[0].Bytes()
+	assert.NoError(t, err)
+
+	meta, err := MetadataFromXMP(bytes.NewReader(content))
+	assert.NoError(t, err)
+	assert.Equal(t, "Notre-Dame de Paris", meta.Title)
+
+	assert.NotContains(t, string(testhelpers.SampleXMP), "dc:title")
+}

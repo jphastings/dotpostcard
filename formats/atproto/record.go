@@ -33,6 +33,7 @@ type Record struct {
 	Flip      string    `json:"flip"`
 	Sides     []Side    `json:"sides"`
 	Physical  Physical  `json:"physical"`
+	Title     string    `json:"title,omitempty"`
 	Locale    string    `json:"locale,omitempty"`
 	SentOn    *Date     `json:"sentOn,omitempty"`
 	Sender    *Person   `json:"sender,omitempty"`
@@ -135,6 +136,7 @@ func FromMetadata(meta types.Metadata, image Blob) Record {
 	rec := Record{
 		Type:      RecordType,
 		Image:     image,
+		Title:     meta.Title,
 		Flip:      flipToToken(meta.Flip),
 		Locale:    meta.Locale,
 		Sender:    personToRecord(meta.Sender),
@@ -198,6 +200,7 @@ func (r Record) ToMetadata() (types.Metadata, error) {
 	}
 
 	meta := types.Metadata{
+		Title:     r.Title,
 		Flip:      flip,
 		Locale:    r.Locale,
 		Sender:    personFromRecord(r.Sender),
@@ -424,8 +427,9 @@ func sideFromRecord(s Side) types.Side {
 }
 
 // Diff reports the names of the fields that differ between two records, ignoring the image
-// blob. Differences within a side are reported one level deep, eg. "sides[1].transcription".
-func Diff(a, b Record) []string {
+// blob. Titles are compared as effective titles, so a record carrying the title derived from
+// name matches an untitled one. Differences within a side are reported one level deep, eg. "sides[1].transcription".
+func Diff(a, b Record, name string) []string {
 	var diffs []string
 
 	add := func(name string, equal bool) {
@@ -434,6 +438,8 @@ func Diff(a, b Record) []string {
 		}
 	}
 
+	effectiveTitle := func(r Record) string { return types.Metadata{Title: r.Title}.EffectiveTitle(name) }
+	add("title", effectiveTitle(a) == effectiveTitle(b))
 	add("flip", a.Flip == b.Flip)
 	add("physical.frontSize", reflect.DeepEqual(a.Physical.FrontSize, b.Physical.FrontSize))
 	add("locale", a.Locale == b.Locale)
