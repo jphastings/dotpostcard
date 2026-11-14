@@ -1,7 +1,9 @@
 package pdscollection
 
 import (
+	"bytes"
 	"crypto/sha256"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -189,6 +191,39 @@ func TestUnhiddenSecretStopsPublishBeforeAnyWrite(t *testing.T) {
 
 	_, err = Publish(client, coll, PublishOptions{})
 	assert.ErrorContains(t, err, "secretive")
+	assert.EqualValues(t, 0, srv.writes.Load())
+}
+
+func TestRefusedCollectionRecordNamesItsSize(t *testing.T) {
+	srv := testpds.New("did:plc:testuser")
+	inner := srv.Config.Handler
+	srv.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		r.Body = io.NopCloser(bytes.NewReader(body))
+		if strings.HasSuffix(r.URL.Path, "putRecord") && bytes.Contains(body, []byte(`"collection":"`+atproto.CollectionRecordType+`"`)) {
+			w.WriteHeader(http.StatusRequestEntityTooLarge)
+			w.Write([]byte(`{"error":"PayloadTooLarge","message":"request entity too large"}`))
+			return
+		}
+		inner.ServeHTTP(w, r)
+	})
+	t.Cleanup(srv.Close)
+	client := login(t, testServer{url: srv.URL})
+	coll, _ := newCollection(t)
+
+	_, err := Publish(client, coll, PublishOptions{})
+	assert.ErrorContains(t, err, "cards: 2")
+	assert.ErrorContains(t, err, "isn't split")
+	assert.ErrorContains(t, err, "PayloadTooLarge")
+}
+
+func TestOverlongTitleIsRefusedBeforeAnyWrite(t *testing.T) {
+	srv := newServer(t)
+	client := login(t, srv)
+	coll, _ := collectionOf(t, strings.Repeat("x", maxTitleBytes+1), "pyramids")
+
+	_, err := Publish(client, coll, PublishOptions{})
+	assert.ErrorContains(t, err, "title is 3001 bytes; the limit is 3000")
 	assert.EqualValues(t, 0, srv.writes.Load())
 }
 
