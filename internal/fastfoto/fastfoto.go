@@ -444,6 +444,7 @@ func (r *run) buildOne(number int, sides *[2][]byte) (res CardResult, dropped bo
 				res.Name = r.claimName(slug)
 			}
 			d.Fill(&described)
+			d.Front.Secrets, d.Back.Secrets = snapSecrets(front, d.Front.Secrets), snapSecrets(back, d.Back.Secrets)
 			described.Front.Secrets, described.Back.Secrets = d.Front.Polygons(0), d.Back.Polygons(0)
 			f, b, wantFlip := d.Turns()
 			rf, rb := turn(front, f), turn(back, b)

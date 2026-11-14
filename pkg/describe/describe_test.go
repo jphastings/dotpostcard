@@ -103,7 +103,7 @@ func TestParseReplyReadsTheHandwrittenFieldsAndFillKeepsExistingOnes(t *testing.
 	d, err := parseReply(richReply)
 	require.NoError(t, err)
 	assert.Empty(t, d.Notes)
-	assert.Equal(t, [][][2]float64{{{0.5 - secretMargin, 0.5 + secretMargin}, {1, 0.5 + secretMargin}, {1, 0}}}, d.Back.Secrets, "grown outward, then clamped; the two-point polygon is dropped")
+	assert.Equal(t, [][][2]float64{{{0.5, 0.5}, {1, 0.5}, {1, 0}}}, d.Back.Secrets, "clamped; the two-point polygon is dropped")
 
 	var meta types.Metadata
 	d.Fill(&meta)
