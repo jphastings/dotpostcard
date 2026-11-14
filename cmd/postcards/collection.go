@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/jphastings/dotpostcard/formats/atproto"
+	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/formats/atproto/pdscollection"
 	"github.com/jphastings/dotpostcard/internal/cmdhelp"
 	"github.com/jphastings/dotpostcard/pkg/collection"
@@ -17,60 +17,103 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// webFileSuffixes mirrors the suffixes formats/web recognises as a web-format
-// postcard file (see formats/web/bundle.go).
-var webFileSuffixes = []string{".postcard.webp", ".postcard.jpg", ".postcard.jpeg", ".postcard.png", ".postcard"}
-
 var collectionCmd = &cobra.Command{
 	Use:   "collection",
 	Short: "Manage *.postcards collection files",
 }
 
-var collectionCreateTitle string
+const qualityHelp = "Re-encode each card at this quality: efficient, detail or archive (default: store cards untouched)"
+
+const createLong = `Build a collection from postcard files, collections and atproto records, and
+write it as <title>.postcards, publish it to atproto, or both.
+
+Sources can be web-format postcard files, *.postcards files (all their
+cards), directories (their postcard and *.postcards files, not recursively),
+at://.../org.dotpostcard.postcard/... URIs, and at://.../org.dotpostcard.collection/...
+URIs (all their cards). Compile scans with postcards first.
+
+-f picks the destinations and defaults to "postcards", which writes
+<title>.postcards. Use "-f atproto" to publish without writing a file, or
+"-f postcards,atproto" to do both; publishing needs --at-user/--at-password (or
+the environment variables goat uses). The collection's record is named after
+its title, so creating it again with the same title updates the same record.
+
+Cards are stored untouched unless -Q is given, which re-encodes each one at
+that quality (efficient, detail or archive). The title comes from --title, or
+from the source when that's a single collection.`
 
 var collectionCreateCmd = &cobra.Command{
-	Use:     "create <collection.postcards> [card files/dirs...]",
-	Example: "  postcards collection create trip.postcards pyramids.postcard.webp\n  postcards collection create trip.postcards ./scanned",
-	Short:   "Create a new, empty collection, optionally adding cards to it",
+	Use:     "create [-f postcards,atproto] [-Q quality] --title <title> <sources...>",
+	Example: "  postcards collection create --title \"Trip\" pyramids.postcard.webp ./scanned\n  postcards collection create -f atproto -Q detail --title \"Trip\" ./scanned\n  postcards collection create at://alice.example/org.dotpostcard.collection/trip",
+	Short:   "Create a collection from postcards, writing a file and/or publishing it to atproto",
+	Long:    createLong,
 	Args:    cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		dbPath := args[0]
+		cmd.SilenceUsage = true
 
-		c, err := collection.Create(dbPath)
-		if err != nil {
-			return fmt.Errorf("creating collection: %w", err)
-		}
-		defer c.Close()
-
-		if collectionCreateTitle != "" {
-			if err := c.SetTitle(collectionCreateTitle); err != nil {
-				return fmt.Errorf("setting title: %w", err)
+		formatList, _ := cmd.Flags().GetStringSlice("formats")
+		var opts pdscollection.CreateOptions
+		publish := false
+		for _, format := range formatList {
+			switch format {
+			case "postcards":
+				opts.WriteFile = true
+			case atprotoFormatName:
+				publish = true
+			default:
+				return fmt.Errorf("unknown format %q: choose postcards, atproto", format)
 			}
 		}
 
-		fmt.Printf("Created collection %s\n", dbPath)
-
-		if len(args) == 1 {
-			return nil
+		var err error
+		if opts.BuildOptions, err = buildOptions(cmd); err != nil {
+			return err
+		}
+		opts.Title, _ = cmd.Flags().GetString("title")
+		opts.Overwrite, _ = cmd.Flags().GetBool("overwrite")
+		opts.Publish.DryRun, _ = cmd.Flags().GetBool("dry-run")
+		opts.Publish.OnCard = printPublishedCard(opts.Publish.DryRun)
+		if opts.OutDir, err = cmdhelp.Outdir(cmd, ""); err != nil {
+			return err
+		}
+		if publish {
+			if opts.Client, err = cmdhelp.ATLogin(cmd); err != nil {
+				return err
+			}
 		}
 
-		return addCards(c, args[1:])
+		result, err := pdscollection.Create(args, opts)
+		if err != nil {
+			return err
+		}
+		if result.Path != "" {
+			fmt.Printf("Created %s with %s\n", result.Path, count(len(result.Cards), "card"))
+		}
+		if result.Published != nil {
+			printPublishSummary(*result.Published, opts.Publish.DryRun)
+		}
+		return nil
 	},
 }
 
 var collectionAddCmd = &cobra.Command{
-	Use:     "add <collection.postcards> <files-or-dirs...>",
-	Example: "  postcards collection add trip.postcards pyramids.postcard.webp\n  postcards collection add trip.postcards ./scanned",
-	Short:   "Add web-format postcard files to a collection",
+	Use:     "add <collection.postcards> [-Q quality] <sources...>",
+	Example: "  postcards collection add trip.postcards pyramids.postcard.webp\n  postcards collection add trip.postcards -Q efficient ./scanned",
+	Short:   "Add postcards to a collection (sources as for create)",
 	Args:    cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		c, err := collection.Open(args[0])
-		if err != nil {
-			return fmt.Errorf("opening collection: %w", err)
-		}
-		defer c.Close()
+		cmd.SilenceUsage = true
 
-		return addCards(c, args[1:])
+		opts, err := buildOptions(cmd)
+		if err != nil {
+			return err
+		}
+		names, err := pdscollection.Add(args[0], args[1:], opts)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Added %s\n", count(len(names), "card"))
+		return nil
 	},
 }
 
@@ -200,11 +243,9 @@ var collectionPublishCmd = &cobra.Command{
 	Short:   "Publish a collection to an atproto PDS",
 	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		user, _ := cmd.Flags().GetString("at-user")
-		password, _ := cmd.Flags().GetString("at-password")
 		dryRun, _ := cmd.Flags().GetBool("dry-run")
 
-		user, password, err := cmdhelp.ATCredentials(user, password)
+		client, err := cmdhelp.ATLogin(cmd)
 		if err != nil {
 			return err
 		}
@@ -215,145 +256,81 @@ var collectionPublishCmd = &cobra.Command{
 		}
 		defer c.Close()
 
-		client, err := atproto.Login(user, password, cmdhelp.ATPDSHostOverride(), cmdhelp.ATPLCHostOverride())
-		if err != nil {
-			return fmt.Errorf("logging in to atproto: %w", err)
-		}
-
 		result, err := pdscollection.Publish(client, c, pdscollection.PublishOptions{
 			DryRun:       dryRun,
 			DefaultTitle: strings.TrimSuffix(filepath.Base(args[0]), filepath.Ext(args[0])),
-			OnCard: func(card pdscollection.PublishedCard) {
-				line := fmt.Sprintf("%s → (ATProto) %s", card.Name, card.URI)
-				switch {
-				case card.Reused:
-					line += " (already published)"
-				case dryRun:
-					line += " (would publish)"
-				}
-				fmt.Println(line)
-			},
+			OnCard:       printPublishedCard(dryRun),
 		})
 		if err != nil {
 			return err
 		}
-
-		switch {
-		case dryRun && result.URI == "":
-			fmt.Printf("Would publish %s as a new collection\n", count(len(result.Cards), "card"))
-		case dryRun:
-			fmt.Printf("Would publish %s as %s\n", count(len(result.Cards), "card"), result.URI)
-		default:
-			fmt.Printf("Published %s as %s\n", count(len(result.Cards), "card"), result.URI)
-		}
+		printPublishSummary(result, dryRun)
 		return nil
 	},
 }
 
-var collectionFetchCmd = &cobra.Command{
-	Use:     "fetch <at-uri> <out.postcards>",
-	Example: "  postcards collection fetch at://alice.example/org.dotpostcard.collection/3lxyzabcdef2c blanks.postcards",
-	Short:   "Build a collection from one published to an atproto PDS",
-	Args:    cobra.ExactArgs(2),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		names, err := pdscollection.Fetch(args[0], args[1], pdscollection.FetchOptions{
-			PDSHost: cmdhelp.ATPDSHostOverride(),
-			PLCHost: cmdhelp.ATPLCHostOverride(),
-			Warn:    func(msg string) { fmt.Fprintf(os.Stderr, "⚠︎ %s\n", msg) },
-		})
+func printPublishedCard(dryRun bool) func(pdscollection.PublishedCard) {
+	return func(card pdscollection.PublishedCard) {
+		line := fmt.Sprintf("%s → (ATProto) %s", card.Name, card.URI)
+		switch {
+		case card.Reused:
+			line += " (already published)"
+		case dryRun:
+			line += " (would publish)"
+		}
+		fmt.Println(line)
+	}
+}
+
+func printPublishSummary(result pdscollection.PublishResult, dryRun bool) {
+	verb := "Published"
+	if dryRun {
+		verb = "Would publish"
+	}
+	fmt.Printf("%s %s as %s\n", verb, count(len(result.Cards), "card"), result.URI)
+}
+
+// buildOptions reads the flags shared by the commands that gather cards from sources.
+func buildOptions(cmd *cobra.Command) (pdscollection.BuildOptions, error) {
+	opts := pdscollection.BuildOptions{
+		PDSHost: cmdhelp.ATPDSHostOverride(),
+		PLCHost: cmdhelp.ATPLCHostOverride(),
+		Warn:    func(msg string) { fmt.Fprintf(os.Stderr, "⚠︎ %s\n", msg) },
+		OnCard:  func(name string) { fmt.Println(name) },
+	}
+	if cmd.Flags().Changed("quality") {
+		name, _ := cmd.Flags().GetString("quality")
+		quality, err := formats.ParseQuality(name)
 		if err != nil {
-			return err
+			return opts, err
 		}
-		for _, name := range names {
-			fmt.Println(name)
-		}
-		fmt.Printf("Fetched %s into %s\n", count(len(names), "card"), args[1])
-		return nil
-	},
+		opts.Quality = &quality
+	}
+	return opts, nil
 }
 
 func init() {
-	collectionPublishCmd.Flags().String("at-user", "", "atproto handle or DID to publish as (falls back to $GOAT_USERNAME/$ATP_USERNAME/$ATP_AUTH_USERNAME)")
-	collectionPublishCmd.Flags().String("at-password", "", "atproto PDS app password (falls back to $GOAT_PASSWORD/$ATP_PASSWORD/$ATP_AUTH_PASSWORD)")
+	cmdhelp.AddATFlags(collectionPublishCmd)
 	collectionPublishCmd.Flags().Bool("dry-run", false, "Log in and read, but write nothing, reporting what would be published")
-	collectionCmd.AddCommand(collectionPublishCmd, collectionFetchCmd)
-	collectionCreateCmd.Flags().StringVar(&collectionCreateTitle, "title", "", "Title to give the new collection")
-	collectionCmd.AddCommand(collectionCreateCmd, collectionAddCmd, collectionRemoveCmd, collectionLsCmd, collectionSearchCmd, collectionTitleCmd)
+
+	registerCollectionCreateFlags()
+	collectionAddCmd.Flags().StringP("quality", "Q", "", qualityHelp)
+
+	collectionCmd.AddCommand(collectionCreateCmd, collectionAddCmd, collectionRemoveCmd, collectionLsCmd, collectionSearchCmd, collectionTitleCmd, collectionPublishCmd)
 	rootCmd.AddCommand(collectionCmd)
 }
 
-// addCards reads each web-format postcard file found amongst paths (which may
-// be files or, non-recursively, directories) and adds it to c.
-func addCards(c *collection.Collection, paths []string) error {
-	files, err := expandCardPaths(paths)
-	if err != nil {
-		return err
-	}
-
-	added := 0
-	defer func() { fmt.Printf("Added %s\n", count(added, "card")) }()
-
-	for _, file := range files {
-		if !isWebFormatFile(file) {
-			fmt.Fprintf(os.Stderr, "⚠︎ skipping %s: not a web-format postcard file\n", file)
-			continue
-		}
-
-		data, err := os.ReadFile(file)
-		if err != nil {
-			return fmt.Errorf("reading %s: %w", file, err)
-		}
-
-		summary, err := c.AddWebPostcard(filepath.Base(file), data)
-		if err != nil {
-			return fmt.Errorf("adding %s: %w", file, err)
-		}
-
-		fmt.Println(summary.Name)
-		added++
-	}
-
-	return nil
-}
-
-// expandCardPaths turns a list of file and directory paths into a flat list
-// of file paths, non-recursively listing any directories.
-func expandCardPaths(paths []string) ([]string, error) {
-	var files []string
-
-	for _, p := range paths {
-		info, err := os.Stat(p)
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", p, err)
-		}
-
-		if !info.IsDir() {
-			files = append(files, p)
-			continue
-		}
-
-		entries, err := os.ReadDir(p)
-		if err != nil {
-			return nil, fmt.Errorf("reading directory %s: %w", p, err)
-		}
-		for _, entry := range entries {
-			if entry.IsDir() {
-				continue
-			}
-			files = append(files, filepath.Join(p, entry.Name()))
-		}
-	}
-
-	return files, nil
-}
-
-func isWebFormatFile(path string) bool {
-	for _, suffix := range webFileSuffixes {
-		if strings.HasSuffix(path, suffix) {
-			return true
-		}
-	}
-	return false
+// registerCollectionCreateFlags attaches create's flags; tests pair it with ResetFlags for a clean slate.
+func registerCollectionCreateFlags() {
+	cmdhelp.AddATFlags(collectionCreateCmd)
+	collectionCreateCmd.Flags().StringSliceP("formats", "f", []string{"postcards"}, "Where to put the collection (comma separated, any of: postcards, atproto)")
+	collectionCreateCmd.Flags().String("title", "", "Title of the collection (default: the title of a single collection source)")
+	collectionCreateCmd.Flags().Bool("out-here", false, "Write the file in the current working directory (default)")
+	collectionCreateCmd.Flags().String("out-dir", "", "Write the file to the given directory")
+	collectionCreateCmd.MarkFlagsMutuallyExclusive("out-here", "out-dir")
+	collectionCreateCmd.Flags().Bool("overwrite", false, "Replace the file if it already exists")
+	collectionCreateCmd.Flags().Bool("dry-run", false, "With atproto: log in and read, but write no file and no record, reporting what would be published")
+	collectionCreateCmd.Flags().StringP("quality", "Q", "", qualityHelp)
 }
 
 // titleWithName appends the card's name, which `remove` needs, unless its title already implies it.

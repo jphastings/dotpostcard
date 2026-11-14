@@ -41,29 +41,37 @@ Uploads write the postcard's title to the record; a postcard without one is publ
 
 A [collection](collection.md) (`*.postcards` file) can be published as one `org.dotpostcard.collection` record: a `title`, an ordered `postcards` list of [strongRefs](https://atproto.com/specs/data-model) (an at-uri and CID) to `org.dotpostcard.postcard` records, and a `createdAt` time. See [lexicons/org/dotpostcard](../../lexicons/org/dotpostcard/collection.json). The list follows the collection's own order: most recently sent first, undated cards last, then by name. Local-only details (thumbnails, the search index, filenames) aren't in the record, as they're all derivable from the postcards.
 
+Publish cards straight from their files with `collection create -f atproto`, or publish an existing `*.postcards` file with `collection publish`:
+
 ```sh
+$ postcards collection create -f atproto --title "Blanks" ./scanned --at-user alice.example
 $ postcards collection publish blanks.postcards --at-user alice.example
+```
+
+Either one reports each card and then the collection:
+
+```
 pyramids → (ATProto) at://did:plc:.../org.dotpostcard.postcard/3jzfcijpj2z2a
 harbour → (ATProto) at://did:plc:.../org.dotpostcard.postcard/3k2abcdefgh2b (already published)
-Published 2 cards as at://did:plc:.../org.dotpostcard.collection/3lxyzabcdef2c
+Published 2 cards as at://did:plc:.../org.dotpostcard.collection/blanks
 ```
 
 Publishing logs in once (credentials as for uploading), then uploads each card's stored bytes untouched as its blob, writes its postcard record with its effective title, and finally writes the collection record. Publishing is refused, before anything is written, if any card has a secret region that isn't already hidden in its image, since the stored bytes would reveal it.
 
 - **Keys are stable.** A card's record key comes from its image hash and its sent date, or — for an undated card — the day it was added to the collection. Re-publishing therefore reuses existing records; if the collection record would also be unchanged, nothing is written.
-- **The collection's URI is remembered** in the `.postcards` file on first publish, and later publishes update that same record, keeping its `createdAt`. The collection can only be updated by the account that published it. The record is titled with the collection's title, or the file's name if it has none.
+- **The record is keyed by the collection's title**, kebab-cased like a card name (or a short hash of the title if it has no Latin letters or digits), so creating a collection with the same title again updates the same record. The URI is also remembered in the `.postcards` file on first publish and then takes precedence, so retitling a published collection still updates in place, keeping its `createdAt`. The collection can only be updated by the account that published it. The record is titled with the collection's title, or the file's name if it has none.
 - **Removed cards** drop out of the collection record; their postcard records stay in the repo.
 - **Failures part-way** leave already-uploaded postcards in place and don't write the collection record; run it again to carry on.
 - **`--dry-run`** logs in and reads, but writes nothing (not even the stored URI), reporting which cards would be published and which reused.
 - A card uploaded earlier with `-f atproto` is not recognised, and is uploaded again under its collection key. A PDS that refuses a very large collection record surfaces as an error; collections aren't split.
 
-To go the other way, fetch a published collection into a new `*.postcards` file, anonymously:
+To go the other way, give `collection create` the collection's address (or a single postcard's) as a source; it is read anonymously:
 
 ```sh
-$ postcards collection fetch at://alice.example/org.dotpostcard.collection/3lxyzabcdef2c blanks.postcards
+$ postcards collection create at://alice.example/org.dotpostcard.collection/blanks
 ```
 
-Each image is stored exactly as published, named from its record's title (`-2`, `-3` on a clash) with the same fallbacks as [downloading](#downloading), and the collection takes the record's title. A record that disagrees with its image's metadata raises the same warning as a download. It won't overwrite an existing file.
+Each image is stored exactly as published, named from its record's title (`-2`, `-3` on a clash) with the same fallbacks as [downloading](#downloading), and the collection takes the record's title. A record that disagrees with its image's metadata raises the same warning as a download.
 
 ## The record wins
 

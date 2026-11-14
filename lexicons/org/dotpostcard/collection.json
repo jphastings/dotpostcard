@@ -6,7 +6,7 @@
     "main": {
       "type": "record",
       "description": "A collection of postcards: a title and an ordered list of references to org.dotpostcard.postcard records.",
-      "key": "tid",
+      "key": "any",
       "record": {
         "type": "object",
         "required": ["title", "postcards", "createdAt"],

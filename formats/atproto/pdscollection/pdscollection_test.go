@@ -3,11 +3,13 @@ package pdscollection
 import (
 	"crypto/sha256"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
 
+	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/formats/atproto"
 	"github.com/jphastings/dotpostcard/formats/atproto/internal/testpds"
 	"github.com/jphastings/dotpostcard/formats/web"
@@ -47,7 +49,7 @@ func login(t *testing.T, srv testServer) *atproto.Client {
 	return client
 }
 
-func addCard(t *testing.T, coll *collection.Collection, name, title string) {
+func cardFile(t *testing.T, name, title string) (filename string, data []byte) {
 	t.Helper()
 	pc := testhelpers.SamplePostcard
 	pc.Name = name
@@ -60,22 +62,57 @@ func addCard(t *testing.T, coll *collection.Collection, name, title string) {
 
 	fws, err := web.DefaultCodec.Encode(pc, nil)
 	require.NoError(t, err)
-	data, err := fws[0].Bytes()
+	data, err = fws[0].Bytes()
 	require.NoError(t, err)
-	_, err = coll.AddWebPostcard(fws[0].Filename, data)
+	return fws[0].Filename, data
+}
+
+func addCard(t *testing.T, coll *collection.Collection, name, title string) {
+	t.Helper()
+	filename, data := cardFile(t, name, title)
+	_, err := coll.AddWebPostcard(filename, data)
 	require.NoError(t, err)
+}
+
+func writeCard(t *testing.T, dir, name, title string) string {
+	t.Helper()
+	filename, data := cardFile(t, name, title)
+	path := filepath.Join(dir, filename)
+	require.NoError(t, os.WriteFile(path, data, 0o644))
+	return path
 }
 
 func newCollection(t *testing.T) (*collection.Collection, string) {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), "blanks.postcards")
+	return collectionOf(t, "Blank postcards", "pyramids", "harbour")
+}
+
+func collectionOf(t *testing.T, title string, names ...string) (*collection.Collection, string) {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "source.postcards")
 	coll, err := collection.Create(path)
 	require.NoError(t, err)
 	t.Cleanup(func() { coll.Close() })
-	require.NoError(t, coll.SetTitle("Blank postcards"))
-	addCard(t, coll, "pyramids", "Pyramids")
-	addCard(t, coll, "harbour", "Harbour")
+	require.NoError(t, coll.SetTitle(title))
+	for _, name := range names {
+		addCard(t, coll, name, strings.ToUpper(name[:1])+name[1:])
+	}
 	return coll, path
+}
+
+func cardBytes(t *testing.T, path string) map[string][]byte {
+	t.Helper()
+	coll, err := collection.OpenReadOnly(path)
+	require.NoError(t, err)
+	defer coll.Close()
+	cards, err := coll.List()
+	require.NoError(t, err)
+	bytes := map[string][]byte{}
+	for _, card := range cards {
+		bytes[card.Name], _, err = coll.CardData(card.Name)
+		require.NoError(t, err)
+	}
+	return bytes
 }
 
 func TestPublishIsIdempotent(t *testing.T) {
@@ -178,61 +215,235 @@ func TestPublishRefusesAnotherAccountsCollection(t *testing.T) {
 	assert.EqualValues(t, 0, srv.writes.Load())
 }
 
-func TestFetchRebuildsThePublishedCollection(t *testing.T) {
+func TestPublishedKeyFollowsTheTitleUntilAnAddressIsStored(t *testing.T) {
 	srv := newServer(t)
 	client := login(t, srv)
 	coll, _ := newCollection(t)
+
+	first, err := Publish(client, coll, PublishOptions{})
+	require.NoError(t, err)
+	assert.True(t, strings.HasSuffix(first.URI, "/blank-postcards"))
+
+	require.NoError(t, coll.SetTitle("Renamed"))
+	second, err := Publish(client, coll, PublishOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, first.URI, second.URI)
+}
+
+func TestDryRunKnowsTheAddressOfAnUnpublishedCollection(t *testing.T) {
+	client := login(t, newServer(t))
+	coll, _ := newCollection(t)
+
+	result, err := Publish(client, coll, PublishOptions{DryRun: true})
+	require.NoError(t, err)
+	assert.Equal(t, "at://"+client.DID()+"/org.dotpostcard.collection/blank-postcards", result.URI)
+}
+
+func TestTitleWithoutLatinLettersStillKeysARecord(t *testing.T) {
+	client := login(t, newServer(t))
+	coll, _ := collectionOf(t, "絵葉書", "pyramids")
+
 	result, err := Publish(client, coll, PublishOptions{})
 	require.NoError(t, err)
+	_, _, rkey, err := atproto.ParseATURI(result.URI)
+	require.NoError(t, err)
+	assert.NoError(t, atproto.ValidRecordKey(rkey))
+	assert.NotEmpty(t, rkey)
+}
 
-	out := filepath.Join(t.TempDir(), "fetched.postcards")
+func TestCreateGathersEveryKindOfSource(t *testing.T) {
+	srv := newServer(t)
+	client := login(t, srv)
+	published, _ := collectionOf(t, "Remote", "epsilon", "zeta")
+	remote, err := Publish(client, published, PublishOptions{})
+	require.NoError(t, err)
+
+	dir := t.TempDir()
+	alone := writeCard(t, dir, "alpha", "Alpha")
+	inDir := filepath.Join(dir, "scans")
+	require.NoError(t, os.Mkdir(inDir, 0o755))
+	writeCard(t, inDir, "beta", "Beta")
+	require.NoError(t, os.WriteFile(filepath.Join(inDir, "notes.txt"), []byte("ignored"), 0o644))
+	_, packed := collectionOf(t, "Packed", "gamma")
+
+	out := t.TempDir()
+	result, err := Create(
+		[]string{alone, inDir, packed, remote.URI, remote.Cards[1].URI},
+		CreateOptions{BuildOptions: BuildOptions{PDSHost: srv.url}, Title: "Mixed", WriteFile: true, OutDir: out},
+	)
+	require.NoError(t, err)
+
+	assert.Equal(t, filepath.Join(out, "mixed.postcards"), result.Path)
+	assert.Equal(t, []string{"alpha", "beta", "gamma", "epsilon", "zeta"}, result.Cards, "zeta, named twice with identical bytes, is stored once")
+	assert.Len(t, cardBytes(t, result.Path), 5)
+}
+
+func TestCreateKeepsBytesUnlessAQualityIsGiven(t *testing.T) {
+	dir := t.TempDir()
+	path := writeCard(t, dir, "alpha", "Alpha")
+	original, err := os.ReadFile(path)
+	require.NoError(t, err)
+
+	untouched, err := Create([]string{path}, CreateOptions{Title: "Same", WriteFile: true, OutDir: t.TempDir()})
+	require.NoError(t, err)
+	assert.Equal(t, original, cardBytes(t, untouched.Path)["alpha"])
+
+	detail := formats.Detail
+	reencoded, err := Create([]string{path}, CreateOptions{BuildOptions: BuildOptions{Quality: &detail}, Title: "Same", WriteFile: true, OutDir: t.TempDir()})
+	require.NoError(t, err)
+	assert.NotEqual(t, original, cardBytes(t, reencoded.Path)["alpha"])
+}
+
+func TestCreatingTwiceWithOneTitleUpdatesOneRecord(t *testing.T) {
+	srv := newServer(t)
+	client := login(t, srv)
+	card := writeCard(t, t.TempDir(), "alpha", "Alpha")
+	opts := CreateOptions{Title: "Trip", Client: client}
+
+	first, err := Create([]string{card}, opts)
+	require.NoError(t, err)
+	second, err := Create([]string{card}, opts)
+	require.NoError(t, err)
+
+	assert.Equal(t, first.Published.URI, second.Published.URI)
+	assert.True(t, second.Published.Unchanged)
+	assert.Empty(t, first.Path, "-f atproto alone leaves no file")
+}
+
+func TestCreateWritesTheFileBeforePublishingSoItStoresTheAddress(t *testing.T) {
+	client := login(t, newServer(t))
+	card := writeCard(t, t.TempDir(), "alpha", "Alpha")
+
+	result, err := Create([]string{card}, CreateOptions{Title: "Trip", WriteFile: true, OutDir: t.TempDir(), Client: client})
+	require.NoError(t, err)
+
+	coll, err := collection.OpenReadOnly(result.Path)
+	require.NoError(t, err)
+	defer coll.Close()
+	stored, err := coll.PublishedURI()
+	require.NoError(t, err)
+	assert.Equal(t, result.Published.URI, stored)
+}
+
+func TestCreateInheritsTheTitleOfASoleCollectionAndOtherwiseNeedsOne(t *testing.T) {
+	_, packed := collectionOf(t, "Packed", "gamma")
+	card := writeCard(t, t.TempDir(), "alpha", "Alpha")
+	out := t.TempDir()
+
+	result, err := Create([]string{packed}, CreateOptions{WriteFile: true, OutDir: out})
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(out, "packed.postcards"), result.Path)
+
+	_, err = Create([]string{card}, CreateOptions{WriteFile: true, OutDir: out})
+	assert.ErrorContains(t, err, "title")
+	_, err = Create([]string{packed, card}, CreateOptions{WriteFile: true, OutDir: out})
+	assert.ErrorContains(t, err, "title")
+}
+
+func TestCreateSuffixesAClashingNameAndWarnsButStoresIdenticalCardsOnce(t *testing.T) {
+	first, second, copyOfFirst := t.TempDir(), t.TempDir(), t.TempDir()
+	writeCard(t, first, "same", "One")
+	writeCard(t, second, "same", "Two")
+	writeCard(t, copyOfFirst, "same", "One")
+
 	var warnings []string
-	_, err = Fetch(result.URI, out, FetchOptions{PDSHost: srv.url, Warn: func(m string) { warnings = append(warnings, m) }})
+	result, err := Create([]string{first, second, copyOfFirst}, CreateOptions{
+		BuildOptions: BuildOptions{Warn: func(m string) { warnings = append(warnings, m) }},
+		Title:        "Clash", WriteFile: true, OutDir: t.TempDir(),
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"same", "same-2"}, result.Cards)
+	assert.Len(t, warnings, 1)
+}
+
+func TestOverwritingDoesNotReimportThePreviousResult(t *testing.T) {
+	dir := t.TempDir()
+	writeCard(t, dir, "alpha", "Alpha")
+	opts := CreateOptions{Title: "Trip", WriteFile: true, OutDir: dir}
+
+	_, err := Create([]string{dir}, opts)
+	require.NoError(t, err)
+	_, err = Create([]string{dir}, opts)
+	assert.ErrorContains(t, err, "already exists")
+
+	opts.Overwrite = true
+	result, err := Create([]string{dir}, opts)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"alpha"}, result.Cards)
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+	assert.Len(t, entries, 2, "the card and the collection, no leftover build directory")
+}
+
+func TestCreateRefusesAnExplicitFileItCannotUse(t *testing.T) {
+	notes := filepath.Join(t.TempDir(), "notes.txt")
+	require.NoError(t, os.WriteFile(notes, []byte("hi"), 0o644))
+
+	_, err := Create([]string{notes}, CreateOptions{Title: "Trip", WriteFile: true, OutDir: t.TempDir()})
+	assert.ErrorContains(t, err, "notes.txt")
+}
+
+func TestAddReplacesCardsAlreadyInTheCollection(t *testing.T) {
+	_, path := collectionOf(t, "Trip", "alpha")
+	dir := t.TempDir()
+	writeCard(t, dir, "alpha", "Changed")
+	writeCard(t, dir, "beta", "Beta")
+
+	names, err := Add(path, []string{dir}, BuildOptions{})
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"alpha", "beta"}, names)
+	assert.Len(t, cardBytes(t, path), 2)
+}
+
+func TestCreateRebuildsAPublishedCollectionFromItsAddress(t *testing.T) {
+	srv := newServer(t)
+	client := login(t, srv)
+	coll, _ := newCollection(t)
+	published, err := Publish(client, coll, PublishOptions{})
+	require.NoError(t, err)
+
+	var warnings []string
+	result, err := Create([]string{published.URI}, CreateOptions{
+		BuildOptions: BuildOptions{PDSHost: srv.url, Warn: func(m string) { warnings = append(warnings, m) }},
+		WriteFile:    true, OutDir: t.TempDir(),
+	})
 	require.NoError(t, err)
 	assert.Empty(t, warnings)
+	assert.Equal(t, "blank-postcards.postcards", filepath.Base(result.Path))
 
-	fetched, err := collection.OpenReadOnly(out)
+	fetched, err := collection.OpenReadOnly(result.Path)
 	require.NoError(t, err)
 	defer fetched.Close()
-
 	title, err := fetched.Title()
 	require.NoError(t, err)
 	assert.Equal(t, "Blank postcards", title)
 
-	want, err := coll.List()
-	require.NoError(t, err)
-	got, err := fetched.List()
-	require.NoError(t, err)
-	require.Len(t, got, len(want))
-	for i := range want {
-		assert.Equal(t, want[i].Name, got[i].Name)
-		assert.Equal(t, want[i].Title, got[i].Title)
-
-		wantData, _, err := coll.CardData(want[i].Name)
+	for name, data := range cardBytes(t, result.Path) {
+		want, _, err := coll.CardData(name)
 		require.NoError(t, err)
-		gotData, _, err := fetched.CardData(got[i].Name)
-		require.NoError(t, err)
-		assert.Equal(t, sha256.Sum256(wantData), sha256.Sum256(gotData))
+		assert.Equal(t, sha256.Sum256(want), sha256.Sum256(data), name)
 	}
-
-	_, err = Fetch(result.URI, out, FetchOptions{PDSHost: srv.url})
-	assert.ErrorContains(t, err, "already exists")
 }
 
-func TestFetchDoesNotWarnWhenANameClashSuffixesAnUntitledCard(t *testing.T) {
+func TestRebuildingDoesNotReportMetadataDifferencesWhenAClashSuffixesAnUntitledCard(t *testing.T) {
 	srv := newServer(t)
 	client := login(t, srv)
-	coll, err := collection.Create(filepath.Join(t.TempDir(), "clash.postcards"))
-	require.NoError(t, err)
-	defer coll.Close()
+	coll, _ := collectionOf(t, "Clash")
 	addCard(t, coll, "aaa", "Harbour")
 	addCard(t, coll, "harbour", "")
-	result, err := Publish(client, coll, PublishOptions{})
+	published, err := Publish(client, coll, PublishOptions{})
 	require.NoError(t, err)
 
 	var warnings []string
-	names, err := Fetch(result.URI, filepath.Join(t.TempDir(), "fetched.postcards"), FetchOptions{PDSHost: srv.url, Warn: func(m string) { warnings = append(warnings, m) }})
+	result, err := Create([]string{published.URI}, CreateOptions{
+		BuildOptions: BuildOptions{PDSHost: srv.url, Warn: func(m string) { warnings = append(warnings, m) }},
+		WriteFile:    true, OutDir: t.TempDir(),
+	})
 	require.NoError(t, err)
-	assert.Contains(t, names, "harbour-2")
-	assert.Empty(t, warnings)
+	assert.Contains(t, result.Cards, "harbour-2")
+	for _, w := range warnings {
+		assert.NotContains(t, w, "differ")
+	}
 }

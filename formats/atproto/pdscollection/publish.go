@@ -4,6 +4,8 @@
 package pdscollection
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"slices"
@@ -37,9 +39,8 @@ type PublishedCard struct {
 	Reused bool
 }
 
-// PublishResult reports what Publish did. URI is empty only in a dry run of a collection that
-// has never been published. Unchanged means the collection record already matched, so it was
-// not written.
+// PublishResult reports what Publish did. URI is the collection record's address, known even
+// in a dry run. Unchanged means the collection record already matched, so it was not written.
 type PublishResult struct {
 	URI       string
 	Cards     []PublishedCard
@@ -63,7 +64,10 @@ func Publish(client *atproto.Client, coll *collection.Collection, opts PublishOp
 	if err != nil {
 		return PublishResult{}, err
 	}
-	rkey, storedURI, err := collectionKey(client, coll)
+	if title == "" {
+		title = opts.DefaultTitle
+	}
+	rkey, storedURI, err := collectionKey(client, coll, title)
 	if err != nil {
 		return PublishResult{}, err
 	}
@@ -89,13 +93,7 @@ func Publish(client *atproto.Client, coll *collection.Collection, opts PublishOp
 		}
 	}
 
-	if title == "" {
-		title = opts.DefaultTitle
-	}
 	result.URI = fmt.Sprintf("at://%s/%s/%s", client.DID(), atproto.CollectionRecordType, rkey)
-	if storedURI == "" && opts.DryRun {
-		result.URI = ""
-	}
 
 	if hasExisting && existing.Title == title && slices.Equal(existing.Postcards, refs) {
 		result.Unchanged = true
@@ -169,15 +167,30 @@ func refuseUnhiddenSecrets(coll *collection.Collection, cards []collection.CardS
 	return nil
 }
 
-// collectionKey is the collection record's key: that of its stored published URI, or a fresh
-// TID if it has never been published.
-func collectionKey(client *atproto.Client, coll *collection.Collection) (rkey, storedURI string, err error) {
+// titleKey names a collection after its title, for both its file and its record, so publishing
+// the same title again updates the same record. Titles with no Latin letters or digits have no
+// slug, so they fall back to a hash of the title.
+func titleKey(title string) string {
+	if slug := types.Slug(title); slug != "" {
+		return slug
+	}
+	sum := sha256.Sum256([]byte(title))
+	return hex.EncodeToString(sum[:6])
+}
+
+// collectionKey is the collection record's key: that of its stored published URI, or else the
+// key of its title.
+func collectionKey(client *atproto.Client, coll *collection.Collection, title string) (rkey, storedURI string, err error) {
 	storedURI, err = coll.PublishedURI()
 	if err != nil {
 		return "", "", err
 	}
 	if storedURI == "" {
-		return atproto.NewTID(time.Now()), "", nil
+		if title == "" {
+			return "", "", errors.New("the collection has no title to key its record by: set one with `collection title`")
+		}
+		rkey = titleKey(title)
+		return rkey, "", atproto.ValidRecordKey(rkey)
 	}
 
 	authority, nsid, rkey, err := atproto.ParseATURI(storedURI)

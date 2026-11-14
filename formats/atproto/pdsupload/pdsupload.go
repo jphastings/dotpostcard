@@ -21,31 +21,36 @@ import (
 // failures.
 var ErrRecordExists = errors.New("already exists (pass --overwrite to replace it, or --skip-existing to ignore)")
 
+// EncodeImage encodes pc with the web codec and returns its image file's name, mimetype and
+// bytes.
+func EncodeImage(pc types.Postcard, encOpts *formats.EncodeOptions) (filename, mimetype string, data []byte, err error) {
+	fws, err := web.DefaultCodec.Encode(pc, encOpts)
+	if err != nil {
+		return "", "", nil, fmt.Errorf("encoding for upload: %w", err)
+	}
+
+	for _, fw := range fws {
+		if !strings.HasPrefix(fw.Mimetype, "image/") {
+			continue
+		}
+		data, err := fw.Bytes()
+		if err != nil {
+			return "", "", nil, fmt.Errorf("encoding image for upload: %w", err)
+		}
+		return fw.Filename, fw.Mimetype, data, nil
+	}
+	return "", "", nil, fmt.Errorf("the web codec produced no image to upload")
+}
+
 // UploadPostcard encodes pc with the web codec and uploads the resulting image as a blob and
 // record. The record's key is only knowable once the image is encoded (it's derived from the
 // image's own bytes), so the existing-record check happens here too, right before anything is
 // actually uploaded — skip reports that an existing record was left alone because skipExisting
 // asked for that, rather than failing the card.
 func UploadPostcard(client *atproto.Client, pc types.Postcard, encOpts *formats.EncodeOptions, overwrite, skipExisting bool) (atURI string, skip bool, err error) {
-	fws, err := web.DefaultCodec.Encode(pc, encOpts)
+	_, mimetype, data, err := EncodeImage(pc, encOpts)
 	if err != nil {
-		return "", false, fmt.Errorf("encoding for upload: %w", err)
-	}
-
-	var imageFW *formats.FileWriter
-	for i := range fws {
-		if strings.HasPrefix(fws[i].Mimetype, "image/") {
-			imageFW = &fws[i]
-			break
-		}
-	}
-	if imageFW == nil {
-		return "", false, fmt.Errorf("the web codec produced no image to upload")
-	}
-
-	data, err := imageFW.Bytes()
-	if err != nil {
-		return "", false, fmt.Errorf("encoding image for upload: %w", err)
+		return "", false, err
 	}
 
 	// Encode fills in the image's actual pixel dimensions (and may resize), so the record
@@ -72,7 +77,7 @@ func UploadPostcard(client *atproto.Client, pc types.Postcard, encOpts *formats.
 		}
 	}
 
-	if _, err := putWebFile(client, rkey, data, imageFW.Mimetype, decoded.Meta, pc.Name); err != nil {
+	if _, err := putWebFile(client, rkey, data, mimetype, decoded.Meta, pc.Name); err != nil {
 		return "", false, err
 	}
 
