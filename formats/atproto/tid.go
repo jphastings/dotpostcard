@@ -65,7 +65,7 @@ func (r Record) Key(today time.Time, image []byte) string {
 // It errors if r.Image's CID is missing, or isn't the CIDv1/raw/sha2-256 shape atproto's
 // uploadBlob always produces.
 func (r Record) KeyFromImage(today time.Time) (string, error) {
-	sum, err := blobDigest(r.Image)
+	sum, err := r.Image.SHA256()
 	if err != nil {
 		return "", err
 	}
@@ -88,10 +88,10 @@ const (
 	multihashSHA256 = 0x12
 )
 
-// blobDigest extracts the sha256 digest embedded in an atproto blob's CID. That CID is always
+// SHA256 extracts the sha256 digest embedded in an atproto blob's CID. That CID is always
 // CIDv1, raw codec, sha2-256 multihash, base32-lower multibase-encoded: <version><codec>
 // <hash-fn><digest-length><digest>, prefixed with 'b'.
-func blobDigest(b Blob) ([sha256.Size]byte, error) {
+func (b Blob) SHA256() ([sha256.Size]byte, error) {
 	link := b.Ref.Link
 	if len(link) == 0 || link[0] != 'b' {
 		return [sha256.Size]byte{}, fmt.Errorf("blob has no supported CID: %q", link)
