@@ -67,7 +67,7 @@ type Side struct {
 type Description struct {
 	Front Side `json:"front"`
 	Back  Side `json:"back"`
-	// Title is a short phrase for what the card shows; see types.Slug.
+	// Title is the card's title: a caption printed on it, or a short phrase for what it shows.
 	Title string `json:"title"`
 	// Notes are things worth telling the user that didn't stop the description working.
 	Notes []string `json:"-"`
@@ -88,7 +88,7 @@ Other fields (an empty string means none):
 - add a description for the front of the postcard in front.description (we're talking alt text; no need to describe it as a postcard as that's already contextual, imagine answering "what is this a postcard of?" in an alt-text concise manner for people who can't see it).
 - if you think the back has anything worth describing then you can add a description in back.description just like the front description, but it should be something worth describing rather than just it's the back of a postcard. Things like copyright notices and names of photographers aren't worth adding here.
 - transcription (for front or back) is only necessary if there has been text written/typed by someone sending the postcard — something added *after* it was created — a message. Try to capture that message as closely as possible in the transcription.
-- title is a short title of 1 to 3 words saying what the card shows, using both sides, in plain words without punctuation and without the word "postcard" (for example "CNN Center", "Notre-Dame", "Radley Beagles").
+- title is the card's title. If either side carries text that reads as a title for what is shown (a printed caption, the name of an artwork, a description of the photograph), copy that text verbatim: same language, spelling, capitalisation and punctuation. Leave out credits, publisher names and serial numbers. Only if there is no such text, write a short title of 1 to 5 words saying what the card shows. Never include the word "postcard".
 Keep each description to a single sentence of no more than about 20 words. If the card names the place shown, include it.`
 
 // New connects the configured backend. Web search is only available with claude-code.
@@ -239,6 +239,7 @@ func (d Description) Fill(meta *types.Metadata) {
 			*dst = v
 		}
 	}
+	fill(&meta.Title, d.Title)
 	fill(&meta.Front.Description, d.Front.Description)
 	fill(&meta.Front.Transcription.Text, d.Front.Transcription)
 	fill(&meta.Back.Description, d.Back.Description)

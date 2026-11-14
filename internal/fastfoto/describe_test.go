@@ -28,6 +28,21 @@ func describing(d describe.Description, err error) func(*Options) {
 	}
 }
 
+func TestDescriberTitleIsWrittenToMetadataAndNamesTheFiles(t *testing.T) {
+	dir := twoSidedDir(t)
+	report, err := runDefaultCard(t, dir, describing(describe.Description{
+		Title: "Notre-Dame de Paris",
+		Front: describe.Side{Rotation: "0"},
+		Back:  describe.Side{Rotation: "0"},
+	}, nil))
+	require.NoError(t, err)
+	assert.Equal(t, "notre-dame-de-paris", report.Cards[0].Name)
+
+	b, err := os.ReadFile(filepath.Join(dir, "notre-dame-de-paris-meta.yaml"))
+	require.NoError(t, err)
+	assert.Contains(t, string(b), "title: Notre-Dame de Paris")
+}
+
 func TestHeterorientedAnswerTurnsTheSidesAndSetsTheFlip(t *testing.T) {
 	dir := twoSidedDir(t)
 	report, err := runDefaultCard(t, dir, describing(describe.Description{

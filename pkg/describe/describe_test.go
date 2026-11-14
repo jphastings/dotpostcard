@@ -76,3 +76,19 @@ func TestFillKeepsWhatIsAlreadyThere(t *testing.T) {
 		assert.Equal(t, c.after, meta, name)
 	}
 }
+
+func TestFillSetsTheTitleOnlyWhenEmpty(t *testing.T) {
+	printed := Description{Title: "Grüße aus Köln, 1962!"}
+
+	var untitled types.Metadata
+	printed.Fill(&untitled)
+	assert.Equal(t, "Grüße aus Köln, 1962!", untitled.Title, "a printed caption is copied verbatim")
+
+	titled := types.Metadata{Title: "Mine"}
+	printed.Fill(&titled)
+	assert.Equal(t, "Mine", titled.Title)
+
+	var noTitle types.Metadata
+	Description{}.Fill(&noTitle)
+	assert.Empty(t, noTitle.Title)
+}
