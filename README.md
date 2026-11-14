@@ -71,3 +71,10 @@ The `--quality` (`-Q`) flag chooses how much is kept:
 - `efficient` (the default): resized and compressed for sharing
 - `detail`: higher resolution, with very few compression artefacts
 - `archive`: full resolution, lossless
+
+If a side of a web postcard was scanned the wrong way up, turn it clockwise in place (the flip is updated to match):
+
+```sh
+$ postcards rotate --front 90 pyramid.postcard
+↻ pyramid.postcard (flip: left-hand)
+```

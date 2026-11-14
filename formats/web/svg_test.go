@@ -20,7 +20,7 @@ func TestSVGBackClipFollowsTheRotatedBack(t *testing.T) {
 
 	for _, flip := range []types.Flip{types.FlipLeftHand, types.FlipRightHand} {
 		t.Run(string(flip), func(t *testing.T) {
-			rotatedBack, _ := rotateForWeb(pc.Back, flip)
+			rotatedBack := images.Turn(pc.Back, webTurns(flip))
 			want, err := images.OutlineWithOpts(rotatedBack, false, false, opts)
 			assert.NoError(t, err)
 			unrotated, err := images.OutlineWithOpts(pc.Back, false, false, opts)

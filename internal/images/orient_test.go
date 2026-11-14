@@ -49,3 +49,33 @@ func TestOrientMovesEachCornerToItsDisplayedPosition(t *testing.T) {
 		}
 	}
 }
+
+func TestTurnPlacesEveryPixelClockwiseAndKeepsLowAlphaColour(t *testing.T) {
+	const w, h = 3, 2
+	src := image.NewNRGBA(image.Rect(5, 7, 5+w, 7+h))
+	for x := 0; x < w; x++ {
+		for y := 0; y < h; y++ {
+			src.SetNRGBA(5+x, 7+y, color.NRGBA{uint8(10 + x), uint8(10 + y), 100, 1})
+		}
+	}
+
+	to := map[int]func(x, y int) (int, int){
+		1:  func(x, y int) (int, int) { return h - 1 - y, x },
+		2:  func(x, y int) (int, int) { return w - 1 - x, h - 1 - y },
+		-1: func(x, y int) (int, int) { return y, w - 1 - x },
+	}
+	for quarters, place := range to {
+		out := Turn(src, quarters)
+		wantW, wantH := w, h
+		if quarters%2 != 0 {
+			wantW, wantH = h, w
+		}
+		assert.Equal(t, image.Rect(0, 0, wantW, wantH), out.Bounds())
+		for x := 0; x < w; x++ {
+			for y := 0; y < h; y++ {
+				dx, dy := place(x, y)
+				assert.Equal(t, src.NRGBAAt(5+x, 7+y), out.NRGBAAt(dx, dy), "quarters %d source (%d,%d)", quarters, x, y)
+			}
+		}
+	}
+}
