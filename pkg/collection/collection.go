@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/jphastings/dotpostcard/internal/sqldb"
 	"github.com/jphastings/dotpostcard/internal/version"
@@ -44,6 +45,7 @@ type CardSummary struct {
 	FrontPxW      int         `json:"front_px_w"`
 	FrontPxH      int         `json:"front_px_h"`
 	HasBack       bool        `json:"has_back"`
+	AddedAt       time.Time   `json:"added_at,omitzero"`
 }
 
 // Create makes a new, empty collection file. It errors if path already exists.
@@ -127,6 +129,27 @@ func (c *Collection) SetTitle(title string) error {
 
 	if _, err := c.db.Exec(`UPDATE meta SET title = ?`, arg); err != nil {
 		return fmt.Errorf("setting collection title: %w", err)
+	}
+	return nil
+}
+
+// PublishedURI returns the at-uri of the collection's published org.dotpostcard.collection
+// record, or "" if it hasn't been published.
+func (c *Collection) PublishedURI() (string, error) {
+	var uri sql.NullString
+	if err := c.db.QueryRow(`SELECT published_uri FROM meta`).Scan(&uri); err != nil {
+		return "", fmt.Errorf("reading published uri: %w", err)
+	}
+	return uri.String, nil
+}
+
+// SetPublishedURI records where the collection was published.
+func (c *Collection) SetPublishedURI(uri string) error {
+	if c.readOnly {
+		return errReadOnly
+	}
+	if _, err := c.db.Exec(`UPDATE meta SET published_uri = ?`, uri); err != nil {
+		return fmt.Errorf("setting published uri: %w", err)
 	}
 	return nil
 }

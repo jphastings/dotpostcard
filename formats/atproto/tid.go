@@ -5,6 +5,7 @@ import (
 	"encoding/base32"
 	"encoding/binary"
 	"fmt"
+	"math/rand/v2"
 	"time"
 
 	"github.com/jphastings/dotpostcard/types"
@@ -150,4 +151,10 @@ func encodeTID(v uint64) string {
 		v >>= 5
 	}
 	return string(out[:])
+}
+
+// NewTID returns a TID for time t with a random clock id, for records that have no content to
+// derive a key from.
+func NewTID(t time.Time) string {
+	return encodeTID(uint64(t.UnixMicro())<<10 | rand.Uint64()&0x3ff)
 }

@@ -13,6 +13,10 @@ Those extracted fields, titles included, are also indexed in a SQLite FTS5 virtu
 
 Collections carry a schema version (in both a `meta` table and `PRAGMA user_version`), so future versions of this tool can detect and migrate older collection files. Migrating an older file backfills each card's title and rebuilds the search index; this needs the collection opened read-write, and a read-only open of an outdated file is refused.
 
+## Publishing
+
+A collection can be published to an atproto PDS as a single record listing its cards, and built again from one: see [Collections](atproto.md#collections) in the ATProto format. `postcards collection publish` stores the record's at-uri in the file (`published_uri`) so later publishes update the same record; `postcards collection fetch` creates a new collection from a published one.
+
 ## Example
 
 ```sh
@@ -28,4 +32,8 @@ Pyramids — Alice → Bob (2006-01-02)
 $ postcards collection search trip.postcards pyramids
 Pyramids: The word 'Front' in large blue letters
 1 result
+
+$ postcards collection publish trip.postcards --at-user alice.example
+pyramids → (ATProto) at://did:plc:.../org.dotpostcard.postcard/3jzfcijpj2z2a
+Published 1 card as at://did:plc:.../org.dotpostcard.collection/3lxyzabcdef2c
 ```

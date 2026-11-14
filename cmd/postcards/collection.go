@@ -9,6 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/jphastings/dotpostcard/formats/atproto"
+	"github.com/jphastings/dotpostcard/formats/atproto/pdscollection"
+	"github.com/jphastings/dotpostcard/internal/cmdhelp"
 	"github.com/jphastings/dotpostcard/pkg/collection"
 	"github.com/jphastings/dotpostcard/types"
 	"github.com/spf13/cobra"
@@ -191,7 +194,89 @@ var collectionSearchCmd = &cobra.Command{
 	},
 }
 
+var collectionPublishCmd = &cobra.Command{
+	Use:     "publish <collection.postcards>",
+	Example: "  postcards collection publish blanks.postcards --at-user alice.example\n  postcards collection publish blanks.postcards --dry-run",
+	Short:   "Publish a collection to an atproto PDS",
+	Args:    cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		user, _ := cmd.Flags().GetString("at-user")
+		password, _ := cmd.Flags().GetString("at-password")
+		dryRun, _ := cmd.Flags().GetBool("dry-run")
+
+		user, password, err := cmdhelp.ATCredentials(user, password)
+		if err != nil {
+			return err
+		}
+
+		c, err := collection.Open(args[0])
+		if err != nil {
+			return fmt.Errorf("opening collection: %w", err)
+		}
+		defer c.Close()
+
+		client, err := atproto.Login(user, password, cmdhelp.ATPDSHostOverride(), cmdhelp.ATPLCHostOverride())
+		if err != nil {
+			return fmt.Errorf("logging in to atproto: %w", err)
+		}
+
+		result, err := pdscollection.Publish(client, c, pdscollection.PublishOptions{
+			DryRun:       dryRun,
+			DefaultTitle: strings.TrimSuffix(filepath.Base(args[0]), filepath.Ext(args[0])),
+			OnCard: func(card pdscollection.PublishedCard) {
+				line := fmt.Sprintf("%s → (ATProto) %s", card.Name, card.URI)
+				switch {
+				case card.Reused:
+					line += " (already published)"
+				case dryRun:
+					line += " (would publish)"
+				}
+				fmt.Println(line)
+			},
+		})
+		if err != nil {
+			return err
+		}
+
+		switch {
+		case dryRun && result.URI == "":
+			fmt.Printf("Would publish %s as a new collection\n", count(len(result.Cards), "card"))
+		case dryRun:
+			fmt.Printf("Would publish %s as %s\n", count(len(result.Cards), "card"), result.URI)
+		default:
+			fmt.Printf("Published %s as %s\n", count(len(result.Cards), "card"), result.URI)
+		}
+		return nil
+	},
+}
+
+var collectionFetchCmd = &cobra.Command{
+	Use:     "fetch <at-uri> <out.postcards>",
+	Example: "  postcards collection fetch at://alice.example/org.dotpostcard.collection/3lxyzabcdef2c blanks.postcards",
+	Short:   "Build a collection from one published to an atproto PDS",
+	Args:    cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		names, err := pdscollection.Fetch(args[0], args[1], pdscollection.FetchOptions{
+			PDSHost: cmdhelp.ATPDSHostOverride(),
+			PLCHost: cmdhelp.ATPLCHostOverride(),
+			Warn:    func(msg string) { fmt.Fprintf(os.Stderr, "⚠︎ %s\n", msg) },
+		})
+		if err != nil {
+			return err
+		}
+		for _, name := range names {
+			fmt.Println(name)
+		}
+		fmt.Printf("Fetched %s into %s\n", count(len(names), "card"), args[1])
+		return nil
+	},
+}
+
 func init() {
+	collectionPublishCmd.Flags().String("at-user", "", "atproto handle or DID to publish as (falls back to $GOAT_USERNAME/$ATP_USERNAME/$ATP_AUTH_USERNAME)")
+	collectionPublishCmd.Flags().String("at-password", "", "atproto PDS app password (falls back to $GOAT_PASSWORD/$ATP_PASSWORD/$ATP_AUTH_PASSWORD)")
+	collectionPublishCmd.Flags().Bool("dry-run", false, "Log in and read, but write nothing, reporting what would be published")
+	collectionCmd.AddCommand(collectionPublishCmd, collectionFetchCmd)
 	collectionCreateCmd.Flags().StringVar(&collectionCreateTitle, "title", "", "Title to give the new collection")
 	collectionCmd.AddCommand(collectionCreateCmd, collectionAddCmd, collectionRemoveCmd, collectionLsCmd, collectionSearchCmd, collectionTitleCmd)
 	rootCmd.AddCommand(collectionCmd)
