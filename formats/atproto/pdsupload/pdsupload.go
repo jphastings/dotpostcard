@@ -72,16 +72,58 @@ func UploadPostcard(client *atproto.Client, pc types.Postcard, encOpts *formats.
 		}
 	}
 
-	blob, err := client.UploadBlob(data, imageFW.Mimetype)
-	if err != nil {
-		return "", false, fmt.Errorf("uploading image: %w", err)
-	}
-
-	meta := decoded.Meta
-	meta.Title = meta.EffectiveTitle(pc.Name)
-	if _, err := client.PutRecord(rkey, atproto.FromMetadata(meta, blob)); err != nil {
+	if _, err := putWebFile(client, rkey, data, imageFW.Mimetype, decoded.Meta, pc.Name); err != nil {
 		return "", false, err
 	}
 
 	return atURI, false, nil
+}
+
+// putWebFile uploads data as a blob and writes the record for it at rkey, carrying meta with
+// its effective title.
+func putWebFile(client *atproto.Client, rkey string, data []byte, mimetype string, meta types.Metadata, name string) (cid string, err error) {
+	blob, err := client.UploadBlob(data, mimetype)
+	if err != nil {
+		return "", fmt.Errorf("uploading image: %w", err)
+	}
+
+	meta.Title = meta.EffectiveTitle(name)
+	return client.PutRecord(rkey, atproto.FromMetadata(meta, blob))
+}
+
+// WebFileKey is the record key UploadWebFile would use for data, so a dry run can look for an
+// existing record without writing anything.
+func WebFileKey(data []byte, name string, fallbackDay time.Time) (string, types.Metadata, error) {
+	pc, err := web.BundleFromReader(io.NopCloser(bytes.NewReader(data)), name).Decode(formats.DecodeOptions{})
+	if err != nil {
+		return "", types.Metadata{}, fmt.Errorf("decoding %s: %w", name, err)
+	}
+	return atproto.RecordKey(pc.Meta.SentOn, fallbackDay, data), pc.Meta, nil
+}
+
+// UploadWebFile uploads an already-encoded web-format postcard (data, of mimetype) untouched,
+// as the blob of a record built from the metadata embedded in it and titled by its effective
+// title for name. The key derives from data and fallbackDay (used when the card is undated), so
+// the same inputs always reach the same record: if one exists there already it is reused, and
+// reused is true with its CID returned and nothing written.
+func UploadWebFile(client *atproto.Client, data []byte, mimetype, name string, fallbackDay time.Time) (atURI, cid string, reused bool, err error) {
+	rkey, meta, err := WebFileKey(data, name, fallbackDay)
+	if err != nil {
+		return "", "", false, err
+	}
+	atURI = fmt.Sprintf("at://%s/%s/%s", client.DID(), atproto.RecordType, rkey)
+
+	_, existingCID, err := client.GetRecord(client.DID(), rkey)
+	if err == nil {
+		return atURI, existingCID, true, nil
+	}
+	if !errors.Is(err, atproto.ErrRecordNotFound) {
+		return "", "", false, fmt.Errorf("checking atproto for an existing record: %w", err)
+	}
+
+	cid, err = putWebFile(client, rkey, data, mimetype, meta, name)
+	if err != nil {
+		return "", "", false, err
+	}
+	return atURI, cid, false, nil
 }
