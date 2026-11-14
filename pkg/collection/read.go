@@ -10,7 +10,7 @@ import (
 	"github.com/jphastings/dotpostcard/types"
 )
 
-const summaryColumns = `name, title, filename, mimetype, flip, sent_on, sender_name, recipient_name, location_name, country_code, latitude, longitude, front_px_w, front_px_h`
+const summaryColumns = `name, title, filename, mimetype, flip, sent_on, sender_name, recipient_name, location_name, country_code, latitude, longitude, front_px_w, front_px_h, added_at`
 
 // rowScanner is satisfied by both *sql.Row and *sql.Rows.
 type rowScanner interface {
@@ -32,18 +32,20 @@ type summaryScan struct {
 	sentOn                                      sql.NullString
 	senderName, recipientName, locationName, cc sql.NullString
 	lat, lng                                    sql.NullFloat64
+	addedAt                                     string
 }
 
 func (s *summaryScan) dest() []any {
 	return []any{
 		&s.summary.Name, &s.summary.Title, &s.summary.Filename, &s.summary.Mimetype, &s.flip, &s.sentOn,
 		&s.senderName, &s.recipientName, &s.locationName, &s.cc, &s.lat, &s.lng,
-		&s.summary.FrontPxW, &s.summary.FrontPxH,
+		&s.summary.FrontPxW, &s.summary.FrontPxH, &s.addedAt,
 	}
 }
 
 func (s *summaryScan) result() CardSummary {
 	s.summary.Flip = types.Flip(s.flip)
+	s.summary.AddedAt, _ = time.Parse(time.RFC3339, s.addedAt)
 	s.summary.HasBack = s.summary.Flip != types.FlipNone
 	s.summary.SentOn = parseDateString(s.sentOn)
 	s.summary.SenderName = s.senderName.String

@@ -72,7 +72,7 @@ func NewBundle(uri, pdsHostOverride, plcHostOverride string, warn func(string)) 
 		uri:    uri,
 		warn:   warn,
 		record: record,
-		name:   nameFromRecord(record, cid),
+		name:   NameFromRecord(record, cid),
 	}, nil
 }
 
@@ -80,12 +80,12 @@ func (b Bundle) RefPath() string   { return b.uri }
 func (b Bundle) CardName() string  { return b.name }
 func (b Bundle) CodecName() string { return "ATProto" }
 
-// nameFromRecord names a downloaded card from its record's title, then its location (both
-// slugged), falling back to the start of the record's own CID when neither is usable — the
-// rkey is a TID and not fit for human use as a name.
 const cidNameLength = 12
 
-func nameFromRecord(record atproto.Record, cid string) string {
+// NameFromRecord names a downloaded card from its record's title, then its location (both
+// slugged), falling back to the start of the record's own CID when neither is usable — the
+// rkey is a TID and not fit for human use as a name.
+func NameFromRecord(record atproto.Record, cid string) string {
 	if name := types.Slug(record.Title); name != "" {
 		return name
 	}
