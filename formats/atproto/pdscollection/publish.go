@@ -6,6 +6,7 @@ package pdscollection
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -29,9 +30,9 @@ type PublishOptions struct {
 	OnCard func(PublishedCard)
 }
 
-// PublishedCard reports one card's postcard record. Reused is true when a record already
-// existed at the card's key (in a dry run: when it would be reused rather than created).
-// In a dry run a card that doesn't exist yet has no CID.
+// PublishedCard reports one card's postcard record. Reused is true when the account already
+// had a record with the card's exact image, whatever its key (in a dry run: when it would be
+// reused rather than created). In a dry run a card that doesn't exist yet has no CID.
 type PublishedCard struct {
 	Name   string
 	URI    string
@@ -48,8 +49,9 @@ type PublishResult struct {
 }
 
 // Publish uploads every card of coll as a postcard record, then writes (or updates) the
-// collection record listing them. Records are keyed so that publishing the same collection
-// again reuses them, and writes nothing if the collection record is unchanged.
+// collection record listing them. A card whose image is already in the account's postcard
+// records is reused, so publishing the same collection again uploads nothing, and writes
+// nothing if the collection record is unchanged.
 func Publish(client *atproto.Client, coll *collection.Collection, opts PublishOptions) (PublishResult, error) {
 	cards, err := coll.List()
 	if err != nil {
@@ -79,10 +81,15 @@ func Publish(client *atproto.Client, coll *collection.Collection, opts PublishOp
 		return PublishResult{}, fmt.Errorf("reading the collection record: %w", err)
 	}
 
+	listed, err := listedByImage(client, existing.Postcards)
+	if err != nil {
+		return PublishResult{}, err
+	}
+
 	var result PublishResult
 	refs := make([]atproto.StrongRef, 0, len(cards))
 	for _, card := range cards {
-		published, err := publishCard(client, coll, card, opts.DryRun)
+		published, err := publishCard(client, coll, card, listed, opts.DryRun)
 		if err != nil {
 			return PublishResult{}, fmt.Errorf("%s: %w", card.Name, err)
 		}
@@ -121,10 +128,49 @@ func Publish(client *atproto.Client, coll *collection.Collection, opts PublishOp
 	return result, nil
 }
 
-func publishCard(client *atproto.Client, coll *collection.Collection, card collection.CardSummary, dryRun bool) (PublishedCard, error) {
+// listedByImage maps each of the account's postcard records by its image's sha256. Where
+// several share an image it prefers one the collection already points at, else the lowest URI.
+func listedByImage(client *atproto.Client, inCollection []atproto.StrongRef) (map[[sha256.Size]byte]atproto.StrongRef, error) {
+	listed := map[[sha256.Size]byte]atproto.StrongRef{}
+	for rec, err := range client.ListRecords(client.DID(), atproto.RecordType) {
+		if err != nil {
+			return nil, fmt.Errorf("listing existing postcard records: %w", err)
+		}
+		var record atproto.Record
+		if json.Unmarshal(rec.Value, &record) != nil {
+			continue
+		}
+		sum, err := record.Image.SHA256()
+		if err != nil {
+			continue
+		}
+		ref := atproto.StrongRef{URI: rec.URI, CID: rec.CID}
+		if prev, ok := listed[sum]; ok && !betterRef(ref, prev, inCollection) {
+			continue
+		}
+		listed[sum] = ref
+	}
+	return listed, nil
+}
+
+func betterRef(candidate, current atproto.StrongRef, inCollection []atproto.StrongRef) bool {
+	isIn := func(ref atproto.StrongRef) bool {
+		return slices.ContainsFunc(inCollection, func(r atproto.StrongRef) bool { return r.URI == ref.URI })
+	}
+	if isIn(candidate) != isIn(current) {
+		return isIn(candidate)
+	}
+	return candidate.URI < current.URI
+}
+
+func publishCard(client *atproto.Client, coll *collection.Collection, card collection.CardSummary, listed map[[sha256.Size]byte]atproto.StrongRef, dryRun bool) (PublishedCard, error) {
 	data, mimetype, err := coll.CardData(card.Name)
 	if err != nil {
 		return PublishedCard{}, err
+	}
+
+	if ref, ok := listed[sha256.Sum256(data)]; ok {
+		return PublishedCard{Name: card.Name, URI: ref.URI, CID: ref.CID, Reused: true}, nil
 	}
 
 	if !dryRun {
@@ -136,13 +182,7 @@ func publishCard(client *atproto.Client, coll *collection.Collection, card colle
 	if err != nil {
 		return PublishedCard{}, err
 	}
-	published := PublishedCard{Name: card.Name, URI: fmt.Sprintf("at://%s/%s/%s", client.DID(), atproto.RecordType, rkey)}
-	_, published.CID, err = client.GetRecord(client.DID(), rkey)
-	if err != nil && !errors.Is(err, atproto.ErrRecordNotFound) {
-		return PublishedCard{}, err
-	}
-	published.Reused = err == nil
-	return published, nil
+	return PublishedCard{Name: card.Name, URI: fmt.Sprintf("at://%s/%s/%s", client.DID(), atproto.RecordType, rkey)}, nil
 }
 
 // refuseUnhiddenSecrets stops a publish that would expose a secret: cards are uploaded exactly

@@ -8,10 +8,12 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/formats/atproto"
 	"github.com/jphastings/dotpostcard/formats/atproto/internal/testpds"
+	"github.com/jphastings/dotpostcard/formats/atproto/pdsupload"
 	"github.com/jphastings/dotpostcard/formats/web"
 	"github.com/jphastings/dotpostcard/internal/sqldb"
 	"github.com/jphastings/dotpostcard/internal/testhelpers"
@@ -446,4 +448,27 @@ func TestRebuildingDoesNotReportMetadataDifferencesWhenAClashSuffixesAnUntitledC
 	for _, w := range warnings {
 		assert.NotContains(t, w, "differ")
 	}
+}
+
+func TestPublishReusesARecordWithTheSameImageUnderAnotherKey(t *testing.T) {
+	srv := newServer(t)
+	client := login(t, srv)
+	card := writeCard(t, t.TempDir(), "alpha", "Alpha")
+	data, err := os.ReadFile(card)
+	require.NoError(t, err)
+	earlierURI, _, _, err := pdsupload.UploadWebFile(client, data, http.DetectContentType(data), "alpha", time.Now().AddDate(0, 0, -3))
+	require.NoError(t, err)
+	srv.writes.Store(0)
+
+	dry, err := Create([]string{card}, CreateOptions{Title: "Trip", Client: client, Publish: PublishOptions{DryRun: true}})
+	require.NoError(t, err)
+	require.Len(t, dry.Published.Cards, 1)
+	assert.Equal(t, PublishedCard{Name: "alpha", URI: earlierURI, CID: dry.Published.Cards[0].CID, Reused: true}, dry.Published.Cards[0])
+	assert.EqualValues(t, 0, srv.writes.Load())
+
+	real, err := Create([]string{card}, CreateOptions{Title: "Trip", Client: client})
+	require.NoError(t, err)
+	assert.Equal(t, earlierURI, real.Published.Cards[0].URI)
+	assert.True(t, real.Published.Cards[0].Reused)
+	assert.EqualValues(t, 1, srv.writes.Load(), "only the collection record")
 }

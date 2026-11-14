@@ -7,6 +7,7 @@ package testpds
 
 import (
 	"crypto/sha256"
+	"encoding/base32"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,6 +15,7 @@ import (
 	"net/http/httptest"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -22,7 +24,6 @@ type server struct {
 	did     string
 	blobs   map[string][]byte
 	records map[string]map[string]json.RawMessage // collection -> rkey -> record
-	nextCID int
 }
 
 // New starts a fake PDS for did, holding records of any collection.
@@ -79,9 +80,8 @@ func (f *server) uploadBlob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cid := blobCID(data)
 	f.mu.Lock()
-	f.nextCID++
-	cid := fmt.Sprintf("bafyfakecid%d", f.nextCID)
 	f.blobs[cid] = data
 	f.mu.Unlock()
 
@@ -93,6 +93,13 @@ func (f *server) uploadBlob(w http.ResponseWriter, r *http.Request) {
 			"size":     len(data),
 		},
 	})
+}
+
+// blobCID is the CID a real PDS gives a blob: CIDv1, raw codec, sha2-256, base32-lower.
+func blobCID(data []byte) string {
+	sum := sha256.Sum256(data)
+	raw := append([]byte{0x01, 0x55, 0x12, 0x20}, sum[:]...)
+	return "b" + strings.ToLower(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(raw))
 }
 
 func recordCID(record json.RawMessage) string {
