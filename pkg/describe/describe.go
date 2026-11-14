@@ -100,14 +100,14 @@ For each side, give the clockwise rotation in degrees (0, 90, 180 or 270) that m
 Other fields (an empty string means none):
 - add a description for the front of the postcard in front.description (we're talking alt text; no need to describe it as a postcard as that's already contextual, imagine answering "what is this a postcard of?" in an alt-text concise manner for people who can't see it).
 - if you think the back has anything worth describing then you can add a description in back.description just like the front description, but it should be something worth describing rather than just it's the back of a postcard. Things like copyright notices and names of photographers aren't worth adding here.
-- transcription (for front or back) is only for text written or typed by the person sending the postcard: a message added *after* the card was made. Transcribe exactly what is written: the same words, spelling, punctuation and line breaks, with nothing added, corrected or described. Never describe a doodle or drawing; where one is part of the message a single emoji may stand in for it if one suits, otherwise leave it out. Leave the recipient's name and address out of the transcription, and a handwritten date too when you give it as sent_on: they have their own fields.
+- transcription (for front or back) is only for text written or typed by the person sending the postcard: a message added *after* the card was made. Transcribe exactly what is written: the same words, spelling, punctuation and line breaks, with nothing added, corrected or described. Write it in the order it reads; don't pad with spaces to mimic where words sit on the card. Never describe a doodle or drawing in words. Give anything the sender drew (a smiley, a heart, a dove) as the one emoji that matches it, placed where it sits among the text; leave it out only if no emoji suits. Leave the recipient's name and address out of the transcription, and a handwritten date too when you give it as sent_on: they have their own fields.
 - recipient is the name part of the handwritten address, as written (e.g. "Mr & Mrs A. Smith"), with none of the address.
 - sender is the name the message is signed off with, only if it is legible; don't guess. (The sign-off stays in the transcription as well.)
 - sent_on is the date the card was sent, as YYYY-MM-DD. Use a date the sender wrote on the card by hand if there is one, otherwise a legible postmark; where one of them is incomplete (no day, or no year) the other may complete it. Read a postmark's day and month in the order its country uses. If you can't settle on a full date, leave sent_on empty and keep any handwritten date, as written, in the transcription.
 - location is where the card was sent from, if that is a recognisable place: what the card shows or names, the postmark, or the message may tell you. name is a short place name (e.g. "Lyme Regis, UK"), latitude and longitude are that place's decimal degrees (null if you aren't confident of them), country_code is its ISO 3166-1 alpha-3 code. Leave name empty if the place isn't recognisable.
 - locale is your best guess at the BCP-47 locale the transcription is written in (e.g. en-GB, fr-FR); empty when there is no transcription.
 - address_lines (for front or back) lists each line of a handwritten recipient address below the name, top to bottom, one entry per line as written; empty when there is none. It is only used to check the secrets.
-- secrets (for front or back) marks the address part of a handwritten recipient address (street, town, postcode, country) so it can be hidden. Never include the recipient's name. Each secret is a polygon: a list of [x, y] points, each a fraction of that image's width and height exactly as provided (before any rotation), with [0, 0] the top left and [1, 1] the bottom right. Usually this is one secret: the four corners of a rectangle covering every address line, down to the last (often just a country), with a generous margin: a stroke of the address left showing is worse than a little more blank card hidden. Writing can be read from its top half alone, so every line must be covered to its full height: put the top edge above the tallest strokes of the first address line, in the gap under the name, even if that clips the tails of the name's letters. If that rectangle would also cover something that matters (the name, part of the message, the stamp), draw tighter: either one polygon outlining a union of at most six rectangles, or several separate secrets. Check the result against address_lines: every line listed must lie wholly inside a secret, from its first character to its last. An empty list when there is no handwritten address.
+- secrets (for front or back) marks the address part of a handwritten recipient address (street, town, postcode, country) so it can be cut out cleanly. Never include the recipient's name. Each secret is a polygon: a list of [x, y] points, each a fraction of that image's width and height exactly as provided (before any rotation), with [0, 0] the top left and [1, 1] the bottom right. Keep the shape simple: horizontal and vertical edges only, and as few points as will do. Usually that is one secret of four points, a rectangle around every address line. Only if that rectangle would also cover something that matters (the name, part of the message, the stamp) add corners to step around it, or use several separate secrets; never more than six rectangles' worth. Put each edge in the clear space just outside the address: the top edge above the tallest strokes of the first line, in the gap under the name, and the bottom edge below the last line. Check the result against address_lines: every line listed must lie wholly inside a secret, from its first character to its last. An empty list when there is no handwritten address.
 - title is the card's title. If either side carries text that reads as a title for what is shown (a printed caption, the name of an artwork, a description of the photograph), copy that text verbatim: same language, spelling, capitalisation and punctuation. Leave out credits, publisher names and serial numbers. Only if there is no such text, write a short title of 1 to 5 words saying what the card shows. Never include the word "postcard".
 Keep each description to a single sentence of no more than about 20 words. If the card names the place shown, include it.`
 
@@ -250,36 +250,18 @@ func parseReply(s string) (Description, error) {
 	return d, nil
 }
 
-// secretMargin is how far each secret is grown, as a fraction of the side. The model places an
-// edge to within a couple of percent, and half a line of an address left showing can be read.
-const secretMargin = 0.025
-
-// cleanSecrets grows each polygon by secretMargin, clamps it into the image and drops polygons
-// too small to enclose anything.
+// cleanSecrets clamps points into the image and drops polygons too small to enclose anything.
 func cleanSecrets(polys [][][2]float64) [][][2]float64 {
 	var out [][][2]float64
 	for _, poly := range polys {
 		if len(poly) < 3 {
 			continue
 		}
-		var centre [2]float64
-		for _, p := range poly {
-			centre[0] += p[0] / float64(len(poly))
-			centre[1] += p[1] / float64(len(poly))
-		}
-		grown := make([][2]float64, len(poly))
+		clamped := make([][2]float64, len(poly))
 		for i, p := range poly {
-			for axis := range p {
-				// ponytail: pushes each point away from the centroid, which is only a true
-				// outward offset for convex shapes; offset the edges if concave outlines leak.
-				v := p[axis] + secretMargin
-				if p[axis] < centre[axis] {
-					v = p[axis] - secretMargin
-				}
-				grown[i][axis] = min(max(v, 0), 1)
-			}
+			clamped[i] = [2]float64{min(max(p[0], 0), 1), min(max(p[1], 0), 1)}
 		}
-		out = append(out, grown)
+		out = append(out, clamped)
 	}
 	return out
 }
