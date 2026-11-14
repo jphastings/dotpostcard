@@ -78,3 +78,19 @@ If a side of a web postcard was scanned the wrong way up, turn it clockwise in p
 $ postcards rotate --front 90 pyramid.postcard
 ↻ pyramid.postcard (flip: left-hand)
 ```
+
+## Using dotpostcard as a library
+
+Other Go projects may rely on these packages:
+
+- `types`: the postcard model (`types.Postcard`, `types.Metadata`, …).
+- `formats`: `formats.Bundle` and `formats.DecodeOptions`, which decoding needs.
+- `formats/atproto`: the record types (`Record`, `Collection`, `StrongRef`), `ParseATURI`, `FetchCollection`, and the read-only client from `Anonymous` with `ListRecords`, `GetRecord` and `GetBlob`. It doesn't pull in the image toolchain or SQLite.
+- `formats/web`: decodes a web-format image into a postcard with separate, upright sides. It needs the image toolchain.
+
+```go
+pc, err := web.BundleFromReader(file, "card.postcard.webp").Decode(formats.DecodeOptions{})
+// pc.Front and pc.Back are upright images
+```
+
+The module is pre-1.0, so everything else may change freely. A change to these entry points is committed as a breaking change (`feat!:`), so it appears under BREAKING CHANGE in [CHANGELOG.md](CHANGELOG.md).
