@@ -18,6 +18,7 @@
           },
           "flip": {
             "type": "string",
+            "maxLength": 100,
             "description": "The axis the physical postcard flips about, to keep both sides upright.",
             "knownValues": [
               "org.dotpostcard.postcard#flipBook",
@@ -38,6 +39,7 @@
           "title": {
             "type": "string",
             "maxGraphemes": 300,
+            "maxLength": 3000,
             "description": "The postcard's human-readable title."
           },
           "locale": {
@@ -82,6 +84,7 @@
       "properties": {
         "description": {
           "type": "string",
+          "maxLength": 20000,
           "description": "A description of what this side depicts, suitable for use as alt text."
         },
         "transcription": { "type": "ref", "ref": "#annotatedText" },
@@ -96,7 +99,7 @@
       "type": "object",
       "required": ["text"],
       "properties": {
-        "text": { "type": "string" },
+        "text": { "type": "string", "maxLength": 20000 },
         "annotations": {
           "type": "array",
           "items": { "type": "ref", "ref": "#annotation" }
@@ -110,10 +113,12 @@
       "properties": {
         "type": {
           "type": "string",
+          "maxLength": 100,
           "knownValues": ["em", "strong", "underline", "locale"]
         },
         "value": {
           "type": "string",
+          "maxLength": 100,
           "description": "For 'locale' annotations, the language tag of the annotated range."
         },
         "byteStart": { "type": "integer", "minimum": 0 },
@@ -197,20 +202,22 @@
     "person": {
       "type": "object",
       "properties": {
-        "name": { "type": "string" },
+        "name": { "type": "string", "maxLength": 1000 },
         "uri": { "type": "string", "format": "uri" }
       }
     },
     "location": {
       "type": "object",
       "properties": {
-        "name": { "type": "string" },
+        "name": { "type": "string", "maxLength": 1000 },
         "latitude": {
           "type": "string",
+          "maxLength": 32,
           "description": "Decimal degrees, as a string (atproto has no floating point numbers)."
         },
         "longitude": {
           "type": "string",
+          "maxLength": 32,
           "description": "Decimal degrees, as a string (atproto has no floating point numbers)."
         },
         "countryCode": {
@@ -225,7 +232,7 @@
       "type": "object",
       "description": "Where this postcard came from, and who is describing it.",
       "properties": {
-        "description": { "type": "string" },
+        "description": { "type": "string", "maxLength": 20000 },
         "author": { "type": "ref", "ref": "#person" }
       }
     }

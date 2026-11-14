@@ -87,12 +87,16 @@ func UploadPostcard(client *atproto.Client, pc types.Postcard, encOpts *formats.
 // putWebFile uploads data as a blob and writes the record for it at rkey, carrying meta with
 // its effective title.
 func putWebFile(client *atproto.Client, rkey string, data []byte, mimetype string, meta types.Metadata, name string) (cid string, err error) {
+	meta.Title = meta.EffectiveTitle(name)
+	if err := atproto.FromMetadata(meta, atproto.Blob{}).Validate(); err != nil {
+		return "", fmt.Errorf("%s can't be uploaded: %w", name, err)
+	}
+
 	blob, err := client.UploadBlob(data, mimetype)
 	if err != nil {
 		return "", fmt.Errorf("uploading image: %w", err)
 	}
 
-	meta.Title = meta.EffectiveTitle(name)
 	return client.PutRecord(rkey, atproto.FromMetadata(meta, blob))
 }
 

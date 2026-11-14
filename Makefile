@@ -3,7 +3,7 @@ GO_SOURCES := $(shell find pkg formats types internal -name '*.go')
 MACOS_MIN := 14.0
 IOS_MIN := 17.0
 
-.PHONY: xcframework clean
+.PHONY: xcframework clean publish-lexicons
 xcframework: build/Postcards.xcframework
 
 # Builds the Postcards.xcframework used by the SwiftUI app (see
@@ -26,3 +26,10 @@ build/Postcards.xcframework: $(GO_SOURCES) go.mod go.sum
 
 clean:
 	rm -rf build
+
+# Publishes lexicons/ as com.atproto.lexicon.schema records. Needs the `goat` CLI, and
+# GOAT_USERNAME/GOAT_PASSWORD for the account that holds the schemas. Safe to run again.
+publish-lexicons:
+	goat lex lint lexicons
+	goat lex breaking lexicons
+	goat lex publish --update lexicons
