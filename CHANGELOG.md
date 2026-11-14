@@ -383,6 +383,17 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.46.0 (2026-11-14)
+
+### Feat
+
+- **atproto**: bound the lexicons' strings
+
+### Fix
+
+- **collection**: name size when write fails
+- **collection**: reuse records by image
+
 ## v0.45.0 (2026-11-14)
 
 ### Feat
