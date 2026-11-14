@@ -79,7 +79,7 @@ func UploadPostcard(client *atproto.Client, pc types.Postcard, encOpts *formats.
 
 	meta := decoded.Meta
 	meta.Title = meta.EffectiveTitle(pc.Name)
-	if err := client.PutRecord(rkey, atproto.FromMetadata(meta, blob)); err != nil {
+	if _, err := client.PutRecord(rkey, atproto.FromMetadata(meta, blob)); err != nil {
 		return "", false, err
 	}
 

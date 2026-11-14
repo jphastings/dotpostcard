@@ -35,21 +35,14 @@ type Bundle struct {
 // and record key, rejecting other collections or malformed URIs. Any syntactically valid rkey
 // is accepted here (not just TIDs), so records keyed the old, pre-TID way still resolve.
 func ParseURI(uri string) (authority, rkey string, err error) {
-	rest, ok := strings.CutPrefix(uri, "at://")
-	if !ok {
-		return "", "", fmt.Errorf("%q is not an at:// URI", uri)
+	authority, collection, rkey, err := atproto.ParseATURI(uri)
+	if err != nil {
+		return "", "", err
 	}
-
-	parts := strings.SplitN(rest, "/", 3)
-	if len(parts) != 3 || parts[0] == "" || parts[1] != atproto.RecordType {
+	if collection != atproto.RecordType {
 		return "", "", fmt.Errorf("%q is not an %s record URI (want at://{authority}/%s/{rkey})", uri, atproto.RecordType, atproto.RecordType)
 	}
-
-	if err := atproto.ValidRecordKey(parts[2]); err != nil {
-		return "", "", fmt.Errorf("%q: %w", uri, err)
-	}
-
-	return parts[0], parts[2], nil
+	return authority, rkey, nil
 }
 
 // NewBundle resolves uri's authority (skipping resolution if pdsHostOverride is set; using

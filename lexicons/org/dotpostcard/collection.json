@@ -1,0 +1,33 @@
+{
+  "lexicon": 1,
+  "id": "org.dotpostcard.collection",
+  "description": "A titled, ordered group of postcards.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A collection of postcards: a title and an ordered list of references to org.dotpostcard.postcard records.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["title", "postcards", "createdAt"],
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxGraphemes": 300,
+            "description": "The collection's human-readable name."
+          },
+          "postcards": {
+            "type": "array",
+            "description": "The collection's postcards, in order. Each reference points at an org.dotpostcard.postcard record.",
+            "items": { "type": "ref", "ref": "com.atproto.repo.strongRef" }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "When the collection was first published."
+          }
+        }
+      }
+    }
+  }
+}

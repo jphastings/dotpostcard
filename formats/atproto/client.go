@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"net"
 	"net/http"
 	"net/url"
@@ -309,31 +310,89 @@ func (c *Client) UploadBlob(data []byte, mimetype string) (Blob, error) {
 	return out.Blob, nil
 }
 
-// PutRecord writes record to this client's own repo under rkey.
-func (c *Client) PutRecord(rkey string, record Record) error {
+// PutRecord writes record to this client's own repo under rkey, returning its CID.
+func (c *Client) PutRecord(rkey string, record Record) (cid string, err error) {
+	return c.PutRecordIn(RecordType, rkey, record)
+}
+
+// PutRecordIn writes record, of any lexicon, to this client's own repo under collection and
+// rkey, returning its CID.
+func (c *Client) PutRecordIn(collection, rkey string, record any) (cid string, err error) {
 	body := map[string]any{
 		"repo":       c.did,
-		"collection": RecordType,
+		"collection": collection,
 		"rkey":       rkey,
 		"record":     record,
 	}
-	if err := c.post("com.atproto.repo.putRecord", body, true, nil); err != nil {
-		return fmt.Errorf("putting record %q: %w", rkey, err)
+	var out struct {
+		CID string `json:"cid"`
 	}
-	return nil
+	if err := c.post("com.atproto.repo.putRecord", body, true, &out); err != nil {
+		return "", fmt.Errorf("putting record %q: %w", rkey, err)
+	}
+	return out.CID, nil
 }
 
-// GetRecord fetches the record at rkey in did's repo, along with its CID.
+// GetRecord fetches the postcard record at rkey in did's repo, along with its CID.
 func (c *Client) GetRecord(did, rkey string) (Record, string, error) {
-	var out struct {
-		CID   string `json:"cid"`
-		Value Record `json:"value"`
+	var record Record
+	cid, err := c.GetRecordIn(did, RecordType, rkey, &record)
+	return record, cid, err
+}
+
+// GetRecordIn fetches the record at collection and rkey in did's repo, decoding its value
+// into out and returning its CID.
+func (c *Client) GetRecordIn(did, collection, rkey string, out any) (cid string, err error) {
+	var res struct {
+		CID   string          `json:"cid"`
+		Value json.RawMessage `json:"value"`
 	}
-	query := url.Values{"repo": {did}, "collection": {RecordType}, "rkey": {rkey}}
-	if err := c.get("com.atproto.repo.getRecord", query, false, &out); err != nil {
-		return Record{}, "", err
+	query := url.Values{"repo": {did}, "collection": {collection}, "rkey": {rkey}}
+	if err := c.get("com.atproto.repo.getRecord", query, false, &res); err != nil {
+		return "", err
 	}
-	return out.Value, out.CID, nil
+	if err := json.Unmarshal(res.Value, out); err != nil {
+		return "", fmt.Errorf("decoding record %q: %w", rkey, err)
+	}
+	return res.CID, nil
+}
+
+// ListedRecord is one entry of a ListRecords result.
+type ListedRecord struct {
+	URI   string          `json:"uri"`
+	CID   string          `json:"cid"`
+	Value json.RawMessage `json:"value"`
+}
+
+// ListRecords iterates over every record of collection in did's repo, paging through the PDS
+// 100 at a time. It stops after yielding the first error.
+func (c *Client) ListRecords(did, collection string) iter.Seq2[ListedRecord, error] {
+	return func(yield func(ListedRecord, error) bool) {
+		cursor := ""
+		for {
+			query := url.Values{"repo": {did}, "collection": {collection}, "limit": {"100"}}
+			if cursor != "" {
+				query.Set("cursor", cursor)
+			}
+			var page struct {
+				Cursor  string         `json:"cursor"`
+				Records []ListedRecord `json:"records"`
+			}
+			if err := c.get("com.atproto.repo.listRecords", query, false, &page); err != nil {
+				yield(ListedRecord{}, fmt.Errorf("listing %s: %w", collection, err))
+				return
+			}
+			for _, r := range page.Records {
+				if !yield(r, nil) {
+					return
+				}
+			}
+			if page.Cursor == "" || len(page.Records) == 0 {
+				return
+			}
+			cursor = page.Cursor
+		}
+	}
 }
 
 // RecordExists reports whether rkey already exists in this client's own repo.
