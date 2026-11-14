@@ -444,6 +444,7 @@ func (r *run) buildOne(number int, sides *[2][]byte) (res CardResult, dropped bo
 				res.Name = r.claimName(slug)
 			}
 			d.Fill(&described)
+			described.Front.Secrets, described.Back.Secrets = d.Front.Polygons(0), d.Back.Polygons(0)
 			f, b, wantFlip := d.Turns()
 			rf, rb := turn(front, f), turn(back, b)
 			size := c.size
@@ -456,6 +457,7 @@ func (r *run) buildOne(number int, sides *[2][]byte) (res CardResult, dropped bo
 				res.Notes = append(res.Notes, fmt.Sprintf("LLM orientation ignored: %v", err))
 			} else if f != 0 || b != 0 {
 				front, back, c.size, flip = rf, rb, size, wantFlip
+				described.Front.Secrets, described.Back.Secrets = d.Front.Polygons(f), d.Back.Polygons(b)
 				res.WidthPx, res.HeightPx = size.PxWidth, size.PxHeight
 				res.WidthCm, _ = size.CmWidth.Float64()
 				res.HeightCm, _ = size.CmHeight.Float64()

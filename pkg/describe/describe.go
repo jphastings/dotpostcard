@@ -11,9 +11,11 @@ import (
 	"image"
 	"image/color"
 	"image/jpeg"
+	"math"
 	"os"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/cloudwego/eino-ext/components/model/claude"
 	"github.com/cloudwego/eino-ext/components/model/openai"
@@ -61,6 +63,8 @@ type Side struct {
 	Rotation      string `json:"rotation"`
 	Description   string `json:"description"`
 	Transcription string `json:"transcription"`
+	// Secrets are polygons of [x, y] fractions of the side as scanned, clamped to the side.
+	Secrets [][][2]float64 `json:"secrets"`
 }
 
 // Description is what the model says about a card.
@@ -68,7 +72,12 @@ type Description struct {
 	Front Side `json:"front"`
 	Back  Side `json:"back"`
 	// Title is the card's title: a caption printed on it, or a short phrase for what it shows.
-	Title string `json:"title"`
+	Title     string
+	Recipient string
+	Sender    string
+	SentOn    *types.Date
+	Location  types.Location
+	Locale    string
 	// Notes are things worth telling the user that didn't stop the description working.
 	Notes []string `json:"-"`
 }
@@ -77,8 +86,9 @@ type Description struct {
 type Describer func(ctx context.Context, front, back image.Image) (Description, error)
 
 const rotationEnum = `{"type":"string","enum":["0","90","180","270","unknown"]}`
-const sideSchema = `{"type":"object","additionalProperties":false,"required":["rotation","description","transcription"],"properties":{"rotation":` + rotationEnum + `,"description":{"type":"string"},"transcription":{"type":"string"}}}`
-const replySchema = `{"type":"object","additionalProperties":false,"required":["front","back","title","orientation_evidence"],"properties":{"title":{"type":"string"},"front":` + sideSchema + `,"back":` + sideSchema + `,"orientation_evidence":{"type":"string"}}}`
+const sideSchema = `{"type":"object","additionalProperties":false,"required":["rotation","description","transcription","secrets"],"properties":{"rotation":` + rotationEnum + `,"description":{"type":"string"},"transcription":{"type":"string"},"secrets":{"type":"array","items":{"type":"array","items":{"type":"array","items":{"type":"number"}}}}}}`
+const locationSchema = `{"type":"object","additionalProperties":false,"required":["name","latitude","longitude","country_code"],"properties":{"name":{"type":"string"},"latitude":{"type":["number","null"]},"longitude":{"type":["number","null"]},"country_code":{"type":"string"}}}`
+const replySchema = `{"type":"object","additionalProperties":false,"required":["front","back","title","recipient","sender","sent_on","location","locale","orientation_evidence"],"properties":{"title":{"type":"string"},"recipient":{"type":"string"},"sender":{"type":"string"},"sent_on":{"type":"string"},"location":` + locationSchema + `,"locale":{"type":"string"},"front":` + sideSchema + `,"back":` + sideSchema + `,"orientation_evidence":{"type":"string"}}}`
 
 const prompt = `These are the two sides of one postcard as scanned: first the front, then the back. Neither side is necessarily upright.
 
@@ -87,7 +97,13 @@ For each side, give the clockwise rotation in degrees (0, 90, 180 or 270) that m
 Other fields (an empty string means none):
 - add a description for the front of the postcard in front.description (we're talking alt text; no need to describe it as a postcard as that's already contextual, imagine answering "what is this a postcard of?" in an alt-text concise manner for people who can't see it).
 - if you think the back has anything worth describing then you can add a description in back.description just like the front description, but it should be something worth describing rather than just it's the back of a postcard. Things like copyright notices and names of photographers aren't worth adding here.
-- transcription (for front or back) is only necessary if there has been text written/typed by someone sending the postcard — something added *after* it was created — a message. Try to capture that message as closely as possible in the transcription.
+- transcription (for front or back) is only for text written or typed by the person sending the postcard: a message added *after* the card was made. Transcribe exactly what is written: the same words, spelling, punctuation and line breaks, with nothing added, corrected or described. Never describe a doodle or drawing; where one is part of the message a single emoji may stand in for it if one suits, otherwise leave it out. Leave the recipient's name and address out of the transcription, and a handwritten date too when you give it as sent_on: they have their own fields.
+- recipient is the name part of the handwritten address, as written (e.g. "Mr & Mrs A. Smith"), with none of the address.
+- sender is the name the message is signed off with, only if it is legible; don't guess. (The sign-off stays in the transcription as well.)
+- sent_on is a date the sender wrote on the card by hand, as YYYY-MM-DD. If the written date lacks a year, a legible postmark may supply it. If you can't settle on a full date, leave sent_on empty and keep the date, as written, in the transcription.
+- location is where the card was sent from, if that is a recognisable place: what the card shows or names, the postmark, or the message may tell you. name is a short place name (e.g. "Lyme Regis, UK"), latitude and longitude are that place's decimal degrees (null if you aren't confident of them), country_code is its ISO 3166-1 alpha-3 code. Leave name empty if the place isn't recognisable.
+- locale is your best guess at the BCP-47 locale the transcription is written in (e.g. en-GB, fr-FR); empty when there is no transcription.
+- secrets (for front or back) marks the address part of a handwritten recipient address (street, town, postcode, country) so it can be hidden. Never include the recipient's name. Each secret is a polygon: a list of [x, y] points, each a fraction of that image's width and height exactly as provided (before any rotation), with [0, 0] the top left and [1, 1] the bottom right. Usually this is one secret: the four corners of a rectangle covering every address line with a small margin. If that rectangle would also cover something that matters (the name, part of the message, the stamp), draw tighter: either one polygon outlining a union of at most six rectangles, or several separate secrets. An empty list when there is no handwritten address.
 - title is the card's title. If either side carries text that reads as a title for what is shown (a printed caption, the name of an artwork, a description of the photograph), copy that text verbatim: same language, spelling, capitalisation and punctuation. Leave out credits, publisher names and serial numbers. Only if there is no such text, write a short title of 1 to 5 words saying what the card shows. Never include the word "postcard".
 Keep each description to a single sentence of no more than about 20 words. If the card names the place shown, include it.`
 
@@ -180,9 +196,19 @@ func parseReply(s string) (Description, error) {
 	dec := json.NewDecoder(strings.NewReader(s))
 	dec.DisallowUnknownFields()
 	var flat struct {
-		Front    *Side   `json:"front"`
-		Back     *Side   `json:"back"`
-		Title    string  `json:"title"`
+		Front     *Side  `json:"front"`
+		Back      *Side  `json:"back"`
+		Title     string `json:"title"`
+		Recipient string `json:"recipient"`
+		Sender    string `json:"sender"`
+		SentOn    string `json:"sent_on"`
+		Locale    string `json:"locale"`
+		Location  struct {
+			Name        string   `json:"name"`
+			Latitude    *float64 `json:"latitude"`
+			Longitude   *float64 `json:"longitude"`
+			CountryCode string   `json:"country_code"`
+		} `json:"location"`
 		Evidence *string `json:"orientation_evidence"`
 	}
 	if err := dec.Decode(&flat); err != nil {
@@ -196,7 +222,61 @@ func parseReply(s string) (Description, error) {
 			return Description{}, fmt.Errorf("the model gave an invalid rotation %q", r)
 		}
 	}
-	return Description{Front: *flat.Front, Back: *flat.Back, Title: flat.Title}, nil
+	d := Description{
+		Front: *flat.Front, Back: *flat.Back, Title: flat.Title,
+		Recipient: flat.Recipient, Sender: flat.Sender, Locale: flat.Locale,
+	}
+	d.Front.Secrets, d.Back.Secrets = cleanSecrets(d.Front.Secrets), cleanSecrets(d.Back.Secrets)
+	if flat.SentOn != "" {
+		if t, err := time.Parse("2006-01-02", flat.SentOn); err != nil {
+			d.Notes = append(d.Notes, fmt.Sprintf("Ignored the model's sent_on %q: not a YYYY-MM-DD date", flat.SentOn))
+		} else {
+			d.SentOn = &types.Date{Time: t}
+		}
+	}
+	if l := flat.Location; l.Name != "" {
+		d.Location.Name = l.Name
+		if l.Latitude != nil && l.Longitude != nil && math.Abs(*l.Latitude) <= 90 && math.Abs(*l.Longitude) <= 180 {
+			d.Location.Latitude, d.Location.Longitude = l.Latitude, l.Longitude
+		}
+		if len(l.CountryCode) == 3 && strings.IndexFunc(l.CountryCode, func(r rune) bool { return !unicode.IsLetter(r) || r > unicode.MaxASCII }) < 0 {
+			d.Location.CountryCode = strings.ToUpper(l.CountryCode)
+		}
+	}
+	return d, nil
+}
+
+// cleanSecrets clamps points into the image and drops polygons too small to enclose anything.
+func cleanSecrets(polys [][][2]float64) [][][2]float64 {
+	var out [][][2]float64
+	for _, poly := range polys {
+		if len(poly) < 3 {
+			continue
+		}
+		clamped := make([][2]float64, len(poly))
+		for i, p := range poly {
+			clamped[i] = [2]float64{min(max(p[0], 0), 1), min(max(p[1], 0), 1)}
+		}
+		out = append(out, clamped)
+	}
+	return out
+}
+
+// Polygons gives the side's secrets for the side after the given clockwise quarter turns.
+func (s Side) Polygons(turns int) []types.Polygon {
+	var out []types.Polygon
+	for _, poly := range s.Secrets {
+		points := make([]types.Point, len(poly))
+		for i, p := range poly {
+			x, y := p[0], p[1]
+			for range turns {
+				x, y = 1-y, x
+			}
+			points[i] = types.Point{X: x, Y: y}
+		}
+		out = append(out, types.Polygon{Points: points})
+	}
+	return out
 }
 
 // ShrunkJPEG flattens img onto white (the model can't see transparency), shrinks its long edge
@@ -232,7 +312,8 @@ func jpegPart(img image.Image) (schema.MessageInputPart, error) {
 
 var quarterTurns = map[string]int{"0": 0, "90": 1, "180": 2, "270": 3, "unknown": -1}
 
-// Fill sets the sides' descriptions and transcriptions from the model, only where they're empty.
+// Fill sets what the model said, other than secrets, only where it's empty. Secrets are left
+// out because a card that's already decoded can no longer hide them.
 func (d Description) Fill(meta *types.Metadata) {
 	fill := func(dst *string, v string) {
 		if *dst == "" {
@@ -244,6 +325,15 @@ func (d Description) Fill(meta *types.Metadata) {
 	fill(&meta.Front.Transcription.Text, d.Front.Transcription)
 	fill(&meta.Back.Description, d.Back.Description)
 	fill(&meta.Back.Transcription.Text, d.Back.Transcription)
+	fill(&meta.Recipient.Name, d.Recipient)
+	fill(&meta.Sender.Name, d.Sender)
+	fill(&meta.Locale, d.Locale)
+	if meta.SentOn == nil {
+		meta.SentOn = d.SentOn
+	}
+	if meta.Location.Name == "" {
+		meta.Location = d.Location
+	}
 }
 
 // Turns gives the clockwise quarter turns for each side and the flip they imply. A side with
