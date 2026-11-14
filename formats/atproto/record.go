@@ -426,6 +426,55 @@ func sideFromRecord(s Side) types.Side {
 	return ts
 }
 
+// Byte limits on the record's strings; they must match the maxLength values in
+// lexicons/org/dotpostcard/postcard.json.
+const (
+	maxLongTextBytes   = 20000
+	maxNameBytes       = 1000
+	maxTitleBytes      = 3000
+	maxAnnotationBytes = 100
+	maxCoordinateBytes = 32
+)
+
+// Validate reports the first string in the record that is longer than its lexicon allows.
+func (r Record) Validate() error {
+	var err error
+	check := func(field, value string, limit int) {
+		if err == nil && len(value) > limit {
+			err = fmt.Errorf("%s is %d bytes; the limit is %d", field, len(value), limit)
+		}
+	}
+	person := func(field string, p *Person) {
+		if p != nil {
+			check(field+".name", p.Name, maxNameBytes)
+		}
+	}
+
+	check("title", r.Title, maxTitleBytes)
+	for i, s := range r.Sides {
+		check(fmt.Sprintf("sides[%d].description", i), s.Description, maxLongTextBytes)
+		if s.Transcription == nil {
+			continue
+		}
+		check(fmt.Sprintf("sides[%d].transcription.text", i), s.Transcription.Text, maxLongTextBytes)
+		for j, a := range s.Transcription.Annotations {
+			check(fmt.Sprintf("sides[%d].transcription.annotations[%d].value", i, j), a.Value, maxAnnotationBytes)
+		}
+	}
+	person("sender", r.Sender)
+	person("recipient", r.Recipient)
+	if r.Location != nil {
+		check("location.name", r.Location.Name, maxNameBytes)
+		check("location.latitude", r.Location.Latitude, maxCoordinateBytes)
+		check("location.longitude", r.Location.Longitude, maxCoordinateBytes)
+	}
+	if r.Context != nil {
+		check("context.description", r.Context.Description, maxLongTextBytes)
+		person("context.author", r.Context.Author)
+	}
+	return err
+}
+
 // Diff reports the names of the fields that differ between two records, ignoring the image
 // blob. Titles are compared as effective titles, so a record carrying the title derived from
 // name matches an untitled one. Differences within a side are reported one level deep, eg. "sides[1].transcription".

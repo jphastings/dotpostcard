@@ -89,3 +89,14 @@ The lexicon (`org.dotpostcard.postcard`, see [lexicons/org/dotpostcard](../../le
 - A secret's `prehidden` field defaults to `true` (most secrets are already obscured before upload) and is only written when `false`, so it can't distinguish "prehidden, and said so" from "prehidden by default" — both read back the same way.
 
 Round-tripping through atproto and back will reproduce these fields' rounded values, not necessarily the exact originals.
+
+## The lexicons
+
+The schemas are in [lexicons/org/dotpostcard](../../lexicons/org/dotpostcard). They are published as `com.atproto.lexicon.schema` records in the repo of `did:web:dotpostcard.org`, so other tools can resolve them by name:
+
+```sh
+$ goat lex resolve org.dotpostcard.postcard
+$ goat lex resolve org.dotpostcard.collection
+```
+
+Each text field has a byte limit (its `maxLength` in the lexicon). Uploading a card that exceeds one is refused, naming the field, before anything is written.

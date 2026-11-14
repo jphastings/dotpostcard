@@ -2,6 +2,8 @@ package atproto
 
 import (
 	"encoding/json"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -196,4 +198,35 @@ func TestValidRecordKey(t *testing.T) {
 	assert.Error(t, ValidRecordKey("."))
 	assert.Error(t, ValidRecordKey(".."))
 	assert.Error(t, ValidRecordKey(""))
+}
+
+func TestLimitsMatchTheLexicon(t *testing.T) {
+	raw, err := os.ReadFile("../../lexicons/org/dotpostcard/postcard.json")
+	require.NoError(t, err)
+	type props map[string]struct{ MaxLength int }
+	var lex struct {
+		Defs map[string]struct {
+			Record     struct{ Properties props }
+			Properties props
+		}
+	}
+	require.NoError(t, json.Unmarshal(raw, &lex))
+
+	def := func(name, field string) int { return lex.Defs[name].Properties[field].MaxLength }
+	assert.Equal(t, lex.Defs["main"].Record.Properties["title"].MaxLength, maxTitleBytes)
+	assert.Equal(t, def("side", "description"), maxLongTextBytes)
+	assert.Equal(t, def("annotatedText", "text"), maxLongTextBytes)
+	assert.Equal(t, def("context", "description"), maxLongTextBytes)
+	assert.Equal(t, def("person", "name"), maxNameBytes)
+	assert.Equal(t, def("location", "name"), maxNameBytes)
+	assert.Equal(t, def("annotation", "value"), maxAnnotationBytes)
+	assert.Equal(t, def("location", "latitude"), maxCoordinateBytes)
+	assert.Equal(t, def("location", "longitude"), maxCoordinateBytes)
+}
+
+func TestValidateNamesTheFirstFieldOverItsLimit(t *testing.T) {
+	assert.NoError(t, FromMetadata(testhelpers.SamplePostcard.Meta, testBlob).Validate())
+
+	rec := Record{Sides: []Side{{}, {Transcription: &AnnotatedText{Text: strings.Repeat("a", maxLongTextBytes+1)}}}}
+	assert.EqualError(t, rec.Validate(), "sides[1].transcription.text is 20001 bytes; the limit is 20000")
 }

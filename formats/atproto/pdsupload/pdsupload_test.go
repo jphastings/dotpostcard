@@ -2,6 +2,8 @@ package pdsupload
 
 import (
 	"crypto/sha256"
+	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -51,4 +53,33 @@ func TestUploadWebFileKeepsBytesAndKeyStable(t *testing.T) {
 	otherDay, _, _, err := UploadWebFile(client, data, fws[0].Mimetype, "harbour", day.AddDate(0, 0, 1))
 	require.NoError(t, err)
 	assert.NotEqual(t, uri, otherDay, "a different fallback day is a different card")
+}
+
+func TestUploadRefusesACardWithATooLongTranscriptionBeforeWritingAnything(t *testing.T) {
+	srv := testpds.New("did:plc:testuser")
+	writes := 0
+	inner := srv.Config.Handler
+	srv.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "uploadBlob") || strings.HasSuffix(r.URL.Path, "putRecord") {
+			writes++
+		}
+		inner.ServeHTTP(w, r)
+	})
+	defer srv.Close()
+	client, err := atproto.Login("alice.example", "app-password", srv.URL, "")
+	require.NoError(t, err)
+
+	pc := testhelpers.SamplePostcard
+	pc.Name = "harbour"
+	pc.Front = testhelpers.TestImages["sample-front.png"]
+	pc.Back = testhelpers.TestImages["sample-back.png"]
+	pc.Meta.Back.Transcription.Text = strings.Repeat("a", 20001)
+	fws, err := web.DefaultCodec.Encode(pc, nil)
+	require.NoError(t, err)
+	data, err := fws[0].Bytes()
+	require.NoError(t, err)
+
+	_, _, _, err = UploadWebFile(client, data, fws[0].Mimetype, "harbour", time.Now())
+	require.ErrorContains(t, err, "sides[1].transcription.text")
+	assert.Zero(t, writes)
 }
