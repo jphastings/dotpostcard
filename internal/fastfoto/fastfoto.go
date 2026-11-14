@@ -425,7 +425,7 @@ func (r *run) buildOne(number int, sides *[2][]byte) (res CardResult, dropped bo
 	res.WidthCm, _ = c.size.CmWidth.Float64()
 	res.HeightCm, _ = c.size.CmHeight.Float64()
 
-	flip, sideMeta := types.FlipBook, [2]types.Side{}
+	flip, described := types.FlipBook, types.Metadata{}
 	front, back := image.Image(c.front), image.Image(c.back)
 	if r.opts.Describe != nil {
 		var d describe.Description
@@ -443,9 +443,7 @@ func (r *run) buildOne(number int, sides *[2][]byte) (res CardResult, dropped bo
 			if slug := types.Slug(d.Title); slug != "" && !allDigitsRE.MatchString(slug) {
 				res.Name = r.claimName(slug)
 			}
-			var sides types.Metadata
-			d.Fill(&sides)
-			sideMeta = [2]types.Side{sides.Front, sides.Back}
+			d.Fill(&described)
 			f, b, wantFlip := d.Turns()
 			rf, rb := turn(front, f), turn(back, b)
 			size := c.size
@@ -477,7 +475,7 @@ func (r *run) buildOne(number int, sides *[2][]byte) (res CardResult, dropped bo
 		return res, true
 	}
 	res.Flip = flip
-	r.withSlot(r.slots, func() { res.Err = r.write(dir, res.Name, c.size, flip, sideMeta, front, back) })
+	r.withSlot(r.slots, func() { res.Err = r.write(dir, res.Name, c.size, flip, described, front, back) })
 	if res.Err == nil && r.wantComponents {
 		res.Outputs = append(res.Outputs, componentOutput(dir, res.Name))
 	}
@@ -693,16 +691,10 @@ func (r *run) writeRescanPreview(number int, front image.Image) error {
 	})
 }
 
-func (r *run) write(dir, name string, size types.Size, flip types.Flip, sides [2]types.Side, front, back image.Image) error {
-	meta, err := metadata.Codec(metadata.AsYAML).Encode(types.Postcard{
-		Name: name,
-		Meta: types.Metadata{
-			Flip:     flip,
-			Front:    sides[0],
-			Back:     sides[1],
-			Physical: types.Physical{FrontDimensions: size},
-		},
-	}, nil)
+func (r *run) write(dir, name string, size types.Size, flip types.Flip, described types.Metadata, front, back image.Image) error {
+	described.Flip = flip
+	described.Physical = types.Physical{FrontDimensions: size}
+	meta, err := metadata.Codec(metadata.AsYAML).Encode(types.Postcard{Name: name, Meta: described}, nil)
 	if err != nil {
 		return err
 	}
