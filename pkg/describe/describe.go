@@ -353,5 +353,5 @@ func (d Description) Turns() (f, b int, flip types.Flip) {
 	case b < 0:
 		b = (4 - f) % 4
 	}
-	return f, b, [4]types.Flip{types.FlipBook, types.FlipLeftHand, types.FlipCalendar, types.FlipRightHand}[(f+b)%4]
+	return f, b, types.FlipBook.Turned(f + b)
 }

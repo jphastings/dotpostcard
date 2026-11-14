@@ -165,3 +165,31 @@ func TestLLMDescribesOnlyUndescribedCards(t *testing.T) {
 		assert.Equal(t, c.calls, calls, name)
 	}
 }
+
+func TestRotateWiring(t *testing.T) {
+	dir := t.TempDir()
+	src := writeComponentFixture(t, dir, "sample", testhelpers.RawTestImage("sample-front.png"))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "sample-meta.json"), []byte(`{"flip":"none"}`), 0644))
+	resetRootCmd()
+	rootCmd.SetArgs([]string{"-f", "postcard", "--out-dir", dir, src})
+	require.NoError(t, rootCmd.Execute())
+	card := filepath.Join(dir, "sample.postcard")
+	before, err := os.ReadFile(card)
+	require.NoError(t, err)
+
+	run := func(args ...string) error {
+		rotateCmd.Flags().Set("front", "0")
+		rotateCmd.Flags().Set("back", "0")
+		rootCmd.SetArgs(append([]string{"rotate"}, args...))
+		return rootCmd.Execute()
+	}
+
+	assert.Error(t, run("--front", "45", card))
+	assert.NoError(t, run(card))
+	unchanged, _ := os.ReadFile(card)
+	assert.Equal(t, before, unchanged)
+
+	assert.NoError(t, run("--front", "-90", card))
+	turned, _ := os.ReadFile(card)
+	assert.NotEqual(t, before, turned)
+}

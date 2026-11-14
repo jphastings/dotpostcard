@@ -1,44 +1,56 @@
 package web
 
 import (
+	"bytes"
 	"image"
-	"image/color"
+	"io"
 	"testing"
 
+	"github.com/jphastings/dotpostcard/formats"
+	"github.com/jphastings/dotpostcard/internal/images"
+	"github.com/jphastings/dotpostcard/internal/testhelpers"
 	"github.com/jphastings/dotpostcard/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestRotateForWebPlacesEveryPixelWithoutGaps(t *testing.T) {
-	const w, h = 3, 2
-	src := image.NewRGBA(image.Rect(0, 0, w, h))
-	for x := 0; x < w; x++ {
-		for y := 0; y < h; y++ {
-			src.Set(x, y, color.RGBA{uint8(10 + x), uint8(10 + y), 0, 255})
-		}
-	}
+func decodeCard(t *testing.T, data []byte) types.Postcard {
+	t.Helper()
+	pc, err := BundleFromReader(io.NopCloser(bytes.NewReader(data)), "card.postcard").Decode(formats.DecodeOptions{})
+	require.NoError(t, err)
+	return pc
+}
 
-	cases := map[string]struct {
-		flip types.Flip
-		to   func(x, y int) (int, int)
-	}{
-		"left-hand turns anticlockwise": {types.FlipLeftHand, func(x, y int) (int, int) { return y, w - 1 - x }},
-		"right-hand turns clockwise":    {types.FlipRightHand, func(x, y int) (int, int) { return h - 1 - y, x }},
-	}
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			out, bounds := rotateForWeb(src, tc.flip)
-			assert.Equal(t, image.Rect(0, 0, h, w), bounds)
+func assertSamePixels(t *testing.T, want, got image.Image) {
+	t.Helper()
+	assert.Equal(t, images.Turn(want, 0), images.Turn(got, 0))
+}
 
-			covered := map[image.Point]bool{}
-			for x := 0; x < w; x++ {
-				for y := 0; y < h; y++ {
-					dx, dy := tc.to(x, y)
-					covered[image.Pt(dx, dy)] = true
-					assert.Equal(t, src.At(x, y), out.At(dx, dy), "source (%d,%d)", x, y)
-				}
-			}
-			assert.Len(t, covered, w*h)
-		})
-	}
+func TestRotateTurnsTheFrontLosslesslyAndRestores(t *testing.T) {
+	pc := testhelpers.SamplePostcard
+	pc.Front = testhelpers.TestImages["sample-front.png"]
+	pc.Back = testhelpers.TestImages["sample-back.png"]
+	fws, err := PostcardCodec.Encode(pc, &formats.EncodeOptions{Quality: formats.Archive})
+	require.NoError(t, err)
+	original, err := fws[0].Bytes()
+	require.NoError(t, err)
+	before := decodeCard(t, original)
+
+	turnedData, flip, err := Rotate(original, 1, 0)
+	require.NoError(t, err)
+	turned := decodeCard(t, turnedData)
+
+	assert.Equal(t, types.FlipLeftHand, flip)
+	assert.Equal(t, types.FlipLeftHand, turned.Meta.Flip)
+	assert.Equal(t, before.Meta.Physical.FrontDimensions.CmHeight, turned.Meta.Physical.FrontDimensions.CmWidth)
+	assertSamePixels(t, images.Turn(before.Front, 1), turned.Front)
+	assertSamePixels(t, before.Back, turned.Back)
+
+	restoredData, flip, err := Rotate(turnedData, -1, 0)
+	require.NoError(t, err)
+	restored := decodeCard(t, restoredData)
+
+	assert.Equal(t, types.FlipBook, flip)
+	assertSamePixels(t, before.Front, restored.Front)
+	assertSamePixels(t, before.Back, restored.Back)
 }

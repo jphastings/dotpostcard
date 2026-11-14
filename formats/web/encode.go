@@ -95,17 +95,9 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 	writer := func(w io.Writer) error {
 		frontSize, finalSize := formats.DetermineSize(opts, pc.Front, pc.Back)
 
-		pc.Meta.Physical.FrontDimensions.PxWidth = finalSize.Dx()
-		pc.Meta.Physical.FrontDimensions.PxHeight = finalSize.Dy()
-		outputImageSize := pc.Meta.Physical.FrontDimensions
-
 		combinedSize := finalSize
 		if pc.Back != nil {
 			combinedSize.Max.Y *= 2
-			outputImageSize.PxHeight *= 2
-			if outputImageSize.HasPhysical() {
-				outputImageSize.CmHeight = (&big.Rat{}).Mul(outputImageSize.CmHeight, big.NewRat(2, 1))
-			}
 		}
 
 		combinedImg := image.NewRGBA(combinedSize)
@@ -113,33 +105,12 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 		draw.CatmullRom.Scale(combinedImg, finalSize, pc.Front, frontSize, draw.Over, nil)
 
 		if pc.Back != nil {
-			backImg, backSize := rotateForWeb(pc.Back, pc.Meta.Flip)
+			backImg := turnBack(pc.Back, webTurns(pc.Meta.Flip))
 			lowerSize := image.Rect(0, finalSize.Max.Y, finalSize.Max.X, finalSize.Max.Y*2)
-			draw.CatmullRom.Scale(combinedImg, lowerSize, backImg, backSize, draw.Over, nil)
+			draw.CatmullRom.Scale(combinedImg, lowerSize, backImg, backImg.Bounds(), draw.Over, nil)
 		}
 
-		// Compute outlines for IPTC region metadata
-		outlines := computeOutlines(pc)
-
-		xmpData, err := xmp.MetadataToXMP(pc.Meta, &outputImageSize, outlines)
-		if err != nil {
-			return fmt.Errorf("couldn't generate XMP metadata for postcard: %w", err)
-		}
-
-		switch format {
-		case "webp":
-			err = images.WriteWebP(w, combinedImg, xmpData, opts.QualityLevel(), pc.Meta.HasTransparency)
-		case "png":
-			err = images.WritePNG(w, combinedImg, xmpData, opts.WantsLossless())
-		case "jpeg":
-			err = images.WriteJPEG(w, combinedImg, xmpData, pc.Meta.Physical.GetCardColor(), opts.QualityLevel())
-		case "svg":
-			err = writeSVG(w, pc, combinedImg, xmpData, pc.Meta.HasTransparency, opts.QualityLevel())
-		default:
-			err = fmt.Errorf("unsupported output image format: %s", format)
-		}
-
-		return err
+		return writeImage(w, format, pc, combinedImg, opts, 0)
 	}
 
 	fws := []formats.FileWriter{formats.NewFileWriter(name, mimetype, writer)}
@@ -151,6 +122,49 @@ func (c codec) Encode(pc types.Postcard, opts *formats.EncodeOptions) ([]formats
 	}
 
 	return fws, nil
+}
+
+// writeImage encodes the combined front-above-back image (with the back already turned for the web layout)
+// along with the postcard's XMP. A non-zero jpegQuality overrides the quality level's JPEG quality.
+func writeImage(w io.Writer, format string, pc types.Postcard, combinedImg image.Image, opts *formats.EncodeOptions, jpegQuality int) error {
+	size := combinedImg.Bounds()
+	pc.Meta.Physical.FrontDimensions.PxWidth = size.Dx()
+	pc.Meta.Physical.FrontDimensions.PxHeight = size.Dy()
+	outputImageSize := pc.Meta.Physical.FrontDimensions
+
+	if pc.Back != nil {
+		pc.Meta.Physical.FrontDimensions.PxHeight /= 2
+		if outputImageSize.HasPhysical() {
+			outputImageSize.CmHeight = (&big.Rat{}).Mul(outputImageSize.CmHeight, big.NewRat(2, 1))
+		}
+	}
+
+	// Compute outlines for IPTC region metadata
+	outlines := computeOutlines(pc)
+
+	xmpData, err := xmp.MetadataToXMP(pc.Meta, &outputImageSize, outlines)
+	if err != nil {
+		return fmt.Errorf("couldn't generate XMP metadata for postcard: %w", err)
+	}
+
+	switch format {
+	case "webp":
+		err = images.WriteWebP(w, combinedImg, xmpData, opts.QualityLevel(), pc.Meta.HasTransparency)
+	case "png":
+		err = images.WritePNG(w, combinedImg, xmpData, opts.WantsLossless())
+	case "jpeg":
+		if jpegQuality != 0 {
+			err = images.WriteJPEGAt(w, combinedImg, xmpData, pc.Meta.Physical.GetCardColor(), jpegQuality)
+		} else {
+			err = images.WriteJPEG(w, combinedImg, xmpData, pc.Meta.Physical.GetCardColor(), opts.QualityLevel())
+		}
+	case "svg":
+		err = writeSVG(w, pc, combinedImg, xmpData, pc.Meta.HasTransparency, opts.QualityLevel())
+	default:
+		err = fmt.Errorf("unsupported output image format: %s", format)
+	}
+
+	return err
 }
 
 const outlineMetadataMaxPoints = 200
@@ -190,31 +204,20 @@ func geomPointsToTypes(points []geom3d.Point) []types.Point {
 	return result
 }
 
-func rotateForWeb(img image.Image, flip types.Flip) (image.Image, image.Rectangle) {
-	bounds := img.Bounds()
-	rotatedBounds := image.Rect(0, 0, bounds.Dy(), bounds.Dx())
-	rotated := image.NewRGBA(rotatedBounds)
-
+// webTurns is the clockwise quarter turns that pack a postcard's back into the web layout.
+func webTurns(flip types.Flip) int {
 	switch flip {
-	case types.FlipNone, types.FlipBook, types.FlipCalendar:
-		return img, bounds
-
 	case types.FlipLeftHand:
-		// Top left of the source should be bottom left of the output
-		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-				rotated.Set(y-bounds.Min.Y, bounds.Max.X-1-x, img.At(x, y))
-			}
-		}
-
+		return -1
 	case types.FlipRightHand:
-		// Top left of the source should be top right of the output
-		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-				rotated.Set(bounds.Max.Y-1-y, x-bounds.Min.X, img.At(x, y))
-			}
-		}
+		return 1
 	}
+	return 0
+}
 
-	return rotated, rotatedBounds
+func turnBack(img image.Image, quarters int) image.Image {
+	if quarters == 0 {
+		return img
+	}
+	return images.Turn(img, quarters)
 }

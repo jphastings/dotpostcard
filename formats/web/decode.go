@@ -11,24 +11,33 @@ import (
 	"github.com/jphastings/dotpostcard/types"
 )
 
-func (b bundle) Decode(decOpts formats.DecodeOptions) (types.Postcard, error) {
-	defer b.Close()
-
-	img, xmpData, err := images.Decode(b)
+// decodeParts reads the postcard's metadata and its combined image, along with the raw XMP.
+func decodeParts(b bundle, decOpts formats.DecodeOptions) (pc types.Postcard, img image.Image, xmpData []byte, err error) {
+	img, xmpData, err = images.Decode(b)
 	if err != nil {
-		return types.Postcard{}, fmt.Errorf("unable to decode image: %w", err)
+		return pc, nil, nil, fmt.Errorf("unable to decode image: %w", err)
 	}
 	if len(xmpData) == 0 {
-		return types.Postcard{}, fmt.Errorf("image didn't contain XMP metadata, it's not readable as a postcard")
+		return pc, nil, nil, fmt.Errorf("image didn't contain XMP metadata, it's not readable as a postcard")
 	}
 
-	pc, err := xmp.BundleFromBytes(xmpData, b.refPath).Decode(decOpts)
+	pc, err = xmp.BundleFromBytes(xmpData, b.refPath).Decode(decOpts)
 	if err != nil {
-		return types.Postcard{}, fmt.Errorf("image didn't contain postcard metadata: %w", err)
+		return pc, nil, nil, fmt.Errorf("image didn't contain postcard metadata: %w", err)
 	}
 	pc.Name = b.name
 
 	pc.Meta.HasTransparency = images.HasTransparency(img) && !decOpts.IgnoreTransparency
+	return pc, img, xmpData, nil
+}
+
+func (b bundle) Decode(decOpts formats.DecodeOptions) (types.Postcard, error) {
+	defer b.Close()
+
+	pc, img, _, err := decodeParts(b, decOpts)
+	if err != nil {
+		return types.Postcard{}, err
+	}
 
 	if pc.Meta.Flip == types.FlipNone {
 		pc.Front = img
@@ -51,15 +60,7 @@ func (b bundle) Decode(decOpts formats.DecodeOptions) (types.Postcard, error) {
 	back := image.NewRGBA(image.Rect(0, 0, sideW, sideH))
 	draw.Draw(back, frontBounds, img, image.Point{0, sideH}, draw.Src)
 
-	if pc.Meta.Flip == types.FlipLeftHand {
-		// Use the opposite flip to return to the right orientation
-		pc.Back, _ = rotateForWeb(back, types.FlipRightHand)
-	} else if pc.Meta.Flip == types.FlipRightHand {
-		// Use the opposite flip to return to the right orientation
-		pc.Back, _ = rotateForWeb(back, types.FlipLeftHand)
-	} else {
-		pc.Back = back
-	}
+	pc.Back = turnBack(back, -webTurns(pc.Meta.Flip))
 
 	return pc, nil
 }
