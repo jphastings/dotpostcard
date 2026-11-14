@@ -83,15 +83,8 @@ var rootCmd = &cobra.Command{
 
 		var atClient *atproto.Client
 		if uploadToATProto {
-			user, _ := cmd.Flags().GetString("at-user")
-			password, _ := cmd.Flags().GetString("at-password")
-			user, password, err := cmdhelp.ATCredentials(user, password)
-			if err != nil {
+			if atClient, err = cmdhelp.ATLogin(cmd); err != nil {
 				return err
-			}
-			atClient, err = atproto.Login(user, password, cmdhelp.ATPDSHostOverride(), cmdhelp.ATPLCHostOverride())
-			if err != nil {
-				return fmt.Errorf("logging in to atproto: %w", err)
 			}
 		}
 
@@ -300,8 +293,7 @@ func registerRootFlags() {
 	rootCmd.Flags().Bool("skip-existing", false, "Skip postcards whose output files already exist, instead of failing")
 	rootCmd.MarkFlagsMutuallyExclusive("overwrite", "skip-existing")
 
-	rootCmd.Flags().String("at-user", "", "atproto handle or DID to upload as (format atproto only; falls back to $GOAT_USERNAME/$ATP_USERNAME/$ATP_AUTH_USERNAME)")
-	rootCmd.Flags().String("at-password", "", "atproto PDS app password (format atproto only; falls back to $GOAT_PASSWORD/$ATP_PASSWORD/$ATP_AUTH_PASSWORD)")
+	cmdhelp.AddATFlags(rootCmd)
 	registerLLMFlags()
 }
 

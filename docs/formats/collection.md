@@ -15,15 +15,16 @@ Collections carry a schema version (in both a `meta` table and `PRAGMA user_vers
 
 ## Publishing
 
-A collection can be published to an atproto PDS as a single record listing its cards, and built again from one: see [Collections](atproto.md#collections) in the ATProto format. `postcards collection publish` stores the record's at-uri in the file (`published_uri`) so later publishes update the same record; `postcards collection fetch` creates a new collection from a published one.
+A collection can be published to an atproto PDS as a single record listing its cards, and built again from one: see [Collections](atproto.md#collections) in the ATProto format. `postcards collection publish` stores the record's at-uri in the file (`published_uri`) so later publishes update the same record; `postcards collection create` with an `at://` collection URI builds a new collection from a published one.
 
 ## Example
 
+`collection create` and `collection add` take the same sources: web-format postcard files, `*.postcards` files (all their cards), directories (their postcard and `*.postcards` files, not recursively), and `at://` URIs of postcard or collection records. Cards are stored untouched unless `-Q` re-encodes them at a quality. `create` names the file after the title (`--title`, or that of a single collection source), refuses to replace an existing one without `--overwrite`, and `-f atproto` publishes instead of (or, as `-f postcards,atproto`, as well as) writing it.
+
 ```sh
-$ postcards collection create trip.postcards pyramids.postcard.webp
-Created collection trip.postcards
+$ postcards collection create --title "Trip" pyramids.postcard.webp
 pyramids
-Added 1 card
+Created trip.postcards with 1 card
 
 $ postcards collection ls trip.postcards
 Pyramids — Alice → Bob (2006-01-02)
