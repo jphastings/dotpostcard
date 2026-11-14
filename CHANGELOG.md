@@ -383,6 +383,15 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.43.0 (2026-11-14)
+
+### Feat
+
+- **fastfoto**: settle secret edges between lines of writing, clear of the card's edge
+- **describe**: cover the whole address, even at the name's expense
+- **describe**: date a card from its postmark when the sender didn't
+- **describe**: read recipient, sender, date, place and address secrets from a card's message
+
 ## v0.42.0 (2026-11-14)
 
 ### Feat
