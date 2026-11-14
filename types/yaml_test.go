@@ -1,6 +1,7 @@
 package types_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/jphastings/dotpostcard/internal/testhelpers"
@@ -45,4 +46,24 @@ func Test_YAMLMarshal(t *testing.T) {
 	assert.NoError(t, yaml.Unmarshal(testhelpers.SampleYAML, &expectedMeta))
 
 	assert.Equal(t, expectedMeta, actualMeta)
+}
+
+func Test_TitleRoundTrips(t *testing.T) {
+	meta := types.Metadata{Title: "Notre-Dame de Paris"}
+
+	yamlBytes, err := yaml.Marshal(meta)
+	assert.NoError(t, err)
+	var fromYAML types.Metadata
+	assert.NoError(t, yaml.Unmarshal(yamlBytes, &fromYAML))
+	assert.Equal(t, meta.Title, fromYAML.Title)
+
+	jsonBytes, err := json.Marshal(meta)
+	assert.NoError(t, err)
+	var fromJSON types.Metadata
+	assert.NoError(t, json.Unmarshal(jsonBytes, &fromJSON))
+	assert.Equal(t, meta.Title, fromJSON.Title)
+
+	untitled, err := yaml.Marshal(types.Metadata{})
+	assert.NoError(t, err)
+	assert.NotContains(t, string(untitled), "title")
 }

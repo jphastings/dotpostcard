@@ -11,6 +11,7 @@ import "github.com/jphastings/dotpostcard/types"
 // types.SecretPolygon (which already round-trips through encoding/json
 // symmetrically) for storage avoids that without editing the types package.
 type storedMetadata struct {
+	Title     string         `json:"title,omitempty"`
 	Locale    string         `json:"locale,omitempty"`
 	Location  types.Location `json:"location,omitempty"`
 	Flip      types.Flip     `json:"flip,omitempty"`
@@ -31,6 +32,7 @@ type storedSide struct {
 
 func toStoredMetadata(meta types.Metadata) storedMetadata {
 	return storedMetadata{
+		Title:     meta.Title,
 		Locale:    meta.Locale,
 		Location:  meta.Location,
 		Flip:      meta.Flip,
@@ -74,6 +76,7 @@ func (sm storedMetadata) toMetadata() types.Metadata {
 	}
 
 	return types.Metadata{
+		Title:     sm.Title,
 		Locale:    sm.Locale,
 		Location:  sm.Location,
 		Flip:      sm.Flip,

@@ -5,8 +5,9 @@ import (
 )
 
 type xmpDC struct {
-	Namespace   string   `xml:"xmlns:dc,attr"`
-	Description langText `xml:"dc:description>rdf:Alt>rdf:li,omitempty"`
+	Namespace   string    `xml:"xmlns:dc,attr"`
+	Title       *langText `xml:"dc:title>rdf:Alt>rdf:li,omitempty"`
+	Description langText  `xml:"dc:description>rdf:Alt>rdf:li,omitempty"`
 }
 
 var explanation = langText{
@@ -14,9 +15,13 @@ var explanation = langText{
 	Lang: "en",
 }
 
-func addDCSection(sections []interface{}, _ types.Metadata) []interface{} {
-	return append(sections, xmpDC{
+func addDCSection(sections []interface{}, meta types.Metadata) []interface{} {
+	dc := xmpDC{
 		Namespace:   "http://purl.org/dc/elements/1.1/",
 		Description: explanation,
-	})
+	}
+	if meta.Title != "" {
+		dc.Title = &langText{Text: meta.Title, Lang: "x-default"}
+	}
+	return append(sections, dc)
 }

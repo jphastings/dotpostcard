@@ -440,7 +440,7 @@ func (r *run) buildOne(number int, sides *[2][]byte) (res CardResult, dropped bo
 			res.Notes = append(res.Notes, fmt.Sprintf("LLM step failed, left as scanned: %v", err))
 		} else {
 			res.Described = true
-			if slug := describe.Slug(d.Title); slug != "" && !allDigitsRE.MatchString(slug) {
+			if slug := types.Slug(d.Title); slug != "" && !allDigitsRE.MatchString(slug) {
 				res.Name = r.claimName(slug)
 			}
 			var sides types.Metadata

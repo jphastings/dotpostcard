@@ -96,6 +96,7 @@ type Metadata struct {
 	Name            string `json:"-" yaml:"-"`
 	HasTransparency bool   `json:"-" yaml:"-"`
 
+	Title     string   `json:"title,omitempty" yaml:"title,omitempty"`
 	Locale    string   `json:"locale,omitempty" yaml:"locale,omitempty"`
 	Location  Location `json:"location,omitempty" yaml:"location,omitempty"`
 	Flip      Flip     `json:"flip,omitempty" yaml:"flip,omitempty"`

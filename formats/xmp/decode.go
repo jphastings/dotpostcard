@@ -42,6 +42,9 @@ type xmpJSON struct {
 		Iptc4xmpExt struct {
 			Regions []xmpRegion `json:"Iptc4xmpExt:ImageRegion"`
 		} `json:"Iptc4xmpExt"`
+		DC struct {
+			Title []xmpAlt `json:"dc:title"`
+		} `json:"dc"`
 		Postcard struct {
 			Context             []xmpAlt   `json:"Postcard:Context"`
 			ContextAuthor       string     `json:"Postcard:ContextAuthor"`
@@ -94,6 +97,9 @@ func MetadataFromXMP(r io.Reader) (types.Metadata, error) {
 
 	var meta types.Metadata
 
+	if len(js.Models.DC.Title) > 0 {
+		meta.Title = js.Models.DC.Title[0].Value
+	}
 	if len(js.Models.Postcard.Context) > 0 {
 		meta.Locale = js.Models.Postcard.Context[0].Lang
 		meta.Context.Description = js.Models.Postcard.Context[0].Value

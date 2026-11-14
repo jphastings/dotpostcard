@@ -54,3 +54,24 @@ func TestMimetypeFromData(t *testing.T) {
 	_, err = MimetypeFromData(unknown)
 	assert.Error(t, err)
 }
+
+func TestTitleSurvivesStorage(t *testing.T) {
+	pc := testhelpers.SamplePostcard
+	pc.Name = "titled"
+	pc.Meta.Title = "Notre-Dame de Paris"
+	pc.Front = testhelpers.TestImages["sample-front.png"]
+	pc.Back = testhelpers.TestImages["sample-back.png"]
+
+	fws, err := web.PostcardCodec.Encode(pc, nil)
+	assert.NoError(t, err)
+	data, err := fws[0].Bytes()
+	assert.NoError(t, err)
+
+	col := mustCreate(t)
+	_, err = col.AddWebPostcard(fws[0].Filename, data)
+	assert.NoError(t, err)
+
+	meta, err := col.Metadata("titled")
+	assert.NoError(t, err)
+	assert.Equal(t, "Notre-Dame de Paris", meta.Title)
+}

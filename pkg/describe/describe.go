@@ -12,10 +12,8 @@ import (
 	"image/color"
 	"image/jpeg"
 	"os"
-	"regexp"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/cloudwego/eino-ext/components/model/claude"
 	"github.com/cloudwego/eino-ext/components/model/openai"
@@ -24,9 +22,6 @@ import (
 	"github.com/jphastings/dotpostcard/pkg/claudecode"
 	"github.com/jphastings/dotpostcard/types"
 	xdraw "golang.org/x/image/draw"
-	"golang.org/x/text/runes"
-	"golang.org/x/text/transform"
-	"golang.org/x/text/unicode/norm"
 )
 
 // DefaultModel is used by the Claude backends when no model is given.
@@ -72,7 +67,7 @@ type Side struct {
 type Description struct {
 	Front Side `json:"front"`
 	Back  Side `json:"back"`
-	// Title is a short phrase for what the card shows; see Slug.
+	// Title is a short phrase for what the card shows; see types.Slug.
 	Title string `json:"title"`
 	// Notes are things worth telling the user that didn't stop the description working.
 	Notes []string `json:"-"`
@@ -264,22 +259,4 @@ func (d Description) Turns() (f, b int, flip types.Flip) {
 		b = (4 - f) % 4
 	}
 	return f, b, [4]types.Flip{types.FlipBook, types.FlipLeftHand, types.FlipCalendar, types.FlipRightHand}[(f+b)%4]
-}
-
-var (
-	stripAccents = runes.Remove(runes.In(unicode.Mn))
-	nonSlug      = regexp.MustCompile(`[^a-z0-9]+`)
-)
-
-// Slug turns a title into a lowercase kebab-case name of at most three words, with accents
-// stripped; it is empty when nothing usable is left.
-func Slug(title string) string {
-	plain, _, err := transform.String(transform.Chain(norm.NFD, stripAccents, norm.NFC), strings.ToLower(title))
-	if err != nil {
-		return ""
-	}
-	// Apostrophes join rather than split, so "St Paul's" is "st-pauls", not "st-paul-s".
-	plain = strings.NewReplacer("'", "", "’", "").Replace(plain)
-	words := strings.Fields(nonSlug.ReplaceAllString(plain, " "))
-	return strings.Join(words[:min(len(words), 3)], "-")
 }

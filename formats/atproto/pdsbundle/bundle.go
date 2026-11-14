@@ -11,7 +11,6 @@ import (
 	"math"
 	"math/big"
 	"strings"
-	"unicode"
 
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/formats/atproto"
@@ -88,14 +87,17 @@ func (b Bundle) RefPath() string   { return b.uri }
 func (b Bundle) CardName() string  { return b.name }
 func (b Bundle) CodecName() string { return "ATProto" }
 
-// nameFromRecord names a downloaded card from its record's location (kebab-cased), falling
-// back to the start of the record's own CID when there's no usable location — the rkey is a
-// TID and not fit for human use as a name.
+// nameFromRecord names a downloaded card from its record's title, then its location (both
+// slugged), falling back to the start of the record's own CID when neither is usable — the
+// rkey is a TID and not fit for human use as a name.
 const cidNameLength = 12
 
 func nameFromRecord(record atproto.Record, cid string) string {
+	if name := types.Slug(record.Title); name != "" {
+		return name
+	}
 	if record.Location != nil {
-		if name := kebabCase(record.Location.Name); name != "" {
+		if name := types.Slug(record.Location.Name); name != "" {
 			return name
 		}
 	}
@@ -106,23 +108,6 @@ func nameFromRecord(record atproto.Record, cid string) string {
 		return unique[:cidNameLength]
 	}
 	return unique
-}
-
-// kebabCase lower-cases s, keeping unicode letters and digits, and collapses every run of
-// other characters to a single "-".
-func kebabCase(s string) string {
-	var b strings.Builder
-	lastDash := true // suppresses a leading dash
-	for _, r := range s {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) {
-			b.WriteRune(unicode.ToLower(r))
-			lastDash = false
-		} else if !lastDash {
-			b.WriteByte('-')
-			lastDash = true
-		}
-	}
-	return strings.TrimRight(b.String(), "-")
 }
 
 // Decode fetches the record's image blob, decodes it with the web codec, and returns metadata
@@ -146,7 +131,7 @@ func (b Bundle) Decode(decOpts formats.DecodeOptions) (types.Postcard, error) {
 
 	if b.warn != nil {
 		imageRecord := atproto.FromMetadata(pc.Meta, b.record.Image)
-		if diffs := atproto.Diff(imageRecord, b.record); len(diffs) > 0 {
+		if diffs := atproto.Diff(imageRecord, b.record, b.name); len(diffs) > 0 {
 			b.warn(fmt.Sprintf("record and image metadata differ: %s", strings.Join(diffs, ", ")))
 		}
 	}
@@ -162,6 +147,11 @@ func (b Bundle) Decode(decOpts formats.DecodeOptions) (types.Postcard, error) {
 		roundedMm(pc.Meta.Physical.FrontDimensions.CmHeight) == roundedMm(recordMeta.Physical.FrontDimensions.CmHeight) {
 		recordMeta.Physical.FrontDimensions.CmWidth = pc.Meta.Physical.FrontDimensions.CmWidth
 		recordMeta.Physical.FrontDimensions.CmHeight = pc.Meta.Physical.FrontDimensions.CmHeight
+	}
+
+	// A title merely derived from the name is display-only; keeping it would persist it into the file.
+	if pc.Meta.Title == "" && recordMeta.Title == types.TitleFromName(b.name) {
+		recordMeta.Title = ""
 	}
 
 	pc.Meta = recordMeta
