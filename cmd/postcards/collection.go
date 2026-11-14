@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/jphastings/dotpostcard/pkg/collection"
+	"github.com/jphastings/dotpostcard/types"
 	"github.com/spf13/cobra"
 )
 
@@ -182,7 +183,7 @@ var collectionSearchCmd = &cobra.Command{
 		}
 
 		for _, r := range results {
-			fmt.Printf("%s: %s\n", r.Name, plainSnippet(r.Snippet))
+			fmt.Printf("%s: %s\n", titleWithName(r.CardSummary), plainSnippet(r.Snippet))
 		}
 
 		fmt.Printf("%s\n", count(len(results), "result"))
@@ -270,8 +271,16 @@ func isWebFormatFile(path string) bool {
 	return false
 }
 
+// titleWithName appends the card's name, which `remove` needs, unless its title already implies it.
+func titleWithName(card collection.CardSummary) string {
+	if card.Name == types.Slug(card.Title) {
+		return card.Title
+	}
+	return fmt.Sprintf("%s [%s]", card.Title, card.Name)
+}
+
 func formatCardLine(card collection.CardSummary) string {
-	line := card.Name
+	line := titleWithName(card)
 
 	if card.SenderName != "" || card.RecipientName != "" {
 		sender := card.SenderName

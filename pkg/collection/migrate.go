@@ -2,8 +2,42 @@ package collection
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 )
+
+func backfillTitles(tx *sql.Tx) error {
+	rows, err := tx.Query(`SELECT id, name, metadata_json FROM cards`)
+	if err != nil {
+		return err
+	}
+	titles := map[int64]string{}
+	for rows.Next() {
+		var id int64
+		var name, metadataJSON string
+		if err := rows.Scan(&id, &name, &metadataJSON); err != nil {
+			rows.Close()
+			return err
+		}
+		var sm storedMetadata
+		if err := json.Unmarshal([]byte(metadataJSON), &sm); err != nil {
+			rows.Close()
+			return fmt.Errorf("parsing metadata for %q: %w", name, err)
+		}
+		titles[id] = sm.toMetadata().EffectiveTitle(name)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	rows.Close()
+
+	for id, title := range titles {
+		if _, err := tx.Exec(`UPDATE cards SET title = ? WHERE id = ?`, title, id); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 // migrations is the schema upgrade ladder: migrations[i] upgrades a
 // collection from schema version i+1 to version i+2. The current schema
@@ -18,6 +52,34 @@ var migrations = []func(*sql.Tx) error{
 	// v1 -> v2: add an optional, user-editable collection title.
 	func(tx *sql.Tx) error {
 		_, err := tx.Exec(`ALTER TABLE meta ADD COLUMN title TEXT`)
+		return err
+	},
+	// v2 -> v3: give each card a title (backfilled with its effective title), searchable
+	// through the full-text index, and let the collection remember where it was published.
+	func(tx *sql.Tx) error {
+		for _, stmt := range []string{
+			`DROP TRIGGER cards_ai`,
+			`DROP TRIGGER cards_ad`,
+			`DROP TRIGGER cards_au`,
+			`DROP TABLE cards_fts`,
+			`ALTER TABLE cards ADD COLUMN title TEXT NOT NULL DEFAULT ''`,
+			`ALTER TABLE meta ADD COLUMN published_uri TEXT`,
+		} {
+			if _, err := tx.Exec(stmt); err != nil {
+				return err
+			}
+		}
+
+		if err := backfillTitles(tx); err != nil {
+			return err
+		}
+
+		for _, stmt := range ftsStatements() {
+			if _, err := tx.Exec(stmt); err != nil {
+				return err
+			}
+		}
+		_, err := tx.Exec(`INSERT INTO cards_fts(cards_fts) VALUES('rebuild')`)
 		return err
 	},
 }

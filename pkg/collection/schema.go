@@ -3,19 +3,22 @@ package collection
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 )
 
-const ftsColumns = `name, sender_name, recipient_name, location_name, front_description, back_description, front_transcript, back_transcript, context_description, context_author_name`
+const ftsColumns = `name, title, sender_name, recipient_name, location_name, front_description, back_description, front_transcript, back_transcript, context_description, context_author_name`
 
 var schemaStatements = []string{
 	`CREATE TABLE meta (
 		schema_version INTEGER NOT NULL,
 		created_by TEXT NOT NULL,
-		title TEXT
+		title TEXT,
+		published_uri TEXT
 	)`,
 	`CREATE TABLE cards (
 		id INTEGER PRIMARY KEY,
 		name TEXT NOT NULL UNIQUE,
+		title TEXT NOT NULL DEFAULT '',
 		filename TEXT NOT NULL,
 		mimetype TEXT NOT NULL,
 		data BLOB NOT NULL,
@@ -41,26 +44,34 @@ var schemaStatements = []string{
 		context_author_name TEXT,
 		added_at TEXT NOT NULL
 	)`,
-	`CREATE VIRTUAL TABLE cards_fts USING fts5(
+}
+
+// ftsStatements builds the cards_fts index and the triggers that keep it in step with cards.
+func ftsStatements() []string {
+	newCols := "new." + strings.ReplaceAll(ftsColumns, ", ", ", new.")
+	oldCols := "old." + strings.ReplaceAll(ftsColumns, ", ", ", old.")
+	return []string{
+		`CREATE VIRTUAL TABLE cards_fts USING fts5(
 		` + ftsColumns + `,
 		content='cards',
 		content_rowid='id',
 		tokenize='unicode61 remove_diacritics 2'
 	)`,
-	`CREATE TRIGGER cards_ai AFTER INSERT ON cards BEGIN
+		`CREATE TRIGGER cards_ai AFTER INSERT ON cards BEGIN
 		INSERT INTO cards_fts(rowid, ` + ftsColumns + `)
-		VALUES (new.id, new.name, new.sender_name, new.recipient_name, new.location_name, new.front_description, new.back_description, new.front_transcript, new.back_transcript, new.context_description, new.context_author_name);
+		VALUES (new.id, ` + newCols + `);
 	END`,
-	`CREATE TRIGGER cards_ad AFTER DELETE ON cards BEGIN
+		`CREATE TRIGGER cards_ad AFTER DELETE ON cards BEGIN
 		INSERT INTO cards_fts(cards_fts, rowid, ` + ftsColumns + `)
-		VALUES ('delete', old.id, old.name, old.sender_name, old.recipient_name, old.location_name, old.front_description, old.back_description, old.front_transcript, old.back_transcript, old.context_description, old.context_author_name);
+		VALUES ('delete', old.id, ` + oldCols + `);
 	END`,
-	`CREATE TRIGGER cards_au AFTER UPDATE ON cards BEGIN
+		`CREATE TRIGGER cards_au AFTER UPDATE ON cards BEGIN
 		INSERT INTO cards_fts(cards_fts, rowid, ` + ftsColumns + `)
-		VALUES ('delete', old.id, old.name, old.sender_name, old.recipient_name, old.location_name, old.front_description, old.back_description, old.front_transcript, old.back_transcript, old.context_description, old.context_author_name);
+		VALUES ('delete', old.id, ` + oldCols + `);
 		INSERT INTO cards_fts(rowid, ` + ftsColumns + `)
-		VALUES (new.id, new.name, new.sender_name, new.recipient_name, new.location_name, new.front_description, new.back_description, new.front_transcript, new.back_transcript, new.context_description, new.context_author_name);
+		VALUES (new.id, ` + newCols + `);
 	END`,
+	}
 }
 
 // initSchema creates a fresh, current-version schema in an empty database
@@ -74,7 +85,7 @@ func initSchema(db *sql.DB, createdBy string) error {
 	}
 	defer tx.Rollback()
 
-	for _, stmt := range schemaStatements {
+	for _, stmt := range append(schemaStatements, ftsStatements()...) {
 		if _, err := tx.Exec(stmt); err != nil {
 			return fmt.Errorf("creating schema: %w", err)
 		}

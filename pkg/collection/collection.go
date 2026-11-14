@@ -30,6 +30,7 @@ type Collection struct {
 // to render a grid cell or list row without decoding the card's image data.
 type CardSummary struct {
 	Name          string      `json:"name"`
+	Title         string      `json:"title"`
 	Filename      string      `json:"filename"`
 	Mimetype      string      `json:"mimetype"`
 	Flip          types.Flip  `json:"flip"`

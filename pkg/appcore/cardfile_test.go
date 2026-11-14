@@ -26,3 +26,12 @@ func TestOpenCardFileSingleExtensionFilename(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, summaryJSON, `"mimetype":"image/jpeg"`)
 }
+
+func TestCardFileShowsAndSearchesDerivedTitle(t *testing.T) {
+	data, _ := encodePostcard(t, "cnn-center")
+	cf, err := OpenCardFile(writeBareFile(t, "cnn-center.postcard", data))
+	assert.NoError(t, err)
+
+	assert.Equal(t, "Cnn Center", cf.summary().Title)
+	assert.Contains(t, cf.searchableText(), "Cnn Center")
+}

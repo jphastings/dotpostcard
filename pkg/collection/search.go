@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-const qualifiedSummaryColumns = `cards.name, cards.filename, cards.mimetype, cards.flip, cards.sent_on, cards.sender_name, cards.recipient_name, cards.location_name, cards.country_code, cards.latitude, cards.longitude, cards.front_px_w, cards.front_px_h`
+const qualifiedSummaryColumns = `cards.name, cards.title, cards.filename, cards.mimetype, cards.flip, cards.sent_on, cards.sender_name, cards.recipient_name, cards.location_name, cards.country_code, cards.latitude, cards.longitude, cards.front_px_w, cards.front_px_h`
 
 // SearchResult is a CardSummary plus the full-text-search context: a
 // highlighted snippet of the matching text, and its bm25 rank (lower is
@@ -16,7 +16,7 @@ type SearchResult struct {
 	Rank    float64 `json:"rank"`
 }
 
-// Search runs a full-text search across card names, sender/recipient/location
+// Search runs a full-text search across card names, titles, sender/recipient/location
 // names, descriptions, transcripts and context, best matches first.
 // The query is free text; it's safe to pass arbitrary user input.
 func (c *Collection) Search(query string) ([]SearchResult, error) {
