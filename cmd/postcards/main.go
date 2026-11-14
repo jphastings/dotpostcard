@@ -333,7 +333,8 @@ Postcards can also be uploaded to, and downloaded from, an atproto PDS. Use
 goat uses) to upload, and an at://... record URI in place of a file to
 download.
 
---llm has a model describe each card that has no description yet; existing
-descriptions and transcriptions are never replaced.
+--llm has a model describe each card that has no description yet, and fill in
+what it can read (message, recipient, sender, date, place, language); existing
+values are never replaced.
 `
 }

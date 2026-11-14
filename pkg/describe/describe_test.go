@@ -1,6 +1,7 @@
 package describe
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/jphastings/dotpostcard/types"
@@ -30,18 +31,18 @@ func TestTurns(t *testing.T) {
 }
 
 func TestParseReplyAcceptsFencesAndRejectsBadRotations(t *testing.T) {
-	good := "```json\n" + `{"front":{"rotation":"90","description":"d","transcription":""},"back":{"rotation":"unknown","description":"","transcription":"hi"},"orientation_evidence":"x"}` + "\n```"
+	good := "```json\n" + `{"front":{"rotation":"90","description":"d","transcription":"","secrets":[]},"back":{"rotation":"unknown","description":"","transcription":"hi","secrets":[]},"recipient":"","sender":"","sent_on":"","locale":"","location":{"name":"","latitude":null,"longitude":null,"country_code":""},"orientation_evidence":"x"}` + "\n```"
 	d, err := parseReply(good)
 	require.NoError(t, err)
 	assert.Equal(t, "90", d.Front.Rotation)
 	assert.Equal(t, "hi", d.Back.Transcription)
 	assert.Empty(t, d.Title)
 
-	d, err = parseReply(`{"title":"CNN Center","front":{"rotation":"0","description":"","transcription":""},"back":{"rotation":"0","description":"","transcription":""},"orientation_evidence":"x"}`)
+	d, err = parseReply(`{"title":"CNN Center","front":{"rotation":"0","description":"","transcription":"","secrets":[]},"back":{"rotation":"0","description":"","transcription":"","secrets":[]},"recipient":"","sender":"","sent_on":"","locale":"","location":{"name":"","latitude":null,"longitude":null,"country_code":""},"orientation_evidence":"x"}`)
 	require.NoError(t, err)
 	assert.Equal(t, "CNN Center", d.Title)
 
-	_, err = parseReply(`{"front":{"rotation":"45","description":"","transcription":""},"back":{"rotation":"0","description":"","transcription":""}}`)
+	_, err = parseReply(`{"front":{"rotation":"45","description":"","transcription":"","secrets":[]},"back":{"rotation":"0","description":"","transcription":"","secrets":[]}}`)
 	assert.Error(t, err)
 	_, err = parseReply(`not json`)
 	assert.Error(t, err)
@@ -91,4 +92,52 @@ func TestFillSetsTheTitleOnlyWhenEmpty(t *testing.T) {
 	var noTitle types.Metadata
 	Description{}.Fill(&noTitle)
 	assert.Empty(t, noTitle.Title)
+}
+
+const richReply = `{"title":"t","recipient":"Mr A. Smith","sender":"Jo","sent_on":"1987-08-14","locale":"en-GB",
+"location":{"name":"Lyme Regis, UK","latitude":50.72,"longitude":-2.93,"country_code":"gbr"},"orientation_evidence":"x",
+"front":{"rotation":"0","description":"","transcription":"","secrets":[]},
+"back":{"rotation":"0","description":"","transcription":"hi","secrets":[[[0.5,0.5],[1.5,0.5],[1.5,-1]],[[0,0],[1,1]]]}}`
+
+func TestParseReplyReadsTheHandwrittenFieldsAndFillKeepsExistingOnes(t *testing.T) {
+	d, err := parseReply(richReply)
+	require.NoError(t, err)
+	assert.Empty(t, d.Notes)
+	assert.Equal(t, [][][2]float64{{{0.5, 0.5}, {1, 0.5}, {1, 0}}}, d.Back.Secrets, "clamped; the two-point polygon is dropped")
+
+	var meta types.Metadata
+	d.Fill(&meta)
+	assert.Equal(t, "Mr A. Smith", meta.Recipient.Name)
+	assert.Equal(t, "Jo", meta.Sender.Name)
+	assert.Equal(t, "1987-08-14", meta.SentOn.Format("2006-01-02"))
+	assert.Equal(t, "en-GB", meta.Locale)
+	assert.Equal(t, "Lyme Regis, UK", meta.Location.Name)
+	assert.Equal(t, "GBR", meta.Location.CountryCode)
+	assert.Equal(t, -2.93, *meta.Location.Longitude)
+	assert.Empty(t, meta.Back.Secrets, "a decoded card can't hide secrets")
+
+	kept := types.Metadata{Recipient: types.Person{Name: "Mine"}, Locale: "fr-FR", Location: types.Location{Name: "Paris"}}
+	d.Fill(&kept)
+	assert.Equal(t, "Mine", kept.Recipient.Name)
+	assert.Equal(t, "fr-FR", kept.Locale)
+	assert.Equal(t, types.Location{Name: "Paris"}, kept.Location)
+}
+
+func TestParseReplyDropsBadOptionalValuesWithoutFailing(t *testing.T) {
+	bad := strings.NewReplacer(`"1987-08-14"`, `"14 Aug"`, `"latitude":50.72`, `"latitude":95`, `"gbr"`, `"UK"`).Replace(richReply)
+	d, err := parseReply(bad)
+	require.NoError(t, err)
+	assert.Nil(t, d.SentOn)
+	assert.Contains(t, d.Notes[0], "14 Aug")
+	assert.Equal(t, "Lyme Regis, UK", d.Location.Name)
+	assert.Nil(t, d.Location.Latitude)
+	assert.Nil(t, d.Location.Longitude)
+	assert.Empty(t, d.Location.CountryCode)
+}
+
+func TestPolygonsFollowTheSidesQuarterTurns(t *testing.T) {
+	s := Side{Secrets: [][][2]float64{{{0.25, 0.5}, {0.5, 0.5}, {0.5, 1}}}}
+	assert.Equal(t, types.Point{X: 0.25, Y: 0.5}, s.Polygons(0)[0].Points[0])
+	assert.Equal(t, []types.Point{{X: 0.5, Y: 0.25}, {X: 0.5, Y: 0.5}, {X: 0, Y: 0.5}}, s.Polygons(1)[0].Points)
+	assert.False(t, s.Polygons(1)[0].Prehidden)
 }

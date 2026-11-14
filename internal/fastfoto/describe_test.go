@@ -98,7 +98,7 @@ func TestDescriberPanicLeavesTheCardAsScanned(t *testing.T) {
 
 func TestClaudeCodeBackendDescribesCardsWithoutScanning(t *testing.T) {
 	bin := t.TempDir()
-	reply := `{"type":"result","is_error":false,"result":"","structured_output":{"front":{"rotation":"0","description":"A harbour","transcription":""},"back":{"rotation":"0","description":"","transcription":""},"orientation_evidence":"x"}}`
+	reply := `{"type":"result","is_error":false,"result":"","structured_output":{"front":{"rotation":"0","description":"A harbour","transcription":"","secrets":[]},"back":{"rotation":"0","description":"","transcription":"","secrets":[]},"recipient":"","sender":"","sent_on":"","locale":"","location":{"name":"","latitude":null,"longitude":null,"country_code":""},"orientation_evidence":"x"}}`
 	script := "#!/bin/sh\ncat >/dev/null\ncat <<'EOF'\n" + reply + "\nEOF\n"
 	require.NoError(t, os.WriteFile(filepath.Join(bin, "claude"), []byte(script), 0o755))
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -148,7 +148,7 @@ func TestHungDescriberTimesOutAndLeavesTheCardAsScanned(t *testing.T) {
 
 func TestDeniedWebSearchIsANoteNotAnError(t *testing.T) {
 	bin := t.TempDir()
-	reply := `{"type":"result","is_error":false,"result":"","permission_denials":[{"tool_name":"WebSearch"}],"structured_output":{"front":{"rotation":"0","description":"","transcription":""},"back":{"rotation":"0","description":"","transcription":""},"orientation_evidence":"x"}}`
+	reply := `{"type":"result","is_error":false,"result":"","permission_denials":[{"tool_name":"WebSearch"}],"structured_output":{"front":{"rotation":"0","description":"","transcription":"","secrets":[]},"back":{"rotation":"0","description":"","transcription":"","secrets":[]},"recipient":"","sender":"","sent_on":"","locale":"","location":{"name":"","latitude":null,"longitude":null,"country_code":""},"orientation_evidence":"x"}}`
 	script := "#!/bin/sh\ncat >/dev/null\ncat <<'EOF'\n" + reply + "\nEOF\n"
 	require.NoError(t, os.WriteFile(filepath.Join(bin, "claude"), []byte(script), 0o755))
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -216,4 +216,34 @@ func TestTitledNamesStartingWithDigitsDoNotShiftNumbering(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 1, report.Cards[0].Number, existing)
 	}
+}
+
+func TestSecretsAreWrittenUnhiddenAndTurnedWithTheirSide(t *testing.T) {
+	secret := [][][2]float64{{{0.25, 0.5}, {0.5, 0.5}, {0.5, 1}}}
+	dir := twoSidedDir(t)
+	_, err := runDefaultCard(t, dir, describing(describe.Description{
+		Recipient: "Mr A. Smith",
+		Front:     describe.Side{Rotation: "90"},
+		Back:      describe.Side{Rotation: "0", Secrets: secret},
+	}, nil))
+	require.NoError(t, err)
+
+	b, err := os.ReadFile(filepath.Join(dir, "0001-meta.yaml"))
+	require.NoError(t, err)
+	assert.Contains(t, string(b), "name: Mr A. Smith")
+	assert.Contains(t, string(b), "prehidden: false")
+	assert.Contains(t, string(b), "0.25", "back isn't turned, so its secret is as given")
+
+	dir = twoSidedDir(t)
+	_, err = runDefaultCard(t, dir, describing(describe.Description{
+		Front: describe.Side{Rotation: "90", Secrets: secret},
+		Back:  describe.Side{Rotation: "0"},
+	}, nil))
+	require.NoError(t, err)
+	bundles, err := postcards.MakeBundles([]string{filepath.Join(dir, "0001-front.png"), filepath.Join(dir, "0001-back.png"), filepath.Join(dir, "0001-meta.yaml")})
+	require.NoError(t, err)
+	pc, err := bundles[0].Decode(formats.DecodeOptions{})
+	require.NoError(t, err)
+	require.Len(t, pc.Meta.Front.Secrets, 1)
+	assert.Equal(t, types.Point{X: 0.5, Y: 0.25}, pc.Meta.Front.Secrets[0].Points[0])
 }
