@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.45.0 (2026-11-14)
+
+### Feat
+
+- **collection**: create, size and publish a collection in one command
+
 ## v0.44.0 (2026-11-14)
 
 ### Feat
