@@ -73,7 +73,7 @@ func TestResolvePDSRejectsUnknownDIDMethod(t *testing.T) {
 // Anonymous entry point: a fake PLC directory hands back a fake PDS's (plain HTTP) address,
 // and Anonymous should be able to read from it without any override besides the PLC one.
 func TestAnonymousResolvesDIDPLCViaFakeDirectory(t *testing.T) {
-	pds := testpds.New("did:plc:testsubject", RecordType)
+	pds := testpds.New("did:plc:testsubject")
 	defer pds.Close()
 
 	plc := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

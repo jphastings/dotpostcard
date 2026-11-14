@@ -18,5 +18,12 @@ func TestNoImageToolchainDependency(t *testing.T) {
 	require.NoError(t, err)
 
 	deps := strings.Split(strings.TrimSpace(string(out)), "\n")
-	assert.NotContains(t, deps, "github.com/jphastings/dotpostcard/formats/web")
+	for _, forbidden := range []string{
+		"github.com/jphastings/dotpostcard/formats/web",
+		"github.com/jphastings/dotpostcard/pkg/collection",
+		"modernc.org/sqlite",
+		"github.com/mattn/go-sqlite3",
+	} {
+		assert.NotContains(t, deps, forbidden)
+	}
 }

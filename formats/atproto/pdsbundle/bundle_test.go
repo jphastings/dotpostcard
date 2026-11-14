@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strings"
 	"testing"
 
 	"github.com/jphastings/dotpostcard/formats"
@@ -52,7 +53,7 @@ func TestWebEncodingIsDeterministic(t *testing.T) {
 }
 
 func TestUploadDownloadRoundTrip(t *testing.T) {
-	srv := testpds.New("did:plc:testuser", atproto.RecordType)
+	srv := testpds.New("did:plc:testuser")
 	defer srv.Close()
 
 	client, err := atproto.Login("alice.example", "app-password", srv.URL, "")
@@ -62,7 +63,8 @@ func TestUploadDownloadRoundTrip(t *testing.T) {
 
 	blob, err := client.UploadBlob(data, mimetype)
 	require.NoError(t, err)
-	require.NoError(t, client.PutRecord("some-postcard", atproto.FromMetadata(meta, blob)))
+	_, err = client.PutRecord("some-postcard", atproto.FromMetadata(meta, blob))
+	require.NoError(t, err)
 
 	var warnings []string
 	uri := fmt.Sprintf("at://%s/%s/some-postcard", client.DID(), atproto.RecordType)
@@ -85,7 +87,7 @@ func TestUploadDownloadRoundTrip(t *testing.T) {
 }
 
 func TestDecodeWarnsOnMismatchAndRecordWins(t *testing.T) {
-	srv := testpds.New("did:plc:testuser", atproto.RecordType)
+	srv := testpds.New("did:plc:testuser")
 	defer srv.Close()
 
 	client, err := atproto.Login("alice.example", "app-password", srv.URL, "")
@@ -97,7 +99,8 @@ func TestDecodeWarnsOnMismatchAndRecordWins(t *testing.T) {
 
 	record := atproto.FromMetadata(meta, blob)
 	record.Context.Description = "An edited description the image's own XMP doesn't know about"
-	require.NoError(t, client.PutRecord("some-postcard", record))
+	_, err = client.PutRecord("some-postcard", record)
+	require.NoError(t, err)
 
 	var warnings []string
 	uri := fmt.Sprintf("at://%s/%s/some-postcard", client.DID(), atproto.RecordType)
@@ -112,10 +115,10 @@ func TestDecodeWarnsOnMismatchAndRecordWins(t *testing.T) {
 	assert.Equal(t, record.Context.Description, pc.Meta.Context.Description, "the record's value must win over the image's")
 }
 
-func putAndFetchNamed(t *testing.T, title, locationName string) string {
+func putAndFetchNamed(t *testing.T, title, locationName string) (name, cid string) {
 	t.Helper()
 
-	srv := testpds.New("did:plc:testuser", atproto.RecordType)
+	srv := testpds.New("did:plc:testuser")
 	defer srv.Close()
 
 	client, err := atproto.Login("alice.example", "app-password", srv.URL, "")
@@ -127,25 +130,29 @@ func putAndFetchNamed(t *testing.T, title, locationName string) string {
 
 	blob, err := client.UploadBlob(data, mimetype)
 	require.NoError(t, err)
-	require.NoError(t, client.PutRecord("3jzfcijpj2z2a", atproto.FromMetadata(meta, blob)))
+	cid, err = client.PutRecord("3jzfcijpj2z2a", atproto.FromMetadata(meta, blob))
+	require.NoError(t, err)
 
 	uri := fmt.Sprintf("at://%s/%s/3jzfcijpj2z2a", client.DID(), atproto.RecordType)
 	bundle, err := NewBundle(uri, srv.URL, "", nil)
 	require.NoError(t, err)
 
-	return bundle.CardName()
+	return bundle.CardName(), cid
 }
 
 func TestNewBundleNamesCardFromLocation(t *testing.T) {
-	assert.Equal(t, "san-marino", putAndFetchNamed(t, "", "San Marino"))
+	name, _ := putAndFetchNamed(t, "", "San Marino")
+	assert.Equal(t, "san-marino", name)
 }
 
 func TestNewBundleNamesCardFromMessyLocation(t *testing.T) {
-	assert.Equal(t, "st-johns-newfoundland", putAndFetchNamed(t, "", "  St. John's, Newfoundland "))
+	name, _ := putAndFetchNamed(t, "", "  St. John's, Newfoundland ")
+	assert.Equal(t, "st-johns-newfoundland", name)
 }
 
 func TestNewBundleNamesCardFromCIDWhenNoLocation(t *testing.T) {
-	assert.Equal(t, "fakerecordci", putAndFetchNamed(t, "", ""), "should be the start of the record CID, after its constant prefix")
+	name, cid := putAndFetchNamed(t, "", "")
+	assert.Equal(t, strings.TrimPrefix(cid, "bafyrei")[:12], name, "should be the start of the record CID, after its constant prefix")
 }
 
 func TestParseURIRejectsOtherCollectionsAndMalformedURIs(t *testing.T) {
@@ -162,11 +169,12 @@ func TestParseURIRejectsOtherCollectionsAndMalformedURIs(t *testing.T) {
 }
 
 func TestNewBundleNamesCardFromTitleBeforeLocation(t *testing.T) {
-	assert.Equal(t, "notre-dame-de-paris", putAndFetchNamed(t, "Notre-Dame de Paris", "San Marino"))
+	name, _ := putAndFetchNamed(t, "Notre-Dame de Paris", "San Marino")
+	assert.Equal(t, "notre-dame-de-paris", name)
 }
 
 func TestDerivedTitleOnRecordRaisesNoWarning(t *testing.T) {
-	srv := testpds.New("did:plc:testuser", atproto.RecordType)
+	srv := testpds.New("did:plc:testuser")
 	defer srv.Close()
 
 	client, err := atproto.Login("alice.example", "app-password", srv.URL, "")
@@ -178,7 +186,8 @@ func TestDerivedTitleOnRecordRaisesNoWarning(t *testing.T) {
 	require.NoError(t, err)
 
 	meta.Title = "Notre Dame De Paris"
-	require.NoError(t, client.PutRecord("3jzfcijpj2z2a", atproto.FromMetadata(meta, blob)))
+	_, err = client.PutRecord("3jzfcijpj2z2a", atproto.FromMetadata(meta, blob))
+	require.NoError(t, err)
 
 	var warnings []string
 	uri := fmt.Sprintf("at://%s/%s/3jzfcijpj2z2a", client.DID(), atproto.RecordType)

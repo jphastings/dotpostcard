@@ -10,7 +10,7 @@ import (
 )
 
 func TestLoginAndRecordExists(t *testing.T) {
-	srv := testpds.New("did:plc:testuser", RecordType)
+	srv := testpds.New("did:plc:testuser")
 	defer srv.Close()
 
 	client, err := Login("alice.example", "app-password", srv.URL, "")
@@ -21,7 +21,8 @@ func TestLoginAndRecordExists(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, exists)
 
-	require.NoError(t, client.PutRecord("some-card", FromMetadata(types.Metadata{}, testBlob)))
+	_, err = client.PutRecord("some-card", FromMetadata(types.Metadata{}, testBlob))
+	require.NoError(t, err)
 
 	exists, err = client.RecordExists("some-card")
 	require.NoError(t, err)
@@ -29,7 +30,7 @@ func TestLoginAndRecordExists(t *testing.T) {
 }
 
 func TestAnonymousResolvesHandleViaOverrideHost(t *testing.T) {
-	srv := testpds.New("did:plc:testuser", RecordType)
+	srv := testpds.New("did:plc:testuser")
 	defer srv.Close()
 
 	client, err := Anonymous("alice.example", srv.URL, "")
