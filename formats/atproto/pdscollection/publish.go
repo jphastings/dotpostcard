@@ -19,6 +19,9 @@ import (
 	"github.com/jphastings/dotpostcard/types"
 )
 
+// maxTitleBytes is the collection lexicon's limit on title.
+const maxTitleBytes = 3000
+
 // PublishOptions configures Publish.
 type PublishOptions struct {
 	// DryRun reads from the PDS but writes nothing, not even the collection's stored URI.
@@ -68,6 +71,9 @@ func Publish(client *atproto.Client, coll *collection.Collection, opts PublishOp
 	}
 	if title == "" {
 		title = opts.DefaultTitle
+	}
+	if len(title) > maxTitleBytes {
+		return PublishResult{}, fmt.Errorf("title is %d bytes; the limit is %d", len(title), maxTitleBytes)
 	}
 	rkey, storedURI, err := collectionKey(client, coll, title)
 	if err != nil {
@@ -123,7 +129,9 @@ func Publish(client *atproto.Client, coll *collection.Collection, opts PublishOp
 		}
 	}
 	if _, err := client.PutRecordIn(atproto.CollectionRecordType, rkey, record); err != nil {
-		return PublishResult{}, err
+		// Nobody knows yet how a PDS refuses an oversized record, so any failure names the size.
+		encoded, _ := json.Marshal(record)
+		return PublishResult{}, fmt.Errorf("writing the collection record (cards: %d, %.1f KB; a collection is always one record, it isn't split): %w", len(refs), float64(len(encoded))/1024, err)
 	}
 	return result, nil
 }

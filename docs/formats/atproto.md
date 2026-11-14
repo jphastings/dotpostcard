@@ -63,7 +63,7 @@ Publishing logs in once (credentials as for uploading), then uploads each card's
 - **Removed cards** drop out of the collection record; their postcard records stay in the repo.
 - **Failures part-way** leave already-uploaded postcards in place and don't write the collection record; run it again to carry on.
 - **`--dry-run`** logs in and reads, but writes nothing (not even the stored URI), reporting which cards would be published and which reused.
-- A card uploaded earlier with `-f atproto` is reused when its image is byte-identical to the card's stored file. A re-encoded copy (`-Q`, or `-f atproto` from a web-format file) is a different image and is uploaded as a new record. A PDS that refuses a very large collection record surfaces as an error; collections aren't split.
+- A card uploaded earlier with `-f atproto` is reused when its image is byte-identical to the card's stored file. A re-encoded copy (`-Q`, or `-f atproto` from a web-format file) is a different image and is uploaded as a new record. A PDS that refuses a very large collection record surfaces as an error naming the collection's size (cards and KB); collections aren't split.
 
 To go the other way, give `collection create` the collection's address (or a single postcard's) as a source; it is read anonymously:
 
