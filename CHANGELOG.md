@@ -383,6 +383,17 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.42.0 (2026-11-14)
+
+### Feat
+
+- **collection**: publish a collection to atproto, and fetch one back
+- **atproto**: upload a stored web-format postcard untouched
+- **atproto**: add the org.dotpostcard.collection lexicon and generic record calls
+- **fastfoto**: take a card's printed caption as its title, and keep it
+- **collection**: store, show and search card titles
+- give postcards an optional title
+
 ## v0.41.1 (2026-11-13)
 
 ### Fix
