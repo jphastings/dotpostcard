@@ -107,6 +107,7 @@ func (f *CardFile) summary() collection.CardSummary {
 	meta := f.meta
 	return collection.CardSummary{
 		Name:          f.name,
+		Title:         meta.EffectiveTitle(f.name),
 		Filename:      filepath.Base(f.path),
 		Mimetype:      f.mimetype,
 		Flip:          meta.Flip,
@@ -204,6 +205,7 @@ func sentOnInRange(sentOn *types.Date, from, until string) bool {
 func (f *CardFile) searchableText() string {
 	return strings.Join([]string{
 		f.name,
+		f.meta.EffectiveTitle(f.name),
 		f.meta.Sender.Name,
 		f.meta.Recipient.Name,
 		f.meta.Location.Name,

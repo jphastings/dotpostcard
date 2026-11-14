@@ -102,6 +102,8 @@ func TestOpenReadOnlyNeverMigrates(t *testing.T) {
 // schemaStatementsV1 is a frozen copy of schemaStatements as it stood before
 // the title column (schema v2) was added, kept only so this test can build a
 // real v1 collection file to migrate.
+const ftsColumnsV1 = `name, sender_name, recipient_name, location_name, front_description, back_description, front_transcript, back_transcript, context_description, context_author_name`
+
 var schemaStatementsV1 = []string{
 	`CREATE TABLE meta (
 		schema_version INTEGER NOT NULL,
@@ -136,23 +138,23 @@ var schemaStatementsV1 = []string{
 		added_at TEXT NOT NULL
 	)`,
 	`CREATE VIRTUAL TABLE cards_fts USING fts5(
-		` + ftsColumns + `,
+		` + ftsColumnsV1 + `,
 		content='cards',
 		content_rowid='id',
 		tokenize='unicode61 remove_diacritics 2'
 	)`,
 	`CREATE TRIGGER cards_ai AFTER INSERT ON cards BEGIN
-		INSERT INTO cards_fts(rowid, ` + ftsColumns + `)
+		INSERT INTO cards_fts(rowid, ` + ftsColumnsV1 + `)
 		VALUES (new.id, new.name, new.sender_name, new.recipient_name, new.location_name, new.front_description, new.back_description, new.front_transcript, new.back_transcript, new.context_description, new.context_author_name);
 	END`,
 	`CREATE TRIGGER cards_ad AFTER DELETE ON cards BEGIN
-		INSERT INTO cards_fts(cards_fts, rowid, ` + ftsColumns + `)
+		INSERT INTO cards_fts(cards_fts, rowid, ` + ftsColumnsV1 + `)
 		VALUES ('delete', old.id, old.name, old.sender_name, old.recipient_name, old.location_name, old.front_description, old.back_description, old.front_transcript, old.back_transcript, old.context_description, old.context_author_name);
 	END`,
 	`CREATE TRIGGER cards_au AFTER UPDATE ON cards BEGIN
-		INSERT INTO cards_fts(cards_fts, rowid, ` + ftsColumns + `)
+		INSERT INTO cards_fts(cards_fts, rowid, ` + ftsColumnsV1 + `)
 		VALUES ('delete', old.id, old.name, old.sender_name, old.recipient_name, old.location_name, old.front_description, old.back_description, old.front_transcript, old.back_transcript, old.context_description, old.context_author_name);
-		INSERT INTO cards_fts(rowid, ` + ftsColumns + `)
+		INSERT INTO cards_fts(rowid, ` + ftsColumnsV1 + `)
 		VALUES (new.id, new.name, new.sender_name, new.recipient_name, new.location_name, new.front_description, new.back_description, new.front_transcript, new.back_transcript, new.context_description, new.context_author_name);
 	END`,
 }
@@ -180,16 +182,42 @@ func createV1Collection(t *testing.T) string {
 	return path
 }
 
+func addV1Cards(t *testing.T, path string) {
+	t.Helper()
+	db, err := sqldb.Open(path, false)
+	assert.NoError(t, err)
+	defer db.Close()
+
+	for name, metadataJSON := range map[string]string{"cnn-center": `{}`, "nd": `{"title":"Notre-Dame de Paris"}`} {
+		_, err := db.Exec(`INSERT INTO cards (name, filename, mimetype, data, file_sha256, metadata_json, flip, front_px_w, front_px_h, added_at) VALUES (?, ?, 'image/png', x'00', 'x', ?, 'none', 1, 1, '2020-01-01T00:00:00Z')`, name, name+".png", metadataJSON)
+		assert.NoError(t, err)
+	}
+}
+
 func TestOpenMigratesRealV1CollectionAddsTitleColumn(t *testing.T) {
 	path := createV1Collection(t)
+	addV1Cards(t, path)
 
 	col, err := Open(path)
 	assert.NoError(t, err)
 	defer col.Close()
 
 	userVersion, metaVersion := fileVersions(t, path)
-	assert.Equal(t, 2, userVersion)
-	assert.Equal(t, 2, metaVersion)
+	assert.Equal(t, schemaVersion(), userVersion)
+	assert.Equal(t, schemaVersion(), metaVersion)
+
+	cards, err := col.List()
+	assert.NoError(t, err)
+	titles := map[string]string{}
+	for _, c := range cards {
+		titles[c.Name] = c.Title
+	}
+	assert.Equal(t, map[string]string{"cnn-center": "Cnn Center", "nd": "Notre-Dame de Paris"}, titles)
+
+	found, err := col.Search("paris")
+	assert.NoError(t, err)
+	assert.Len(t, found, 1)
+	assert.Equal(t, "nd", found[0].Name)
 
 	title, err := col.Title()
 	assert.NoError(t, err)
@@ -199,6 +227,11 @@ func TestOpenMigratesRealV1CollectionAddsTitleColumn(t *testing.T) {
 	title, err = col.Title()
 	assert.NoError(t, err)
 	assert.Equal(t, "My Collection", title)
+}
+
+func TestOpenReadOnlyRefusesV1Collection(t *testing.T) {
+	_, err := OpenReadOnly(createV1Collection(t))
+	assert.ErrorContains(t, err, "postcards CLI")
 }
 
 func TestOpenRejectsNewerCollections(t *testing.T) {

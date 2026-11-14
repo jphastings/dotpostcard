@@ -20,6 +20,7 @@ import (
 // cardRow holds every value that gets written to the cards table for one card.
 type cardRow struct {
 	name       string
+	title      string
 	filename   string
 	mimetype   string
 	data       []byte
@@ -50,7 +51,7 @@ type cardRow struct {
 
 func (r cardRow) insertArgs() []any {
 	return []any{
-		r.name, r.filename, r.mimetype, r.data, r.fileSHA256, r.thumb, r.metadataJSON,
+		r.name, r.title, r.filename, r.mimetype, r.data, r.fileSHA256, r.thumb, r.metadataJSON,
 		r.flip, r.sentOn, r.locale, r.senderName, r.recipientName, r.locationName, r.countryCode,
 		r.latitude, r.longitude, r.frontPxW, r.frontPxH,
 		r.frontDescription, r.backDescription, r.frontTranscript, r.backTranscript,
@@ -60,7 +61,7 @@ func (r cardRow) insertArgs() []any {
 
 func (r cardRow) updateArgs(id int64) []any {
 	return []any{
-		r.filename, r.mimetype, r.data, r.fileSHA256, r.thumb, r.metadataJSON,
+		r.title, r.filename, r.mimetype, r.data, r.fileSHA256, r.thumb, r.metadataJSON,
 		r.flip, r.sentOn, r.locale, r.senderName, r.recipientName, r.locationName, r.countryCode,
 		r.latitude, r.longitude, r.frontPxW, r.frontPxH,
 		r.frontDescription, r.backDescription, r.frontTranscript, r.backTranscript,
@@ -69,15 +70,15 @@ func (r cardRow) updateArgs(id int64) []any {
 }
 
 const insertCardSQL = `INSERT INTO cards (
-	name, filename, mimetype, data, file_sha256, thumb, metadata_json,
+	name, title, filename, mimetype, data, file_sha256, thumb, metadata_json,
 	flip, sent_on, locale, sender_name, recipient_name, location_name, country_code,
 	latitude, longitude, front_px_w, front_px_h,
 	front_description, back_description, front_transcript, back_transcript,
 	context_description, context_author_name, added_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 const updateCardSQL = `UPDATE cards SET
-	filename = ?, mimetype = ?, data = ?, file_sha256 = ?, thumb = ?, metadata_json = ?,
+	title = ?, filename = ?, mimetype = ?, data = ?, file_sha256 = ?, thumb = ?, metadata_json = ?,
 	flip = ?, sent_on = ?, locale = ?, sender_name = ?, recipient_name = ?, location_name = ?, country_code = ?,
 	latitude = ?, longitude = ?, front_px_w = ?, front_px_h = ?,
 	front_description = ?, back_description = ?, front_transcript = ?, back_transcript = ?,
@@ -121,6 +122,7 @@ func (c *Collection) AddWebPostcard(filename string, data []byte) (CardSummary, 
 
 	row := cardRow{
 		name:               pc.Name,
+		title:              pc.Meta.EffectiveTitle(pc.Name),
 		filename:           filename,
 		mimetype:           mimetype,
 		data:               data,

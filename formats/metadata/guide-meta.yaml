@@ -8,6 +8,9 @@
 # This command would grab your metadata file, the associated -front and -back image files
 # and combine them, as needed, into pyramids-giza.postcard.jpg (web format) and pyramids-giza.postcard.usdz (3D format)
 
+# Optional. A human-readable title for the postcard. When left out, tools show one made from the file name (pyramids-giza is shown as "Pyramids Giza")
+title: Pyramids of Giza
+
 # The language you're writing any text below in. en-GB for British, en-US for American English. Any BCP-47 code works (https://datatracker.ietf.org/doc/html/rfc5646)
 locale: en-GB
 

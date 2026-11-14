@@ -4,12 +4,14 @@ A `*.postcards` file is a SQLite database holding a group of postcards together,
 
 Each card in a collection is stored as the raw bytes of its [web](web.md) format file (untouched, so it can be extracted byte-for-byte later), alongside a small JPEG thumbnail of its front and the fields extracted from its XMP metadata — sender/recipient names, sent date, location, descriptions and transcriptions, and so on — so the app can list, sort, and filter cards without decoding every image.
 
-Those extracted fields are also indexed in a SQLite FTS5 virtual table, so free-text search across names, people, places, descriptions, and transcriptions is fast even for large collections.
+Each card has a `title`: its own [title](yaml.md) if its metadata has one, otherwise one derived from its name (`cnn-center` becomes "Cnn Center"). The name stays the card's unique key; the title is what `ls` and search results lead with.
+
+Those extracted fields, titles included, are also indexed in a SQLite FTS5 virtual table, so free-text search across names, titles, people, places, descriptions, and transcriptions is fast even for large collections.
 
 > [!TIP]
 > Only web-format postcard files (`*.postcard`, `*.postcard.webp`, `*.postcard.jpg`, `*.postcard.jpeg`, `*.postcard.png`) can be added to a collection. Convert component bundles to the web format first with `postcards -f web`.
 
-Collections carry a schema version (in both a `meta` table and `PRAGMA user_version`), so future versions of this tool can detect and migrate older collection files.
+Collections carry a schema version (in both a `meta` table and `PRAGMA user_version`), so future versions of this tool can detect and migrate older collection files. Migrating an older file backfills each card's title and rebuilds the search index; this needs the collection opened read-write, and a read-only open of an outdated file is refused.
 
 ## Example
 
@@ -20,10 +22,10 @@ pyramids
 Added 1 card
 
 $ postcards collection ls trip.postcards
-pyramids — Alice → Bob (2006-01-02)
+Pyramids — Alice → Bob (2006-01-02)
 1 card
 
 $ postcards collection search trip.postcards pyramids
-pyramids: The word 'Front' in large blue letters
+Pyramids: The word 'Front' in large blue letters
 1 result
 ```
