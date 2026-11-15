@@ -1,0 +1,8 @@
+{
+  "setup": "go mod download",
+  "copy": [
+    ".claude/settings.local.json",
+    "internal/www/postoffice/sw.js",
+    "internal/www/postoffice/wasm_exec.js"
+  ]
+}
