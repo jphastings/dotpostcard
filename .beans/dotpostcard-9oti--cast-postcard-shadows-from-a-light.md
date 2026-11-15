@@ -5,7 +5,7 @@ status: completed
 type: feature
 priority: normal
 created_at: 2026-11-15T08:18:44Z
-updated_at: 2026-11-15T09:28:31Z
+updated_at: 2026-11-15T09:56:16Z
 ---
 
 Today's postcard shadow is a grey blurred rectangle that ignores the card's shape and rotates in perspective like a second card. Nothing about it can be configured or animated.
@@ -19,3 +19,4 @@ Today's postcard shadow is a grey blurred rectangle that ignores the card's shap
 - [x] `flip-none` images fill their card, sit above their shadow, and rest at the same height as other cards
 - [x] Document the knobs in `docs/formats/css.md`
 - [x] Tune the default values by eye in a playground
+- [x] `flip-none` cards keep their shadow when the page is opened from disk
