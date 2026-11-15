@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.48.0 (2026-11-15)
+
+### Feat
+
+- **describe**: annotate transcriptions by style
+
 ## v0.47.0 (2026-11-15)
 
 ### Feat
