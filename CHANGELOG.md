@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.47.0 (2026-11-15)
+
+### Feat
+
+- **collection**: write a new collection in place
+
 ## v0.46.0 (2026-11-14)
 
 ### Feat
