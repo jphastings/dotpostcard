@@ -50,9 +50,12 @@ label:has(.postcard) {
   --rise: rotate(0deg);
   --reach: 0px;
   --height: calc(var(--lift) + var(--reach) * var(--s));
+  /* How far a point's shadow falls, per px of its height above the page */
+  --fall-x: calc(-1 * sin(var(--light-angle)) / tan(var(--light-elevation)));
+  --fall-y: calc(cos(var(--light-angle)) / tan(var(--light-elevation)));
   /* Projects each point onto the page (z=0) along the light: a shear by height.
      z keeps 1 so the matrix stays invertible (CSS doesn't render non-invertible transforms). */
-  --cast: matrix3d(1,0,0,0, 0,1,0,0, calc(-1 * sin(var(--light-angle)) / tan(var(--light-elevation))), calc(cos(var(--light-angle)) / tan(var(--light-elevation))), 1, 0, 0,0,0,1);
+  --cast: matrix3d(1,0,0,0, 0,1,0,0, var(--fall-x), var(--fall-y), 1, 0, 0,0,0,1);
 
   /* The blur sits on the parent: CSS applies filter before mask on one element, and
      blurring the untransformed parent keeps the blur in page space, not squashed with the shape. */
@@ -84,6 +87,23 @@ label:has(.postcard) {
     height: 100%;
     z-index: 1;
     transform: var(--p) translateZ(var(--lift));
+  }
+
+  /* A card that never turns doesn't need the masked .shadow, which Chrome won't draw when
+     the page is opened from disk. drop-shadow's blur is a radius: twice blur()'s deviation. */
+  &.flip-none {
+    .shadow {
+      display: none;
+    }
+
+    img {
+      filter: drop-shadow(
+        calc(var(--lift) * var(--fall-x))
+        calc(var(--lift) * var(--fall-y))
+        calc(var(--lift) * var(--shadow-softness) * 2)
+        var(--shadow-color)
+      );
+    }
   }
 
   &:not(.flip-none) {
