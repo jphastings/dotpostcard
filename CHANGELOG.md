@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.49.0 (2026-11-15)
+
+### Feat
+
+- **web**: cast postcard shadows from a light
+
 ## v0.48.0 (2026-11-15)
 
 ### Feat
