@@ -210,3 +210,8 @@ func TestAbortReportsUnsavedCardsAndExits130WithoutErrorText(t *testing.T) {
 func TestOrdinaryFailuresExitWith1(t *testing.T) {
 	assert.Equal(t, 1, exitCode(errors.New("jam")))
 }
+
+func TestBadLocaleIsRejected(t *testing.T) {
+	_, _, err := execute(t, nil, "--locale", "en_gb")
+	assert.ErrorContains(t, err, "en-GB")
+}

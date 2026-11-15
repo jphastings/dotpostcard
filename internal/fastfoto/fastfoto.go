@@ -426,6 +426,7 @@ func (r *run) buildOne(number int, sides *[2][]byte) (res CardResult, dropped bo
 	res.HeightCm, _ = c.size.CmHeight.Float64()
 
 	flip, described := types.FlipBook, types.Metadata{}
+	described.Locale = r.opts.LLM.Locale
 	front, back := image.Image(c.front), image.Image(c.back)
 	if r.opts.Describe != nil {
 		var d describe.Description
