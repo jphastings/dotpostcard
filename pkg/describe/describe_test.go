@@ -1,9 +1,14 @@
 package describe
 
 import (
+	"context"
+	"errors"
+	"image"
 	"strings"
 	"testing"
 
+	"github.com/cloudwego/eino/components/model"
+	"github.com/cloudwego/eino/schema"
 	"github.com/jphastings/dotpostcard/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -31,18 +36,18 @@ func TestTurns(t *testing.T) {
 }
 
 func TestParseReplyAcceptsFencesAndRejectsBadRotations(t *testing.T) {
-	good := "```json\n" + `{"front":{"rotation":"90","description":"d","transcription":"","secrets":[]},"back":{"rotation":"unknown","description":"","transcription":"hi","secrets":[]},"recipient":"","sender":"","sent_on":"","locale":"","location":{"name":"","latitude":null,"longitude":null,"country_code":""},"orientation_evidence":"x"}` + "\n```"
+	good := "```json\n" + `{"front":{"rotation":"90","description":"d","transcription":[],"secrets":[]},"back":{"rotation":"unknown","description":"","transcription":[{"text":"hi","styles":[],"locale":""}],"secrets":[]},"recipient":"","sender":"","sent_on":"","locale":"","location":{"name":"","latitude":null,"longitude":null,"country_code":""},"orientation_evidence":"x"}` + "\n```"
 	d, err := parseReply(good)
 	require.NoError(t, err)
 	assert.Equal(t, "90", d.Front.Rotation)
-	assert.Equal(t, "hi", d.Back.Transcription)
+	assert.Equal(t, []Run{{Text: "hi", Styles: []string{}}}, d.Back.Transcription)
 	assert.Empty(t, d.Title)
 
-	d, err = parseReply(`{"title":"CNN Center","front":{"rotation":"0","description":"","transcription":"","secrets":[]},"back":{"rotation":"0","description":"","transcription":"","secrets":[]},"recipient":"","sender":"","sent_on":"","locale":"","location":{"name":"","latitude":null,"longitude":null,"country_code":""},"orientation_evidence":"x"}`)
+	d, err = parseReply(`{"title":"CNN Center","front":{"rotation":"0","description":"","transcription":[],"secrets":[]},"back":{"rotation":"0","description":"","transcription":[],"secrets":[]},"recipient":"","sender":"","sent_on":"","locale":"","location":{"name":"","latitude":null,"longitude":null,"country_code":""},"orientation_evidence":"x"}`)
 	require.NoError(t, err)
 	assert.Equal(t, "CNN Center", d.Title)
 
-	_, err = parseReply(`{"front":{"rotation":"45","description":"","transcription":"","secrets":[]},"back":{"rotation":"0","description":"","transcription":"","secrets":[]}}`)
+	_, err = parseReply(`{"front":{"rotation":"45","description":"","transcription":[],"secrets":[]},"back":{"rotation":"0","description":"","transcription":[],"secrets":[]}}`)
 	assert.Error(t, err)
 	_, err = parseReply(`not json`)
 	assert.Error(t, err)
@@ -50,8 +55,8 @@ func TestParseReplyAcceptsFencesAndRejectsBadRotations(t *testing.T) {
 
 func TestFillKeepsWhatIsAlreadyThere(t *testing.T) {
 	model := Description{
-		Front: Side{Description: "model front", Transcription: "model front text"},
-		Back:  Side{Description: "model back", Transcription: "model back text"},
+		Front: Side{Description: "model front", Transcription: []Run{{Text: "model front text"}}},
+		Back:  Side{Description: "model back", Transcription: []Run{{Text: "model back text"}}},
 	}
 	for name, c := range map[string]struct{ before, after types.Metadata }{
 		"empty is filled": {
@@ -96,8 +101,8 @@ func TestFillSetsTheTitleOnlyWhenEmpty(t *testing.T) {
 
 const richReply = `{"title":"t","recipient":"Mr A. Smith","sender":"Jo","sent_on":"1987-08-14","locale":"en-GB",
 "location":{"name":"Lyme Regis, UK","latitude":50.72,"longitude":-2.93,"country_code":"gbr"},"orientation_evidence":"x",
-"front":{"rotation":"0","description":"","transcription":"","secrets":[]},
-"back":{"rotation":"0","description":"","transcription":"hi","secrets":[[[0.5,0.5],[1.5,0.5],[1.5,-1]],[[0,0],[1,1]]]}}`
+"front":{"rotation":"0","description":"","transcription":[],"secrets":[]},
+"back":{"rotation":"0","description":"","transcription":[{"text":"hi","styles":[],"locale":""}],"secrets":[[[0.5,0.5],[1.5,0.5],[1.5,-1]],[[0,0],[1,1]]]}}`
 
 func TestParseReplyReadsTheHandwrittenFieldsAndFillKeepsExistingOnes(t *testing.T) {
 	d, err := parseReply(richReply)
@@ -140,4 +145,70 @@ func TestPolygonsFollowTheSidesQuarterTurns(t *testing.T) {
 	assert.Equal(t, types.Point{X: 0.25, Y: 0.5}, s.Polygons(0)[0].Points[0])
 	assert.Equal(t, []types.Point{{X: 0.5, Y: 0.25}, {X: 0.5, Y: 0.5}, {X: 0, Y: 0.5}}, s.Polygons(1)[0].Points)
 	assert.False(t, s.Polygons(1)[0].Prehidden)
+}
+
+func TestRunsBecomeByteExactAnnotations(t *testing.T) {
+	reply := `{"title":"","recipient":"","sender":"","sent_on":"","locale":"en-GB","location":{"name":"","latitude":null,"longitude":null,"country_code":""},"orientation_evidence":"x",
+"front":{"rotation":"0","description":"","transcription":[],"secrets":[]},
+"back":{"rotation":"0","description":"","secrets":[],"transcription":[
+{"text":"Café ☀️ ","styles":[],"locale":""},
+{"text":"Dear","styles":["underline"],"locale":""},
+{"text":" Jo, ","styles":[],"locale":"en"},
+{"text":"so ","styles":["strong"],"locale":""},
+{"text":"very","styles":["strong","strong","blah"],"locale":""},
+{"text":" ","styles":[],"locale":""},
+{"text":"","styles":["em"],"locale":""},
+{"text":"takk","styles":[],"locale":"is"},
+{"text":" fyrir","styles":[],"locale":"is"},
+{"text":"!","styles":[],"locale":"not a locale"}]}}`
+	d, err := parseReply(reply)
+	require.NoError(t, err)
+	var meta types.Metadata
+	d.Fill(&meta)
+
+	tr := meta.Back.Transcription
+	assert.Equal(t, "Café ☀️ Dear Jo, so very takk fyrir!", tr.Text)
+	type marked struct {
+		Type    types.AnnotationType
+		Value   string
+		Covered string
+	}
+	var got []marked
+	for _, a := range tr.Annotations {
+		got = append(got, marked{a.Type, a.Value, tr.Text[a.Start:a.End]})
+	}
+	assert.Equal(t, []marked{
+		{types.ATUnderline, "", "Dear"},
+		{types.ATStrong, "", "so very"},
+		{types.ATLocale, "is", "takk fyrir"},
+	}, got)
+}
+
+type fakeModel struct{ prompt string }
+
+func (f *fakeModel) Generate(_ context.Context, in []*schema.Message, _ ...model.Option) (*schema.Message, error) {
+	f.prompt = in[0].UserInputMultiContent[0].Text
+	return &schema.Message{Content: `{"front":{"rotation":"0","description":"","transcription":[],"secrets":[]},"back":{"rotation":"0","description":"","transcription":[],"secrets":[]},"recipient":"","sender":"","sent_on":"","locale":"fr-FR","location":{"name":"","latitude":null,"longitude":null,"country_code":""},"orientation_evidence":"x"}`}, nil
+}
+
+func (f *fakeModel) Stream(context.Context, []*schema.Message, ...model.Option) (*schema.StreamReader[*schema.Message], error) {
+	return nil, errors.New("unused")
+}
+
+func TestForcedLocaleOverridesTheModelAndIsInThePrompt(t *testing.T) {
+	img := image.NewRGBA(image.Rect(0, 0, 4, 4))
+	for locale, want := range map[string]string{"en-GB": "en-GB", "": "fr-FR"} {
+		m := &fakeModel{}
+		d, err := modelDescriber(m, false, locale)(context.Background(), img, img)
+		require.NoError(t, err)
+		assert.Equal(t, want, d.Locale)
+		assert.Equal(t, locale != "", strings.Contains(m.prompt, "the card's locale is en-GB"))
+	}
+}
+
+func TestConfigValidateOnlyAcceptsCanonicalLocales(t *testing.T) {
+	assert.NoError(t, Config{Locale: "en-GB"}.Validate())
+	assert.NoError(t, Config{}.Validate())
+	assert.ErrorContains(t, Config{Locale: "english"}.Validate(), `BCP-47 language tag like en-GB, not "english"`)
+	assert.ErrorContains(t, Config{Locale: "en_gb"}.Validate(), `should be written en-GB`)
 }

@@ -112,6 +112,7 @@ func newCommand(run runFunc, stdout, stderr io.Writer) *cobra.Command {
 	f.StringSliceVarP(&opts.Formats, "formats", "f", nil, fmt.Sprintf("also convert each card to these formats (comma separated, any of: %s, atproto)", strings.Join(postcards.Codecs, ", ")))
 	f.StringVar(&opts.ATUser, "at-user", "", "atproto handle or DID to upload as (format atproto only; falls back to $GOAT_USERNAME/$ATP_USERNAME/$ATP_AUTH_USERNAME)")
 	f.StringVar(&opts.ATPassword, "at-password", "", "atproto PDS app password (format atproto only; falls back to $GOAT_PASSWORD/$ATP_PASSWORD/$ATP_AUTH_PASSWORD)")
+	f.StringVar(&opts.LLM.Locale, "locale", "", "the cards' language as a BCP-47 tag (e.g. en-GB): --llm writes descriptions in it and marks writing in other languages; without it --llm uses each card's main language")
 	cmdhelp.AddLLMFlags(f, &opts.LLM, "describe and orient each card")
 	cmd.SetOut(stdout)
 	cmd.SetErr(stderr)

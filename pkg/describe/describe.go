@@ -24,6 +24,7 @@ import (
 	"github.com/jphastings/dotpostcard/pkg/claudecode"
 	"github.com/jphastings/dotpostcard/types"
 	xdraw "golang.org/x/image/draw"
+	"golang.org/x/text/language"
 )
 
 // DefaultModel is used by the Claude backends when no model is given.
@@ -41,6 +42,8 @@ type Config struct {
 	// Model is passed straight through as the model ID (or `claude --model` value).
 	Model   string
 	BaseURL string
+	// Locale is the card's BCP-47 locale (e.g. en-GB); empty lets the model choose the card's main language.
+	Locale string
 }
 
 // Validate checks the configuration without contacting anything.
@@ -54,7 +57,24 @@ func (c Config) Validate() error {
 	default:
 		return fmt.Errorf("--llm must be claude-code, anthropic or openai, not %q", c.Backend)
 	}
+	if c.Locale != "" {
+		tag, err := language.Parse(c.Locale)
+		if err != nil {
+			return fmt.Errorf("--locale must be a BCP-47 language tag like en-GB, not %q", c.Locale)
+		}
+		if tag.String() != c.Locale {
+			return fmt.Errorf("--locale %q should be written %s", c.Locale, tag)
+		}
+	}
 	return nil
+}
+
+// Run is a piece of a transcription in one style and language. The model gives runs rather than
+// annotation offsets because it can't count bytes; Fill works the offsets out.
+type Run struct {
+	Text   string   `json:"text"`
+	Styles []string `json:"styles"`
+	Locale string   `json:"locale"`
 }
 
 // Side is what the model says about one side. Rotation is the clockwise turn
@@ -62,7 +82,7 @@ func (c Config) Validate() error {
 type Side struct {
 	Rotation      string `json:"rotation"`
 	Description   string `json:"description"`
-	Transcription string `json:"transcription"`
+	Transcription []Run  `json:"transcription"`
 	// AddressLines is asked for only so the model counts the address's lines before outlining
 	// them: without it the last line (often just a country) was sometimes left showing.
 	AddressLines []string `json:"address_lines"`
@@ -89,7 +109,8 @@ type Description struct {
 type Describer func(ctx context.Context, front, back image.Image) (Description, error)
 
 const rotationEnum = `{"type":"string","enum":["0","90","180","270","unknown"]}`
-const sideSchema = `{"type":"object","additionalProperties":false,"required":["rotation","description","transcription","address_lines","secrets"],"properties":{"rotation":` + rotationEnum + `,"description":{"type":"string"},"transcription":{"type":"string"},"address_lines":{"type":"array","items":{"type":"string"}},"secrets":{"type":"array","items":{"type":"array","items":{"type":"array","items":{"type":"number"}}}}}}`
+const runsSchema = `{"type":"array","items":{"type":"object","additionalProperties":false,"required":["text","styles","locale"],"properties":{"text":{"type":"string"},"styles":{"type":"array","items":{"type":"string","enum":["em","strong","underline"]}},"locale":{"type":"string"}}}}`
+const sideSchema = `{"type":"object","additionalProperties":false,"required":["rotation","description","transcription","address_lines","secrets"],"properties":{"rotation":` + rotationEnum + `,"description":{"type":"string"},"transcription":` + runsSchema + `,"address_lines":{"type":"array","items":{"type":"string"}},"secrets":{"type":"array","items":{"type":"array","items":{"type":"array","items":{"type":"number"}}}}}}`
 const locationSchema = `{"type":"object","additionalProperties":false,"required":["name","latitude","longitude","country_code"],"properties":{"name":{"type":"string"},"latitude":{"type":["number","null"]},"longitude":{"type":["number","null"]},"country_code":{"type":"string"}}}`
 const replySchema = `{"type":"object","additionalProperties":false,"required":["front","back","title","recipient","sender","sent_on","location","locale","orientation_evidence"],"properties":{"title":{"type":"string"},"recipient":{"type":"string"},"sender":{"type":"string"},"sent_on":{"type":"string"},"location":` + locationSchema + `,"locale":{"type":"string"},"front":` + sideSchema + `,"back":` + sideSchema + `,"orientation_evidence":{"type":"string"}}}`
 
@@ -101,15 +122,32 @@ Other fields (an empty string means none):
 - add a description for the front of the postcard in front.description (we're talking alt text; no need to describe it as a postcard as that's already contextual, imagine answering "what is this a postcard of?" in an alt-text concise manner for people who can't see it).
 - if you think the back has anything worth describing then you can add a description in back.description just like the front description, but it should be something worth describing rather than just it's the back of a postcard. Things like copyright notices and names of photographers aren't worth adding here.
 - transcription (for front or back) is only for text written or typed by the person sending the postcard: a message added *after* the card was made. Transcribe exactly what is written: the same words, spelling, punctuation and line breaks, with nothing added, corrected or described. Write it in the order it reads; don't pad with spaces to mimic where words sit on the card. Never describe a doodle or drawing in words. Give anything the sender drew (a smiley, a heart, a dove) as the one emoji that matches it, placed where it sits among the text; leave it out only if no emoji suits. Leave the recipient's name and address out of the transcription, and a handwritten date too when you give it as sent_on: they have their own fields.
+- transcription is given as runs: pieces of text in reading order which, joined with nothing between them, are the whole transcription (keep spaces and line breaks inside the runs). Start a new run wherever the styling or language changes. A run's styles lists only what the sender clearly did: "underline" for underlined writing, "strong" for bold or heavily gone-over writing, "em" for italic writing set apart from the rest; empty for ordinary writing. A run's locale is the BCP-47 locale of a run written in a language other than the card's locale; empty otherwise.
 - recipient is the name part of the handwritten address, as written (e.g. "Mr & Mrs A. Smith"), with none of the address.
 - sender is the name the message is signed off with, only if it is legible; don't guess. (The sign-off stays in the transcription as well.)
 - sent_on is the date the card was sent, as YYYY-MM-DD. Use a date the sender wrote on the card by hand if there is one, otherwise a legible postmark; where one of them is incomplete (no day, or no year) the other may complete it. Read a postmark's day and month in the order its country uses. If you can't settle on a full date, leave sent_on empty and keep any handwritten date, as written, in the transcription.
 - location is where the card was sent from, if that is a recognisable place: what the card shows or names, the postmark, or the message may tell you. name is a short place name (e.g. "Lyme Regis, UK"), latitude and longitude are that place's decimal degrees (null if you aren't confident of them), country_code is its ISO 3166-1 alpha-3 code. Leave name empty if the place isn't recognisable.
-- locale is your best guess at the BCP-47 locale the transcription is written in (e.g. en-GB, fr-FR); empty when there is no transcription.
+{locale}
 - address_lines (for front or back) lists each line of a handwritten recipient address below the name, top to bottom, one entry per line as written; empty when there is none. It is only used to check the secrets.
 - secrets (for front or back) marks the address part of a handwritten recipient address (street, town, postcode, country) so it can be cut out cleanly. Never include the recipient's name. Each secret is a polygon: a list of [x, y] points, each a fraction of that image's width and height exactly as provided (before any rotation), with [0, 0] the top left and [1, 1] the bottom right. Keep the shape simple: horizontal and vertical edges only, and as few points as will do. Usually that is one secret of four points, a rectangle around every address line. Only if that rectangle would also cover something that matters (the name, part of the message, the stamp) add corners to step around it, or use several separate secrets; never more than six rectangles' worth. Put each edge in the clear space just outside the address: the top edge above the tallest strokes of the first line, in the gap under the name, and the bottom edge below the last line. Check the result against address_lines: every line listed must lie wholly inside a secret, from its first character to its last. An empty list when there is no handwritten address.
-- title is the card's title. If either side carries text that reads as a title for what is shown (a printed caption, the name of an artwork, a description of the photograph), copy that text verbatim: same language, spelling, capitalisation and punctuation. Leave out credits, publisher names and serial numbers. Only if there is no such text, write a short title of 1 to 5 words saying what the card shows. Never include the word "postcard".
+- title is the card's title. If either side carries text that reads as a title for what is shown (a printed caption, the name of an artwork, a description of the photograph), copy that text verbatim: {titleCopy}. Leave out credits, publisher names and serial numbers. Only if there is no such text, write a short title of 1 to 5 words saying what the card shows. Never include the word "postcard".
 Keep each description to a single sentence of no more than about 20 words. If the card names the place shown, include it.`
+
+const (
+	mainLocaleRule   = "- locale is the BCP-47 locale (e.g. en-GB, fr-FR) of the card's main language: the one most of the transcription is written in, or with no transcription the language you write the descriptions in. Write the descriptions, and any title you make up, in that language."
+	forcedLocaleRule = "- the card's locale is %s. Write the descriptions and the title in %[1]s, translating a printed caption into %[1]s if it is in another language. Give %[1]s as locale."
+	mainTitleCopy    = "same language, spelling, capitalisation and punctuation"
+	forcedTitleCopy  = "same spelling, capitalisation and punctuation, but translated into the card's locale if it is in another language"
+)
+
+// promptFor is the prompt for a card whose locale is forced, or chosen by the model when empty.
+func promptFor(locale string) string {
+	rule, titleCopy := mainLocaleRule, mainTitleCopy
+	if locale != "" {
+		rule, titleCopy = fmt.Sprintf(forcedLocaleRule, locale), forcedTitleCopy
+	}
+	return strings.NewReplacer("{locale}", rule, "{titleCopy}", titleCopy).Replace(prompt)
+}
 
 // New connects the configured backend. Web search is only available with claude-code.
 func New(ctx context.Context, c Config) (Describer, error) {
@@ -156,13 +194,13 @@ func New(ctx context.Context, c Config) (Describer, error) {
 	default:
 		return nil, errors.New("no LLM backend selected")
 	}
-	return modelDescriber(m, c.Backend != "claude-code", opts...), nil
+	return modelDescriber(m, c.Backend != "claude-code", c.Locale, opts...), nil
 }
 
 // modelDescriber asks for the schema in the prompt when the backend can't enforce it.
-func modelDescriber(m model.BaseChatModel, schemaInPrompt bool, opts ...model.Option) Describer {
+func modelDescriber(m model.BaseChatModel, schemaInPrompt bool, locale string, opts ...model.Option) Describer {
 	return func(ctx context.Context, front, back image.Image) (Description, error) {
-		text := prompt
+		text := promptFor(locale)
 		if schemaInPrompt {
 			text += "\n\nReply with only a JSON object matching this JSON schema:\n" + replySchema
 		}
@@ -184,6 +222,9 @@ func modelDescriber(m model.BaseChatModel, schemaInPrompt bool, opts ...model.Op
 			return Description{}, err
 		}
 		d, err := parseReply(reply.Content)
+		if locale != "" {
+			d.Locale = locale
+		}
 		if denied, ok := reply.Extra[claudecode.DeniedToolsKey].([]string); ok && err == nil {
 			d.Notes = append(d.Notes, fmt.Sprintf("Claude Code wasn't permitted to use: %s", strings.Join(denied, ", ")))
 		}
@@ -326,12 +367,17 @@ func (d Description) Fill(meta *types.Metadata) {
 	}
 	fill(&meta.Title, d.Title)
 	fill(&meta.Front.Description, d.Front.Description)
-	fill(&meta.Front.Transcription.Text, d.Front.Transcription)
+	fill(&meta.Locale, d.Locale)
+	fillText := func(dst *types.AnnotatedText, runs []Run) {
+		if dst.Text == "" {
+			*dst = annotate(runs, meta.Locale)
+		}
+	}
+	fillText(&meta.Front.Transcription, d.Front.Transcription)
 	fill(&meta.Back.Description, d.Back.Description)
-	fill(&meta.Back.Transcription.Text, d.Back.Transcription)
+	fillText(&meta.Back.Transcription, d.Back.Transcription)
 	fill(&meta.Recipient.Name, d.Recipient)
 	fill(&meta.Sender.Name, d.Sender)
-	fill(&meta.Locale, d.Locale)
 	if meta.SentOn == nil {
 		meta.SentOn = d.SentOn
 	}
@@ -354,4 +400,46 @@ func (d Description) Turns() (f, b int, flip types.Flip) {
 		b = (4 - f) % 4
 	}
 	return f, b, types.FlipBook.Turned(f + b)
+}
+
+// annotate joins the runs and marks their styles and languages, merging neighbours that share one.
+// A run in the card's own language isn't marked.
+func annotate(runs []Run, cardLocale string) types.AnnotatedText {
+	var text strings.Builder
+	var out []types.Annotation
+	open := map[types.Annotation]int{} // type and value -> the annotation in out that ends where the next run starts
+	cardBase, _ := language.Make(cardLocale).Base()
+	for _, r := range runs {
+		if r.Text == "" {
+			continue
+		}
+		start := text.Len()
+		text.WriteString(r.Text)
+		var marks []types.Annotation
+		for _, st := range r.Styles {
+			if t := types.AnnotationType(st); t == types.ATEmphasis || t == types.ATStrong || t == types.ATUnderline {
+				marks = append(marks, types.Annotation{Type: t})
+			}
+		}
+		if tag, err := language.Parse(r.Locale); err == nil && tag != language.Und {
+			if base, _ := tag.Base(); base != cardBase {
+				marks = append(marks, types.Annotation{Type: types.ATLocale, Value: tag.String()})
+			}
+		}
+		next := map[types.Annotation]int{}
+		for _, m := range marks {
+			if _, dup := next[m]; dup {
+				continue
+			}
+			if i, ok := open[m]; ok {
+				out[i].End = uint(text.Len())
+				next[m] = i
+				continue
+			}
+			next[m] = len(out)
+			out = append(out, types.Annotation{Type: m.Type, Value: m.Value, Start: uint(start), End: uint(text.Len())})
+		}
+		open = next
+	}
+	return types.AnnotatedText{Text: text.String(), Annotations: out}
 }

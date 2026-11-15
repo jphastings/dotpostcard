@@ -46,7 +46,7 @@ func TestDescriberTitleIsWrittenToMetadataAndNamesTheFiles(t *testing.T) {
 func TestHeterorientedAnswerTurnsTheSidesAndSetsTheFlip(t *testing.T) {
 	dir := twoSidedDir(t)
 	report, err := runDefaultCard(t, dir, describing(describe.Description{
-		Front: describe.Side{Rotation: "90", Description: "A harbour at dusk", Transcription: "Wish you were here"},
+		Front: describe.Side{Rotation: "90", Description: "A harbour at dusk", Transcription: []describe.Run{{Text: "Wish you were here"}}},
 		Back:  describe.Side{Rotation: "0", Description: "A map of the bay"},
 	}, nil))
 	require.NoError(t, err)
@@ -98,7 +98,7 @@ func TestDescriberPanicLeavesTheCardAsScanned(t *testing.T) {
 
 func TestClaudeCodeBackendDescribesCardsWithoutScanning(t *testing.T) {
 	bin := t.TempDir()
-	reply := `{"type":"result","is_error":false,"result":"","structured_output":{"front":{"rotation":"0","description":"A harbour","transcription":"","secrets":[]},"back":{"rotation":"0","description":"","transcription":"","secrets":[]},"recipient":"","sender":"","sent_on":"","locale":"","location":{"name":"","latitude":null,"longitude":null,"country_code":""},"orientation_evidence":"x"}}`
+	reply := `{"type":"result","is_error":false,"result":"","structured_output":{"front":{"rotation":"0","description":"A harbour","transcription":[],"secrets":[]},"back":{"rotation":"0","description":"","transcription":[],"secrets":[]},"recipient":"","sender":"","sent_on":"","locale":"","location":{"name":"","latitude":null,"longitude":null,"country_code":""},"orientation_evidence":"x"}}`
 	script := "#!/bin/sh\ncat >/dev/null\ncat <<'EOF'\n" + reply + "\nEOF\n"
 	require.NoError(t, os.WriteFile(filepath.Join(bin, "claude"), []byte(script), 0o755))
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -148,7 +148,7 @@ func TestHungDescriberTimesOutAndLeavesTheCardAsScanned(t *testing.T) {
 
 func TestDeniedWebSearchIsANoteNotAnError(t *testing.T) {
 	bin := t.TempDir()
-	reply := `{"type":"result","is_error":false,"result":"","permission_denials":[{"tool_name":"WebSearch"}],"structured_output":{"front":{"rotation":"0","description":"","transcription":"","secrets":[]},"back":{"rotation":"0","description":"","transcription":"","secrets":[]},"recipient":"","sender":"","sent_on":"","locale":"","location":{"name":"","latitude":null,"longitude":null,"country_code":""},"orientation_evidence":"x"}}`
+	reply := `{"type":"result","is_error":false,"result":"","permission_denials":[{"tool_name":"WebSearch"}],"structured_output":{"front":{"rotation":"0","description":"","transcription":[],"secrets":[]},"back":{"rotation":"0","description":"","transcription":[],"secrets":[]},"recipient":"","sender":"","sent_on":"","locale":"","location":{"name":"","latitude":null,"longitude":null,"country_code":""},"orientation_evidence":"x"}}`
 	script := "#!/bin/sh\ncat >/dev/null\ncat <<'EOF'\n" + reply + "\nEOF\n"
 	require.NoError(t, os.WriteFile(filepath.Join(bin, "claude"), []byte(script), 0o755))
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -247,4 +247,13 @@ func TestSecretsAreWrittenUnhiddenAndTurnedWithTheirSide(t *testing.T) {
 	turned := pc.Meta.Front.Secrets[0].Points[0]
 	assert.InDelta(t, 0.5, turned.X, 0.05, "turned with its side; edges may have settled a little")
 	assert.InDelta(t, 0.25, turned.Y, 0.05)
+}
+
+func TestLocaleFlagSetsEveryCardsLocaleWithoutAnLLM(t *testing.T) {
+	dir := twoSidedDir(t)
+	_, err := runDefaultCard(t, dir, func(o *Options) { o.LLM.Locale = "en-GB" })
+	require.NoError(t, err)
+	b, err := os.ReadFile(filepath.Join(dir, "0001-meta.yaml"))
+	require.NoError(t, err)
+	assert.Contains(t, string(b), "locale: en-GB")
 }
