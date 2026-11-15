@@ -4,10 +4,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/formats/atproto/pdscollection"
@@ -76,6 +79,8 @@ var collectionCreateCmd = &cobra.Command{
 		if opts.OutDir, err = cmdhelp.Outdir(cmd, ""); err != nil {
 			return err
 		}
+		stop := stopOnSignal(cmd, &opts.BuildOptions)
+		defer stop()
 		if publish {
 			if opts.Client, err = cmdhelp.ATLogin(cmd); err != nil {
 				return err
@@ -108,6 +113,8 @@ var collectionAddCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		stop := stopOnSignal(cmd, &opts)
+		defer stop()
 		names, err := pdscollection.Add(args[0], args[1:], opts)
 		if err != nil {
 			return err
@@ -288,6 +295,15 @@ func printPublishSummary(result pdscollection.PublishResult, dryRun bool) {
 		verb = "Would publish"
 	}
 	fmt.Printf("%s %s as %s\n", verb, count(len(result.Cards), "card"), result.URI)
+}
+
+// stopOnSignal makes the build stop at the next card on interrupt or terminate. The signal
+// handling is released once triggered, so a second Ctrl-C kills the process.
+func stopOnSignal(cmd *cobra.Command, opts *pdscollection.BuildOptions) (release func()) {
+	ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
+	context.AfterFunc(ctx, stop)
+	opts.Stop = ctx
+	return stop
 }
 
 // buildOptions reads the flags shared by the commands that gather cards from sources.

@@ -19,7 +19,7 @@ A collection can be published to an atproto PDS as a single record listing its c
 
 ## Example
 
-`collection create` and `collection add` take the same sources: web-format postcard files, `*.postcards` files (all their cards), directories (their postcard and `*.postcards` files, not recursively), and `at://` URIs of postcard or collection records. Cards are stored untouched unless `-Q` re-encodes them at a quality. `create` names the file after the title (`--title`, or that of a single collection source), refuses to replace an existing one without `--overwrite`, and `-f atproto` publishes instead of (or, as `-f postcards,atproto`, as well as) writing it.
+`collection create` and `collection add` take the same sources: web-format postcard files, `*.postcards` files (all their cards), directories (their postcard and `*.postcards` files, not recursively), and `at://` URIs of postcard or collection records. Cards are stored untouched unless `-Q` re-encodes them at a quality. `create` names the file after the title (`--title`, or that of a single collection source), refuses to replace an existing one without `--overwrite`, and `-f atproto` publishes instead of (or, as `-f postcards,atproto`, as well as) writing it. A new file appears at its final name as it's built (on macOS, Finder greys it out with a progress bar until it's complete) and is removed if the build fails or is interrupted; with `--overwrite` the replacement is built aside, so the old file survives a failure.
 
 ```sh
 $ postcards collection create --title "Trip" pyramids.postcard.webp

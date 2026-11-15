@@ -2,6 +2,7 @@ package pdscollection
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"io"
 	"net/http"
@@ -419,6 +420,64 @@ func TestCreateRefusesAnExplicitFileItCannotUse(t *testing.T) {
 
 	_, err := Create([]string{notes}, CreateOptions{Title: "Trip", WriteFile: true, OutDir: t.TempDir()})
 	assert.ErrorContains(t, err, "notes.txt")
+}
+
+func TestFailedBuildLeavesNothingAtTheTarget(t *testing.T) {
+	dir, out := t.TempDir(), t.TempDir()
+	good := writeCard(t, dir, "alpha", "Alpha")
+	notes := filepath.Join(dir, "notes.txt")
+	require.NoError(t, os.WriteFile(notes, []byte("hi"), 0o644))
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := Create([]string{good, notes}, CreateOptions{Title: "Trip", WriteFile: true, OutDir: out})
+	assert.Error(t, err)
+	_, err = Create([]string{good}, CreateOptions{BuildOptions: BuildOptions{Stop: cancelled}, Title: "Trip", WriteFile: true, OutDir: out})
+	assert.ErrorIs(t, err, context.Canceled)
+
+	entries, err := os.ReadDir(out)
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+}
+
+func TestFailedOverwriteKeepsThePreviousFile(t *testing.T) {
+	dir, out := t.TempDir(), t.TempDir()
+	good := writeCard(t, dir, "alpha", "Alpha")
+	opts := CreateOptions{Title: "Trip", WriteFile: true, OutDir: out}
+	first, err := Create([]string{good}, opts)
+	require.NoError(t, err)
+	before, err := os.ReadFile(first.Path)
+	require.NoError(t, err)
+
+	opts.Overwrite = true
+	_, err = Create([]string{good, filepath.Join(dir, "missing.postcard.webp")}, opts)
+	require.Error(t, err)
+
+	after, err := os.ReadFile(first.Path)
+	require.NoError(t, err)
+	assert.Equal(t, before, after)
+}
+
+func TestBuildingInPlaceLeavesNoStagingDirectory(t *testing.T) {
+	dir, out := t.TempDir(), t.TempDir()
+	writeCard(t, dir, "alpha", "Alpha")
+
+	_, err := Create([]string{dir}, CreateOptions{Title: "Trip", WriteFile: true, OutDir: out})
+	require.NoError(t, err)
+
+	entries, err := os.ReadDir(out)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	assert.Equal(t, "trip.postcards", entries[0].Name())
+}
+
+func TestInPlaceBuildDoesNotImportItselfFromItsOwnDirectory(t *testing.T) {
+	dir := t.TempDir()
+	writeCard(t, dir, "alpha", "Alpha")
+
+	result, err := Create([]string{dir}, CreateOptions{Title: "Trip", WriteFile: true, OutDir: dir})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"alpha"}, result.Cards)
 }
 
 func TestAddReplacesCardsAlreadyInTheCollection(t *testing.T) {

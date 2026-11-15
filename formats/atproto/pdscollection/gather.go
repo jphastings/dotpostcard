@@ -3,6 +3,7 @@ package pdscollection
 import (
 	"bytes"
 	"cmp"
+	"context"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 	"github.com/jphastings/dotpostcard/formats/atproto/pdsbundle"
 	"github.com/jphastings/dotpostcard/formats/atproto/pdsupload"
 	"github.com/jphastings/dotpostcard/formats/web"
+	"github.com/jphastings/dotpostcard/internal/inprogress"
 	"github.com/jphastings/dotpostcard/pkg/collection"
 )
 
@@ -42,6 +44,8 @@ type BuildOptions struct {
 	Warn func(string)
 	// OnCard, if set, is told the name of each card as it is stored.
 	OnCard func(name string)
+	// Stop, if set, cancels the build between cards; the build then fails with its error.
+	Stop context.Context
 }
 
 // CreateOptions configures Create.
@@ -71,8 +75,11 @@ type CreateResult struct {
 
 // Create builds a collection from sources, then writes it to a file and/or publishes it as
 // opts asks. The file and the record are both keyed by the title, so creating the same title
-// again replaces the file (with Overwrite) and updates the same record. The file only appears
-// once complete.
+// again replaces the file (with Overwrite) and updates the same record.
+//
+// A new file, with the title given up front, is written at its final name as it is built (shown
+// as in progress where the OS can) and removed if the build fails. Replacing a file is built
+// aside, so the old one survives a failure.
 func Create(sources []string, opts CreateOptions) (CreateResult, error) {
 	var result CreateResult
 	writeFile := opts.WriteFile && !opts.Publish.DryRun
@@ -86,18 +93,36 @@ func Create(sources []string, opts CreateOptions) (CreateResult, error) {
 		}
 	}
 
-	stageParent := ""
-	if writeFile {
-		stageParent = cmp.Or(opts.OutDir, ".")
+	inPlace := writeFile && target != "" && !exists(target)
+	var path string
+	if inPlace {
+		path = target
+	} else {
+		stageParent := ""
+		if writeFile {
+			stageParent = cmp.Or(opts.OutDir, ".")
+		}
+		// Inside the output directory, so the final rename never crosses filesystems.
+		stage, err := os.MkdirTemp(stageParent, ".postcards-build-*")
+		if err != nil {
+			return result, err
+		}
+		defer os.RemoveAll(stage)
+		path = filepath.Join(stage, "collection"+collectionSuffix)
 	}
-	// Inside the output directory, so the final rename never crosses filesystems.
-	stage, err := os.MkdirTemp(stageParent, ".postcards-build-*")
-	if err != nil {
-		return result, err
-	}
-	defer os.RemoveAll(stage)
 
-	path := filepath.Join(stage, "collection"+collectionSuffix)
+	var coll *collection.Collection
+	built := false
+	if inPlace {
+		defer func() {
+			if !built {
+				if coll != nil {
+					coll.Close()
+				}
+				os.Remove(path)
+			}
+		}()
+	}
 	coll, err := collection.Create(path)
 	if err != nil {
 		return result, err
@@ -105,6 +130,10 @@ func Create(sources []string, opts CreateOptions) (CreateResult, error) {
 	defer coll.Close()
 
 	b := newBuilder(coll, opts.BuildOptions)
+	if inPlace {
+		inprogress.Mark(path)
+		b.step = func(done, total int) { inprogress.SetFraction(path, float64(done)/float64(total)) }
+	}
 	sourceTitle, err := b.addSources(sources, target)
 	if err != nil {
 		return result, err
@@ -128,7 +157,11 @@ func Create(sources []string, opts CreateOptions) (CreateResult, error) {
 		return result, err
 	}
 
-	if writeFile {
+	if inPlace {
+		inprogress.Clear(path)
+		built = true
+		result.Path = path
+	} else if writeFile {
 		if err := os.Rename(path, target); err != nil {
 			return result, err
 		}
@@ -157,6 +190,11 @@ func Add(path string, sources []string, opts BuildOptions) ([]string, error) {
 	b := newBuilder(coll, opts)
 	_, err = b.addSources(sources, path)
 	return b.names, err
+}
+
+func exists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 func (o CreateOptions) targetPath(title string) (string, error) {
@@ -199,6 +237,8 @@ type builder struct {
 	taken   map[string]bool
 	seen    map[contentKey]bool
 	names   []string
+	// step, if set, is told how many sources are done of how many in total.
+	step func(done, total int)
 }
 
 func newBuilder(coll *collection.Collection, opts BuildOptions) *builder {
@@ -209,45 +249,63 @@ func newBuilder(coll *collection.Collection, opts BuildOptions) *builder {
 // its title is returned. A directory source skips skipPath, so a collection can be rebuilt
 // from the directory its previous version sits in.
 func (b *builder) addSources(sources []string, skipPath string) (title string, err error) {
-	for _, source := range sources {
-		sourceTitle, err := b.addSource(source, skipPath)
+	items, err := expandDirectories(sources, skipPath)
+	if err != nil {
+		return "", err
+	}
+	// ponytail: a *.postcards or at:// collection counts as one step however many cards it
+	// holds; count their cards up front to make the progress even.
+	for i, item := range items {
+		itemTitle, err := b.addItem(item)
 		if err != nil {
 			return "", err
 		}
-		if len(sources) == 1 {
-			title = sourceTitle
+		if len(sources) == 1 && item == sources[0] {
+			title = itemTitle
+		}
+		if b.step != nil {
+			b.step(i+1, len(items))
 		}
 	}
 	return title, nil
 }
 
-func (b *builder) addSource(source, skipPath string) (string, error) {
-	if strings.HasPrefix(source, "at://") {
-		return b.addRemote(source)
-	}
-
-	info, err := os.Stat(source)
-	if err != nil {
-		return "", err
-	}
-	if !info.IsDir() {
-		return b.addFile(source)
-	}
-
-	entries, err := os.ReadDir(source)
-	if err != nil {
-		return "", err
-	}
-	for _, entry := range entries {
-		path := filepath.Join(source, entry.Name())
-		if entry.IsDir() || !isSourceFile(path) || (skipPath != "" && samePath(path, skipPath)) {
+// expandDirectories replaces each directory with its source files, skipping skipPath.
+func expandDirectories(sources []string, skipPath string) ([]string, error) {
+	var items []string
+	for _, source := range sources {
+		if strings.HasPrefix(source, "at://") {
+			items = append(items, source)
 			continue
 		}
-		if _, err := b.addFile(path); err != nil {
-			return "", err
+		info, err := os.Stat(source)
+		if err != nil {
+			return nil, err
+		}
+		if !info.IsDir() {
+			items = append(items, source)
+			continue
+		}
+		entries, err := os.ReadDir(source)
+		if err != nil {
+			return nil, err
+		}
+		for _, entry := range entries {
+			path := filepath.Join(source, entry.Name())
+			if entry.IsDir() || !isSourceFile(path) || (skipPath != "" && samePath(path, skipPath)) {
+				continue
+			}
+			items = append(items, path)
 		}
 	}
-	return "", nil
+	return items, nil
+}
+
+func (b *builder) addItem(item string) (string, error) {
+	if strings.HasPrefix(item, "at://") {
+		return b.addRemote(item)
+	}
+	return b.addFile(item)
 }
 
 func (b *builder) addFile(path string) (string, error) {
@@ -363,6 +421,9 @@ func (b *builder) client(authority string) (*atproto.Client, error) {
 // add stores card unless an identical card of the same name was already stored in this run;
 // a different card with a taken name is stored under a suffixed one.
 func (b *builder) add(card sourceCard) error {
+	if b.opts.Stop != nil && b.opts.Stop.Err() != nil {
+		return context.Cause(b.opts.Stop)
+	}
 	baseName := web.CardNameFromPath(card.filename)
 	key := contentKey{baseName, sha256.Sum256(card.data)}
 	if b.seen[key] {
