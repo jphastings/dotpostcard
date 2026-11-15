@@ -1,3 +1,13 @@
+/* Knobs a page can override on any ancestor, or animate. */
+@property --flip { syntax: '<angle>'; inherits: true; initial-value: 0deg; }
+@property --lift { syntax: '<length>'; inherits: true; initial-value: 6px; }
+@property --flip-lift { syntax: '<number>'; inherits: true; initial-value: 1; }
+@property --light-angle { syntax: '<angle>'; inherits: true; initial-value: 315deg; }
+@property --light-elevation { syntax: '<angle>'; inherits: true; initial-value: 60deg; }
+@property --shadow-softness { syntax: '<number>'; inherits: true; initial-value: 0.25; }
+@property --shadow-color { syntax: '<color>'; inherits: true; initial-value: rgb(0 0 0 / 0.35); }
+@property --square-hand-flips { syntax: '<number>'; inherits: true; initial-value: 1; }
+
 input[id^=postcard-]:checked ~ label.postcard  {
   --flip: 180deg;
 }
@@ -7,14 +17,15 @@ label:has(.postcard) {
 }
 
 .postcard {
-  aspect-ratio: var(--aspect-ratio);
+  aspect-ratio: var(--box);
+  container-type: inline-size;
   position: relative;
   box-sizing: border-box;
   display: flex;
   flex-direction: row;
   align-items: center;
+  transition: --flip 1s ease-in-out;
 
-  --flip: 0deg;
   --p: perspective(1000px);
   --v1: calc(min(1, max(0,
     cos(var(--flip)),
@@ -28,28 +39,51 @@ label:has(.postcard) {
     tan(45deg - var(--flip)/2),
     tan(135deg - var(--flip)/2)
   )) * 192 + 64);
-  --offset: translate(0px, 0px);
+  --turn: rotate(0deg);
+  --box: calc(var(--aspect-ratio));
+  /* The card's own size: smaller than the box when a hand flip's box is squared */
+  --card-w: calc(100cqw * min(1, (var(--aspect-ratio)) / var(--box)));
+  --card-h: calc(var(--card-w) / (var(--aspect-ratio)));
+  --s: calc(max(1, var(--flip-lift)) * sin(var(--flip)));
+  /* Rising by a percentage of the card's own size, via rotate-translate-rotate, because Chrome
+     doesn't draw masked layers whose transform uses container units when the page is opened from disk. */
+  --rise: rotate(0deg);
+  --reach: 0px;
+  --height: calc(var(--lift) + var(--reach) * var(--s));
+  /* Projects each point onto the page (z=0) along the light: a shear by height.
+     z keeps 1 so the matrix stays invertible (CSS doesn't render non-invertible transforms). */
+  --cast: matrix3d(1,0,0,0, 0,1,0,0, calc(-1 * sin(var(--light-angle)) / tan(var(--light-elevation))), calc(cos(var(--light-angle)) / tan(var(--light-elevation))), 1, 0, 0,0,0,1);
 
+  /* The blur sits on the parent: CSS applies filter before mask on one element, and
+     blurring the untransformed parent keeps the blur in page space, not squashed with the shape. */
   .shadow {
-    width: 90%;
-    margin: 5%;
-    aspect-ratio: var(--aspect-ratio);
     position: absolute;
+    width: 100%;
+    aspect-ratio: var(--aspect-ratio);
     z-index: 0;
-    transform-style: preserve-3d;
-    background: rgb(0, 0, 0, 0.1) !important;
-    box-shadow: 0px 0px 45px 45px rgb(0, 0, 0, 0.1);
-    --offset: translate(40px, 40px);
+    filter: blur(calc(var(--height) * var(--shadow-softness)));
+
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--shadow-color);
+      mask: var(--postcard) top/100%;
+      transform: var(--cast) translateZ(var(--lift)) var(--rise) var(--turn);
+    }
   }
 
   &.portrait .shadow {
-    width:auto;
-    height:90%;
-    margin: 5%;
+    width: auto;
+    height: 100%;
   }
 
   img {
     position: absolute;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    transform: var(--p) translateZ(var(--lift));
   }
 
   &:not(.flip-none) {
@@ -73,7 +107,7 @@ label:has(.postcard) {
 
     &.portrait {
       flex-direction: column;
-  
+
       &::before, &::after {
         width:auto;
         height:100%;
@@ -83,15 +117,21 @@ label:has(.postcard) {
     &::after {
       background: no-repeat top/100%;
       mask: var(--postcard) top/100%;
+      transform: var(--p) translateZ(var(--lift)) var(--rise) var(--turn);
+      background-image: linear-gradient(var(--shade),
+          rgb(var(--v1), var(--v1), var(--v1)),
+          rgb(var(--v2), var(--v2), var(--v2))
+        ), var(--postcard);
     }
-    
+
     &::before {
       background: no-repeat bottom/100%;
       mask: var(--postcard) bottom/100%;
-    }
-
-    &::before, &::after, .shadow {
-      transition: transform 1s ease-in-out;
+      transform: var(--p) translateZ(var(--lift)) var(--rise) var(--turn) var(--back);
+      background-image: linear-gradient(var(--shade-back),
+          rgb(var(--v1), var(--v1), var(--v1)),
+          rgb(var(--v2), var(--v2), var(--v2))
+        ), var(--postcard);
     }
 
     img {
@@ -100,63 +140,42 @@ label:has(.postcard) {
     }
   }
 
-  &.flip-book::after,&.flip-book .shadow {
-    transform: var(--p) var(--offset) rotateY(var(--flip));
-    background-image: linear-gradient(to right,
-        rgb(var(--v1), var(--v1), var(--v1)),
-        rgb(var(--v2), var(--v2), var(--v2))
-      ), var(--postcard);
-  }
-  &.flip-book::before {
-    transform: var(--p) rotateY(calc(var(--flip) + 180deg));
-    background-image: linear-gradient(to right,
-        rgb(var(--v1), var(--v1), var(--v1)),
-        rgb(var(--v2), var(--v2), var(--v2))
-      ), var(--postcard);
+  &.flip-book {
+    --rise: rotateY(-90deg) translateX(calc(50% * var(--s))) rotateY(90deg);
+    --reach: calc(var(--card-w) / 2);
+    --turn: rotateY(var(--flip));
+    --back: rotateY(180deg);
+    --shade: to right;
+    --shade-back: to right;
   }
 
-  &.flip-calendar::after,&.flip-calendar .shadow {
-    transform: var(--p) var(--offset) rotateX(var(--flip));
-    background-image: linear-gradient(to top,
-        rgb(var(--v1), var(--v1), var(--v1)),
-        rgb(var(--v2), var(--v2), var(--v2))
-      ), var(--postcard);
+  &.flip-calendar {
+    --rise: rotateX(90deg) translateY(calc(50% * var(--s))) rotateX(-90deg);
+    --reach: calc(var(--card-h) / 2);
+    --turn: rotateX(var(--flip));
+    --back: rotateX(180deg);
+    --shade: to top;
+    --shade-back: to top;
   }
-  &.flip-calendar::before {
-    transform: var(--p) rotateX(calc(var(--flip) + 180deg));
-    background-image: linear-gradient(to top,
-        rgb(var(--v1), var(--v1), var(--v1)),
-        rgb(var(--v2), var(--v2), var(--v2))
-      ), var(--postcard);
+
+  &:is(.flip-left-hand, .flip-right-hand) {
+    /* A hand flip turns the card a quarter-turn on the page, so a square box holds both sides */
+    --box: calc((var(--aspect-ratio)) + (1 - (var(--aspect-ratio))) * var(--square-hand-flips));
+    --rise: rotateY(-90deg) translateX(calc(35.355% * var(--s))) rotateY(90deg) rotateX(90deg) translateY(calc(35.355% * var(--s))) rotateX(-90deg);
+    --reach: calc((var(--card-w) + var(--card-h)) * 0.35355);
   }
-  
-  &.flip-right-hand::after,&.flip-right-hand .shadow {
-    transform: var(--p) var(--offset) rotate3d(1,1,0,var(--flip));
-    background-image: linear-gradient(to top right,
-        rgb(var(--v1), var(--v1), var(--v1)),
-        rgb(var(--v2), var(--v2), var(--v2))
-      ), var(--postcard);
+
+  &.flip-right-hand {
+    --turn: rotate3d(1,1,0,var(--flip));
+    --back: rotate3d(1,1,0,180deg) rotate(-90deg);
+    --shade: to top right;
+    --shade-back: to bottom right;
   }
-  &.flip-right-hand::before {
-    transform: var(--p) rotate3d(1,1,0,calc(var(--flip) + 180deg)) rotate(-90deg);
-    background-image: linear-gradient(to bottom right,
-        rgb(var(--v1), var(--v1), var(--v1)),
-        rgb(var(--v2), var(--v2), var(--v2))
-      ), var(--postcard);
-  }
-  
-  &.flip-left-hand::after,&.flip-left-hand .shadow {
-    transform: var(--p) var(--offset) rotate3d(-1,1,0,var(--flip));
-    background-image: linear-gradient(to bottom right,
-        rgb(var(--v1), var(--v1), var(--v1)),
-        rgb(var(--v2), var(--v2), var(--v2))
-      ), var(--postcard);
-  }
-  &.flip-left-hand::before {
-    transform: var(--p) rotate3d(-1,1,0,calc(var(--flip) + 180deg)) rotate(90deg);
-    background-image: linear-gradient(to top right,
-        rgb(var(--v1), var(--v1), var(--v1)),
-        rgb(var(--v2), var(--v2), var(--v2))
-      ), var(--postcard);
+
+  &.flip-left-hand {
+    --turn: rotate3d(-1,1,0,var(--flip));
+    --back: rotate3d(-1,1,0,180deg) rotate(90deg);
+    --shade: to bottom right;
+    --shade-back: to top right;
   }
 }
