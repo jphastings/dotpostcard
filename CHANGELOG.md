@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.49.2 (2026-11-15)
+
+### Fix
+
+- **web**: rise only as far as the lift leaves to clear the page
+
 ## v0.49.1 (2026-11-15)
 
 ### Fix
