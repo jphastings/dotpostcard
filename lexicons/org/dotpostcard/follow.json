@@ -1,0 +1,31 @@
+{
+  "lexicon": 1,
+  "id": "org.dotpostcard.follow",
+  "description": "A record of someone following a postcard collection.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A dotpostcard collection the author wishes to follow for changes.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": [
+          "subject",
+          "createdAt"
+        ],
+        "properties": {
+          "subject": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "The at-uri of the followed org.dotpostcard.collection record."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "When the collection was followed."
+          }
+        }
+      }
+    }
+  }
+}
