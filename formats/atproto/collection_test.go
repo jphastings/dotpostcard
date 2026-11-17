@@ -41,6 +41,35 @@ func TestParseATURI(t *testing.T) {
 	}
 }
 
+func TestFetchCollectionRecordReturnsPostcardRefsInListOrder(t *testing.T) {
+	srv := testpds.New("did:plc:testuser")
+	defer srv.Close()
+
+	client, err := Login("did:plc:testuser", "pw", srv.URL, "")
+	require.NoError(t, err)
+
+	var refs []StrongRef
+	for _, rkey := range []string{"zzz", "aaa"} {
+		record := FromMetadata(types.Metadata{Locale: "en-GB"}, testBlob)
+		cid, err := client.PutRecord(rkey, record)
+		require.NoError(t, err)
+		refs = append(refs, StrongRef{URI: fmt.Sprintf("at://did:plc:testuser/%s/%s", RecordType, rkey), CID: cid})
+	}
+	_, err = client.PutRecordIn(CollectionRecordType, "3jzfcijpj2z2a", Collection{Type: CollectionRecordType, Title: "Mine", Postcards: refs, CreatedAt: "2026-11-14T00:00:00Z"})
+	require.NoError(t, err)
+
+	collection, err := FetchCollectionRecord("at://did:plc:testuser/"+CollectionRecordType+"/3jzfcijpj2z2a", srv.URL, "")
+	require.NoError(t, err)
+
+	assert.Equal(t, "Mine", collection.Title)
+	assert.Equal(t, refs, collection.Postcards)
+}
+
+func TestFetchCollectionRecordRefusesOtherRecordTypes(t *testing.T) {
+	_, err := FetchCollectionRecord("at://did:plc:testuser/"+RecordType+"/abc", "http://unused.invalid", "")
+	assert.ErrorContains(t, err, "is not an "+CollectionRecordType+" record URI")
+}
+
 func TestFetchCollectionReturnsPostcardsInListOrder(t *testing.T) {
 	srv := testpds.New("did:plc:testuser")
 	defer srv.Close()

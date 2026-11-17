@@ -2,12 +2,14 @@ package appcore
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/jphastings/dotpostcard/formats/atproto"
 	"github.com/jphastings/dotpostcard/formats/atproto/pdscollection"
@@ -19,18 +21,46 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// pdsProbe watches, and can disturb, the record and blob requests a fake PDS serves.
+type pdsProbe struct {
+	blobGets atomic.Int32
+	// peak is the most getRecord/getBlob requests that were in flight at once.
+	peak     atomic.Int32
+	inFlight atomic.Int32
+	// hold makes each getRecord/getBlob request last at least this long; set it before fetching.
+	hold      time.Duration
+	failBlobs sync.Map
+}
+
+// failBlob makes getBlob for cid return an error.
+func (p *pdsProbe) failBlob(cid string) { p.failBlobs.Store(cid, true) }
+
+func (p *pdsProbe) allowBlobs() { p.failBlobs.Clear() }
+
 // newPDS starts a fake PDS, points appcore at it, and returns a client logged in to it, plus a
-// count of the blob downloads the PDS has served.
-func newPDS(t *testing.T) (*atproto.Client, *atomic.Int32) {
+// probe of the requests it serves.
+func newPDS(t *testing.T) (*atproto.Client, *pdsProbe) {
 	t.Helper()
 	srv := testpds.New("did:plc:alice")
 	t.Cleanup(srv.Close)
 
-	blobGets := &atomic.Int32{}
+	probe := &pdsProbe{}
 	inner := srv.Config.Handler
 	srv.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasSuffix(r.URL.Path, "com.atproto.sync.getBlob") {
-			blobGets.Add(1)
+		isBlob := strings.HasSuffix(r.URL.Path, "com.atproto.sync.getBlob")
+		if isBlob || strings.HasSuffix(r.URL.Path, "com.atproto.repo.getRecord") {
+			n := probe.inFlight.Add(1)
+			defer probe.inFlight.Add(-1)
+			for peak := probe.peak.Load(); n > peak && !probe.peak.CompareAndSwap(peak, n); peak = probe.peak.Load() {
+			}
+			time.Sleep(probe.hold)
+		}
+		if isBlob {
+			probe.blobGets.Add(1)
+			if _, fail := probe.failBlobs.Load(r.URL.Query().Get("cid")); fail {
+				http.Error(w, `{"error":"InternalServerError"}`, http.StatusInternalServerError)
+				return
+			}
 		}
 		inner.ServeHTTP(w, r)
 	})
@@ -40,7 +70,7 @@ func newPDS(t *testing.T) (*atproto.Client, *atomic.Int32) {
 
 	client, err := atproto.Login("alice.example", "pw", srv.URL, "")
 	require.NoError(t, err)
-	return client, blobGets
+	return client, probe
 }
 
 // publishCollection publishes a collection titled title, holding the named cards.
@@ -152,7 +182,7 @@ func TestFetchAtprotoCollectionWritesTheCollection(t *testing.T) {
 	stored, _ := storedCollection(t, client, "trip")
 	dest := filepath.Join(t.TempDir(), "trip.postcards")
 
-	out, err := FetchAtprotoCollection(uri, dest)
+	out, err := FetchAtprotoCollection(uri, dest, nil)
 	require.NoError(t, err)
 
 	cards := requireFetched(t, out, dest, postcardURIs(stored))
@@ -184,7 +214,7 @@ func TestFetchAtprotoCollectionMapsIdenticalCardsToOneName(t *testing.T) {
 	require.NoError(t, err)
 	dest := filepath.Join(t.TempDir(), "twins.postcards")
 
-	out, err := FetchAtprotoCollection("at://alice.example/org.dotpostcard.collection/twins", dest)
+	out, err := FetchAtprotoCollection("at://alice.example/org.dotpostcard.collection/twins", dest, nil)
 	require.NoError(t, err)
 
 	cards := requireFetched(t, out, dest, postcardURIs(stored))
@@ -197,46 +227,21 @@ func TestFetchAtprotoCollectionMapsIdenticalCardsToOneName(t *testing.T) {
 	assert.EqualValues(t, 1, count)
 }
 
-func TestFetchAtprotoCollectionFailureLeavesDestAlone(t *testing.T) {
-	client, _ := newPDS(t)
-	publishCollection(t, client, "Trip", "pyramids")
-	stored, _ := storedCollection(t, client, "trip")
-	stored.Postcards = append(stored.Postcards, atproto.StrongRef{URI: "at://did:plc:alice/org.dotpostcard.postcard/missing", CID: "bafy"})
-	_, err := client.PutRecordIn(atproto.CollectionRecordType, "broken", stored)
-	require.NoError(t, err)
-
-	dir := t.TempDir()
-	dest := filepath.Join(dir, "trip.postcards")
-	require.NoError(t, os.WriteFile(dest, []byte("previous"), 0o644))
-
-	_, err = FetchAtprotoCollection("at://did:plc:alice/org.dotpostcard.collection/broken", dest)
-	require.Error(t, err)
-
-	got, err := os.ReadFile(dest)
-	require.NoError(t, err)
-	assert.Equal(t, "previous", string(got))
-	entries, err := os.ReadDir(dir)
-	require.NoError(t, err)
-	for _, e := range entries {
-		assert.False(t, strings.HasPrefix(e.Name(), ".postcards-fetch-"), e.Name())
-	}
-}
-
 func TestFetchAtprotoCollectionReusesImagesAlreadyInDestPath(t *testing.T) {
-	client, blobGets := newPDS(t)
+	client, pds := newPDS(t)
 	uri := publishCollection(t, client, "Trip", "pyramids", "harbour")
 	dest := filepath.Join(t.TempDir(), "trip.postcards")
-	_, err := FetchAtprotoCollection(uri, dest)
+	_, err := FetchAtprotoCollection(uri, dest, nil)
 	require.NoError(t, err)
-	assert.EqualValues(t, 2, blobGets.Load())
+	assert.EqualValues(t, 2, pds.blobGets.Load())
 
 	publishCollection(t, client, "Trip", "pyramids", "harbour", "castle")
 	stored, _ := storedCollection(t, client, "trip")
-	blobGets.Store(0)
-	out, err := FetchAtprotoCollection(uri, dest)
+	pds.blobGets.Store(0)
+	out, err := FetchAtprotoCollection(uri, dest, nil)
 	require.NoError(t, err)
 
-	assert.EqualValues(t, 1, blobGets.Load())
+	assert.EqualValues(t, 1, pds.blobGets.Load())
 	assert.Len(t, requireFetched(t, out, dest, postcardURIs(stored)), 3)
 }
 
@@ -262,4 +267,154 @@ func TestAtprotoCollectionJSONMissingRecord(t *testing.T) {
 
 	_, err := AtprotoCollectionJSON("at://alice.example/org.dotpostcard.collection/nope")
 	assert.Error(t, err)
+}
+
+type progressFunc func(uri, name string, done, total int)
+
+func (f progressFunc) CardAdded(uri, name string, done, total int) { f(uri, name, done, total) }
+
+// blobCID is the CID of the image blob of the postcard record ref points at.
+func blobCID(t *testing.T, client *atproto.Client, ref atproto.StrongRef) string {
+	t.Helper()
+	_, _, rkey, err := atproto.ParseATURI(ref.URI)
+	require.NoError(t, err)
+	record, _, err := client.GetRecord(client.DID(), rkey)
+	require.NoError(t, err)
+	return record.Image.Ref.Link
+}
+
+func cardNames(t *testing.T, path string) []string {
+	t.Helper()
+	col, err := collection.OpenReadOnly(path)
+	require.NoError(t, err)
+	defer col.Close()
+	cards, err := col.List()
+	require.NoError(t, err)
+	names := make([]string, len(cards))
+	for i, card := range cards {
+		names[i] = card.Name
+	}
+	return names
+}
+
+func TestFetchAtprotoCollectionReportsProgressPerReference(t *testing.T) {
+	client, _ := newPDS(t)
+	uri := publishCollection(t, client, "Trip", "pyramids", "harbour", "castle")
+	stored, _ := storedCollection(t, client, "trip")
+	dest := filepath.Join(t.TempDir(), "trip.postcards")
+
+	type step struct{ done, total int }
+	var uris []string
+	var steps []step
+	out, err := FetchAtprotoCollection(uri, dest, progressFunc(func(uri, name string, done, total int) {
+		uris = append(uris, uri)
+		steps = append(steps, step{done, total})
+	}))
+	require.NoError(t, err)
+
+	assert.Equal(t, postcardURIs(stored), uris)
+	assert.Equal(t, []step{{1, 3}, {2, 3}, {3, 3}}, steps)
+	assert.Len(t, requireFetched(t, out, dest, uris), 3)
+}
+
+func TestFetchAtprotoCollectionIsReadableWhileFetching(t *testing.T) {
+	client, _ := newPDS(t)
+	uri := publishCollection(t, client, "Trip", "pyramids", "harbour", "castle")
+	dest := filepath.Join(t.TempDir(), "trip.postcards")
+
+	var reader *Collection
+	t.Cleanup(func() {
+		if reader != nil {
+			reader.Close()
+		}
+	})
+	_, err := FetchAtprotoCollection(uri, dest, progressFunc(func(_, _ string, done, _ int) {
+		if reader == nil {
+			var err error
+			reader, err = OpenCollection(dest)
+			require.NoError(t, err)
+		}
+		count, err := reader.CardCount()
+		require.NoError(t, err)
+		assert.EqualValues(t, done, count)
+		_, err = reader.ListJSON()
+		require.NoError(t, err)
+	}))
+
+	require.NoError(t, err)
+}
+
+func TestFetchAtprotoCollectionResumesAfterAnInterruption(t *testing.T) {
+	client, pds := newPDS(t)
+	uri := publishCollection(t, client, "Trip", "pyramids", "harbour", "castle", "lighthouse")
+	stored, _ := storedCollection(t, client, "trip")
+	dest := filepath.Join(t.TempDir(), "trip.postcards")
+	pds.failBlob(blobCID(t, client, stored.Postcards[2]))
+
+	_, err := FetchAtprotoCollection(uri, dest, nil)
+	require.Error(t, err)
+	assert.Len(t, cardNames(t, dest), 2)
+
+	pds.allowBlobs()
+	pds.blobGets.Store(0)
+	out, err := FetchAtprotoCollection(uri, dest, nil)
+	require.NoError(t, err)
+
+	assert.EqualValues(t, 2, pds.blobGets.Load())
+	assert.Len(t, requireFetched(t, out, dest, postcardURIs(stored)), 4)
+	assert.Len(t, cardNames(t, dest), 4)
+}
+
+func TestFetchAtprotoCollectionRefreshReplacesDroppedCards(t *testing.T) {
+	client, pds := newPDS(t)
+	uri := publishCollection(t, client, "Trip", "pyramids", "harbour", "castle")
+	dest := filepath.Join(t.TempDir(), "trip.postcards")
+	_, err := FetchAtprotoCollection(uri, dest, nil)
+	require.NoError(t, err)
+
+	publishCollection(t, client, "Trip", "pyramids", "castle", "lighthouse")
+	stored, _ := storedCollection(t, client, "trip")
+	pds.blobGets.Store(0)
+	out, err := FetchAtprotoCollection(uri, dest, nil)
+	require.NoError(t, err)
+
+	assert.EqualValues(t, 1, pds.blobGets.Load())
+	assert.ElementsMatch(t, []string{"pyramids", "castle", "lighthouse"}, cardNames(t, dest))
+	requireFetched(t, out, dest, postcardURIs(stored))
+}
+
+func TestFetchAtprotoCollectionFailedRefreshKeepsEveryCard(t *testing.T) {
+	client, pds := newPDS(t)
+	uri := publishCollection(t, client, "Trip", "pyramids", "harbour", "castle")
+	dest := filepath.Join(t.TempDir(), "trip.postcards")
+	_, err := FetchAtprotoCollection(uri, dest, nil)
+	require.NoError(t, err)
+
+	publishCollection(t, client, "Trip", "pyramids", "castle", "lighthouse")
+	stored, _ := storedCollection(t, client, "trip")
+	for _, ref := range stored.Postcards {
+		pds.failBlob(blobCID(t, client, ref))
+	}
+	_, err = FetchAtprotoCollection(uri, dest, nil)
+	require.Error(t, err)
+
+	assert.ElementsMatch(t, []string{"pyramids", "harbour", "castle"}, cardNames(t, dest))
+}
+
+func TestFetchAtprotoCollectionFetchesAtMostSixCardsAtOnce(t *testing.T) {
+	client, pds := newPDS(t)
+	names := make([]string, 8)
+	for i := range names {
+		names[i] = fmt.Sprintf("card%02d", i)
+	}
+	uri := publishCollection(t, client, "Trip", names...)
+	dest := filepath.Join(t.TempDir(), "trip.postcards")
+	pds.hold = 10 * time.Millisecond
+
+	_, err := FetchAtprotoCollection(uri, dest, nil)
+	require.NoError(t, err)
+
+	assert.Len(t, cardNames(t, dest), 8)
+	assert.LessOrEqual(t, pds.peak.Load(), int32(6))
+	assert.Greater(t, pds.peak.Load(), int32(1))
 }

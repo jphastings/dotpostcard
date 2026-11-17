@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/formats/atproto"
@@ -22,6 +23,9 @@ import (
 )
 
 const collectionSuffix = ".postcards"
+
+// fetchConcurrency bounds how many cards of an atproto collection are downloaded at once.
+const fetchConcurrency = 6
 
 // webFileSuffixes mirrors the suffixes formats/web recognises as a web-format postcard file.
 var webFileSuffixes = []string{".postcard.webp", ".postcard.jpg", ".postcard.jpeg", ".postcard.png", ".postcard"}
@@ -44,11 +48,14 @@ type BuildOptions struct {
 	Warn func(string)
 	// OnCard, if set, is told the name of each card as it is stored.
 	OnCard func(name string)
-	// Cached, if set, is asked for an atproto card's image by its sha256 before the image is downloaded; a hit skips the download.
+	// Cached, if set, is asked for an atproto card's image by its sha256 before the image is
+	// downloaded; a hit skips the download, unless the bytes don't hash to sum. It may be called
+	// concurrently.
 	Cached func(sum [sha256.Size]byte) (data []byte, ok bool)
-	// OnRecord, if set, is told, for each card from an atproto postcard record, the record's at-uri
-	// and the name its card is stored under.
-	OnRecord func(uri, name string)
+	// OnRecord, if set, is told, after each card from an atproto postcard record is stored, the
+	// record's at-uri and the name its card is stored under. done counts the records of the
+	// source handled so far, of total (1 of 1 for a lone postcard record).
+	OnRecord func(uri, name string, done, total int)
 	// Stop, if set, cancels the build between cards; the build then fails with its error.
 	Stop context.Context
 }
@@ -197,6 +204,51 @@ func Add(path string, sources []string, opts BuildOptions) ([]string, error) {
 	return b.names, err
 }
 
+// Sync makes the collection file at path, created if it's missing, hold the cards of the atproto
+// collection at uri under the collection's title, committing each card as it arrives so readers
+// see the file grow. Cards the record no longer lists are removed once every card has arrived; a
+// failure leaves the cards committed so far, and running Sync again carries on.
+func Sync(path, uri string, opts BuildOptions) error {
+	if _, nsid, _, err := atproto.ParseATURI(uri); err != nil {
+		return err
+	} else if nsid != atproto.CollectionRecordType {
+		return fmt.Errorf("%q is not an %s record URI", uri, atproto.CollectionRecordType)
+	}
+
+	open := collection.Create
+	if exists(path) {
+		open = collection.Open
+	}
+	coll, err := open(path)
+	if err != nil {
+		return err
+	}
+	defer coll.Close()
+
+	b := newBuilder(coll, opts)
+	b.onTitle = coll.SetTitle
+	if _, err := b.addRemote(uri); err != nil {
+		return err
+	}
+
+	cards, err := coll.List()
+	if err != nil {
+		return err
+	}
+	kept := map[string]bool{}
+	for _, name := range b.names {
+		kept[name] = true
+	}
+	for _, card := range cards {
+		if !kept[card.Name] {
+			if err := coll.Remove(card.Name); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func exists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
@@ -236,14 +288,18 @@ type contentKey struct {
 }
 
 type builder struct {
-	coll    *collection.Collection
-	opts    BuildOptions
-	clients map[string]*atproto.Client
-	taken   map[string]bool
-	seen    map[contentKey]string
-	names   []string
+	coll *collection.Collection
+	opts BuildOptions
+	// clients is guarded by clientsMu, as cards are fetched concurrently.
+	clientsMu sync.Mutex
+	clients   map[string]*atproto.Client
+	taken     map[string]bool
+	seen      map[contentKey]string
+	names     []string
 	// step, if set, is told how many sources are done of how many in total.
 	step func(done, total int)
+	// onTitle, if set, is told the title of an atproto collection as soon as its record is fetched.
+	onTitle func(title string) error
 }
 
 func newBuilder(coll *collection.Collection, opts BuildOptions) *builder {
@@ -375,56 +431,131 @@ func (b *builder) addRemote(uri string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("fetching postcard %s: %w", uri, err)
 		}
-		return "", b.addRecord(client, record, cid, uri)
-	case atproto.CollectionRecordType:
-		published, records, err := atproto.FetchCollection(uri, b.opts.PDSHost, b.opts.PLCHost)
+		data, err := b.imageOf(client, record, uri)
 		if err != nil {
 			return "", err
 		}
-		for i, record := range records {
-			ref := published.Postcards[i]
-			refAuthority, _, _, _ := atproto.ParseATURI(ref.URI)
-			client, err := b.client(refAuthority)
-			if err != nil {
+		return "", b.addFetched(fetchedCard{uri: uri, cid: cid, record: record, data: data}, 1, 1)
+	case atproto.CollectionRecordType:
+		published, err := atproto.FetchCollectionRecord(uri, b.opts.PDSHost, b.opts.PLCHost)
+		if err != nil {
+			return "", err
+		}
+		if b.onTitle != nil {
+			if err := b.onTitle(published.Title); err != nil {
 				return "", err
 			}
-			if err := b.addRecord(client, record, ref.CID, ref.URI); err != nil {
-				return "", err
-			}
+		}
+		if err := b.addCollectionCards(published.Postcards); err != nil {
+			return "", err
 		}
 		return published.Title, nil
 	}
 	return "", fmt.Errorf("%s is neither an %s nor an %s record", uri, atproto.RecordType, atproto.CollectionRecordType)
 }
 
-func (b *builder) addRecord(client *atproto.Client, record atproto.Record, cid, uri string) error {
-	var data []byte
+// fetchedCard is a postcard record with its image, ready to be stored.
+type fetchedCard struct {
+	uri, cid string
+	record   atproto.Record
+	data     []byte
+	err      error
+}
+
+// addCollectionCards fetches the referenced postcards with at most fetchConcurrency in flight,
+// but stores them one at a time in the order referenced, so card names don't depend on timing.
+func (b *builder) addCollectionCards(refs []atproto.StrongRef) error {
+	authorities := make([]string, len(refs))
+	for i, ref := range refs {
+		authority, nsid, _, err := atproto.ParseATURI(ref.URI)
+		if err != nil {
+			return err
+		}
+		if nsid != atproto.RecordType {
+			return fmt.Errorf("%q is not an %s record URI", ref.URI, atproto.RecordType)
+		}
+		authorities[i] = authority
+	}
+
+	// Each result has its own buffered channel so a job never blocks, even once we've given up on it.
+	results := make([]chan fetchedCard, len(refs))
+	launched := 0
+	launch := func() {
+		i := launched
+		launched++
+		results[i] = make(chan fetchedCard, 1)
+		go func() { results[i] <- b.fetchCard(refs[i], authorities[i]) }()
+	}
+	for launched < min(fetchConcurrency, len(refs)) {
+		launch()
+	}
+
+	for i := range refs {
+		card := <-results[i]
+		if card.err != nil {
+			return card.err
+		}
+		if launched < len(refs) {
+			launch()
+		}
+		if err := b.addFetched(card, i+1, len(refs)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (b *builder) fetchCard(ref atproto.StrongRef, authority string) fetchedCard {
+	card := fetchedCard{uri: ref.URI, cid: ref.CID}
+	client, err := b.client(authority)
+	if err != nil {
+		card.err = err
+		return card
+	}
+	_, _, rkey, _ := atproto.ParseATURI(ref.URI)
+	// A record whose CID has moved on since it was referenced is still fetched, as records can be updated.
+	if _, err := client.GetRecordIn(client.DID(), atproto.RecordType, rkey, &card.record); err != nil {
+		card.err = fmt.Errorf("fetching postcard %s: %w", ref.URI, err)
+		return card
+	}
+	card.data, card.err = b.imageOf(client, card.record, ref.URI)
+	return card
+}
+
+// imageOf returns the record's image, from the Cached hook if it has bytes that really are the image.
+func (b *builder) imageOf(client *atproto.Client, record atproto.Record, uri string) ([]byte, error) {
 	if b.opts.Cached != nil {
 		if sum, err := record.Image.SHA256(); err == nil {
-			data, _ = b.opts.Cached(sum)
+			if data, ok := b.opts.Cached(sum); ok && sha256.Sum256(data) == sum {
+				return data, nil
+			}
 		}
 	}
-	if data == nil {
-		var err error
-		if data, err = client.GetBlob(client.DID(), record.Image.Ref.Link); err != nil {
-			return fmt.Errorf("%s: %w", uri, err)
-		}
-	}
-	filename, err := cardFilename(pdsbundle.NameFromRecord(record, cid), record.Image.MimeType)
+	data, err := client.GetBlob(client.DID(), record.Image.Ref.Link)
 	if err != nil {
-		return fmt.Errorf("%s: %w", uri, err)
+		return nil, fmt.Errorf("%s: %w", uri, err)
 	}
-	name, err := b.add(sourceCard{filename: filename, data: data, record: &record})
+	return data, nil
+}
+
+func (b *builder) addFetched(card fetchedCard, done, total int) error {
+	filename, err := cardFilename(pdsbundle.NameFromRecord(card.record, card.cid), card.record.Image.MimeType)
 	if err != nil {
-		return fmt.Errorf("%s: %w", uri, err)
+		return fmt.Errorf("%s: %w", card.uri, err)
+	}
+	name, err := b.add(sourceCard{filename: filename, data: card.data, record: &card.record})
+	if err != nil {
+		return fmt.Errorf("%s: %w", card.uri, err)
 	}
 	if b.opts.OnRecord != nil {
-		b.opts.OnRecord(uri, name)
+		b.opts.OnRecord(card.uri, name, done, total)
 	}
 	return nil
 }
 
 func (b *builder) client(authority string) (*atproto.Client, error) {
+	b.clientsMu.Lock()
+	defer b.clientsMu.Unlock()
 	if client, ok := b.clients[authority]; ok {
 		return client, nil
 	}

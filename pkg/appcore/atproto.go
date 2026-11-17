@@ -4,8 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
+	"sync"
 
 	"github.com/jphastings/dotpostcard/formats/atproto"
 	"github.com/jphastings/dotpostcard/formats/atproto/pdscollection"
@@ -90,41 +89,43 @@ func AtprotoFollowsJSON(actor string) (string, error) {
 	return marshalJSONArray(follows)
 }
 
-// FetchAtprotoCollection downloads the org.dotpostcard.collection at uri into a .postcards file at
-// destPath, anonymously, built exactly as `postcards collection create at://…` builds one. It's
-// built in a temporary directory beside destPath and renamed into place, so a failed fetch leaves
-// any existing file at destPath untouched. Images already in the file at destPath are reused
-// rather than downloaded again.
-//
-// It returns a JSON array of {"uri","name"}, one per postcard record the collection references:
-// the record's at-uri, and the name of its card in the written file (open it with the Collection
-// methods). Names can change between fetches; URIs don't.
-func FetchAtprotoCollection(uri, destPath string) (string, error) {
-	stage, err := os.MkdirTemp(filepath.Dir(destPath), ".postcards-fetch-*")
-	if err != nil {
-		return "", fmt.Errorf("preparing to fetch %s: %w", uri, err)
-	}
-	defer os.RemoveAll(stage)
+// FetchProgress is told about each card as FetchAtprotoCollection commits it to the file.
+type FetchProgress interface {
+	// CardAdded is called once per postcard record the collection references, in the collection's
+	// order, after its card (named name) is committed. done counts the references handled so far,
+	// of total.
+	CardAdded(uri, name string, done, total int)
+}
 
+// FetchAtprotoCollection downloads the org.dotpostcard.collection at uri into a .postcards file at
+// destPath, anonymously, built as `postcards collection create at://…` builds one. The file is
+// built in place and each card is committed as it arrives, so a reader (OpenCollection) always
+// sees a valid, growing collection; progress, if not nil, is told about each card as it lands.
+// A failure leaves the cards committed so far, and calling it again carries on, reusing images
+// already in the file. Cards the record no longer lists are removed only after every card has
+// arrived.
+//
+// It returns a JSON array of {"uri","name"}, one per postcard record the collection references,
+// in the collection's order: the record's at-uri, and the name of its card in the written file
+// (open it with the Collection methods). Names can change between fetches; URIs don't.
+func FetchAtprotoCollection(uri, destPath string, progress FetchProgress) (string, error) {
 	cache := &imageCache{path: destPath}
+	defer cache.close()
+
 	var cards []fetchedCard
-	result, err := pdscollection.Create([]string{uri}, pdscollection.CreateOptions{
-		BuildOptions: pdscollection.BuildOptions{
-			PDSHost:  atprotoPDSHost,
-			PLCHost:  atprotoPLCHost,
-			Cached:   cache.lookup,
-			OnRecord: func(uri, name string) { cards = append(cards, fetchedCard{URI: uri, Name: name}) },
+	err := pdscollection.Sync(destPath, uri, pdscollection.BuildOptions{
+		PDSHost: atprotoPDSHost,
+		PLCHost: atprotoPLCHost,
+		Cached:  cache.lookup,
+		OnRecord: func(uri, name string, done, total int) {
+			cards = append(cards, fetchedCard{URI: uri, Name: name})
+			if progress != nil {
+				progress.CardAdded(uri, name, done, total)
+			}
 		},
-		WriteFile: true,
-		OutDir:    stage,
 	})
-	cache.close()
 	if err != nil {
 		return "", fmt.Errorf("fetching %s: %w", uri, err)
-	}
-
-	if err := os.Rename(result.Path, destPath); err != nil {
-		return "", fmt.Errorf("moving fetched collection into place: %w", err)
 	}
 	return marshalJSONArray(cards)
 }
@@ -135,8 +136,10 @@ type fetchedCard struct {
 }
 
 // imageCache serves the images of the collection file at path by sha256. The file is opened and
-// indexed on the first lookup; a missing or unreadable file is just an empty cache.
+// indexed on the first lookup; a missing or unreadable file is just an empty cache. It's safe for
+// concurrent use.
 type imageCache struct {
+	mu     sync.Mutex
 	path   string
 	loaded bool
 	col    *collection.Collection
@@ -165,6 +168,8 @@ func (c *imageCache) load() {
 }
 
 func (c *imageCache) lookup(sum [sha256.Size]byte) ([]byte, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if !c.loaded {
 		c.load()
 	}
@@ -176,10 +181,14 @@ func (c *imageCache) lookup(sum [sha256.Size]byte) ([]byte, bool) {
 	return data, err == nil
 }
 
+// close releases the file; lookups that are still in flight after it are misses.
 func (c *imageCache) close() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c.col != nil {
 		c.col.Close()
 	}
+	c.col, c.names, c.loaded = nil, nil, true
 }
 
 // AtprotoCollectionJSON reads the one org.dotpostcard.collection record at uri, anonymously, as the

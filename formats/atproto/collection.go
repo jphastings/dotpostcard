@@ -43,30 +43,40 @@ func ParseATURI(uri string) (authority, collection, rkey string, err error) {
 	return parts[0], parts[1], parts[2], nil
 }
 
-// FetchCollection resolves the collection at uri, then fetches each postcard record it
-// references, anonymously. The returned records are parallel to Collection.Postcards. A record
-// whose current CID differs from its reference's is still returned, as records can be updated.
-// pdsHostOverride and plcHostOverride are as for Anonymous.
-func FetchCollection(uri, pdsHostOverride, plcHostOverride string) (Collection, []Record, error) {
+// FetchCollectionRecord fetches the collection record at uri, anonymously, without fetching the
+// postcard records it references. pdsHostOverride and plcHostOverride are as for Anonymous.
+func FetchCollectionRecord(uri, pdsHostOverride, plcHostOverride string) (Collection, error) {
 	authority, nsid, rkey, err := ParseATURI(uri)
 	if err != nil {
-		return Collection{}, nil, err
+		return Collection{}, err
 	}
 	if nsid != CollectionRecordType {
-		return Collection{}, nil, fmt.Errorf("%q is not an %s record URI", uri, CollectionRecordType)
+		return Collection{}, fmt.Errorf("%q is not an %s record URI", uri, CollectionRecordType)
 	}
 
 	client, err := Anonymous(authority, pdsHostOverride, plcHostOverride)
 	if err != nil {
-		return Collection{}, nil, err
+		return Collection{}, err
 	}
 
 	var collection Collection
 	if _, err := client.GetRecordIn(client.DID(), CollectionRecordType, rkey, &collection); err != nil {
-		return Collection{}, nil, fmt.Errorf("fetching collection %s: %w", uri, err)
+		return Collection{}, fmt.Errorf("fetching collection %s: %w", uri, err)
+	}
+	return collection, nil
+}
+
+// FetchCollection fetches the collection record at uri, then each postcard record it references,
+// anonymously. The returned records are parallel to Collection.Postcards. A record whose current
+// CID differs from its reference's is still returned, as records can be updated.
+// pdsHostOverride and plcHostOverride are as for Anonymous.
+func FetchCollection(uri, pdsHostOverride, plcHostOverride string) (Collection, []Record, error) {
+	collection, err := FetchCollectionRecord(uri, pdsHostOverride, plcHostOverride)
+	if err != nil {
+		return Collection{}, nil, err
 	}
 
-	clients := map[string]*Client{authority: client}
+	clients := map[string]*Client{}
 	records := make([]Record, len(collection.Postcards))
 	for i, ref := range collection.Postcards {
 		refAuthority, refNSID, refRkey, err := ParseATURI(ref.URI)
