@@ -18,6 +18,33 @@ import (
 // open on path after calling one of these — a completed write is not
 // visible through a handle opened before it ran.
 
+// CollectionSchemaStatus reports whether the collection at path is "current",
+// "outdated" (MigrateCollection can upgrade it), or "newer" (written by a
+// newer postcards; the app needs updating). It only reads, and is cheap.
+func CollectionSchemaStatus(path string) (string, error) {
+	status, err := collection.Status(path)
+	if err != nil {
+		return "", err
+	}
+
+	return map[collection.SchemaStatus]string{
+		collection.SchemaCurrent:  "current",
+		collection.SchemaOutdated: "outdated",
+		collection.SchemaNewer:    "newer",
+	}[status], nil
+}
+
+// MigrateCollection opens the collection at path read-write, upgrades it to
+// the current schema, and closes it. The upgrade is lossless: card images are
+// stored untouched (no re-encoding, no quality loss) and all metadata is preserved.
+func MigrateCollection(path string) error {
+	if err := collection.Migrate(path); err != nil {
+		return fmt.Errorf("migrating collection: %w", err)
+	}
+
+	return nil
+}
+
 // SetCollectionTitle opens the collection at path, sets its title, and closes it.
 func SetCollectionTitle(path, title string) error {
 	col, err := collection.Open(path)

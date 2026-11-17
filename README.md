@@ -81,6 +81,8 @@ $ postcards rotate --front 90 pyramid.postcard
 
 ## Using dotpostcard as a library
 
+Changing a file format or record? See [compatibility](docs/compatibility.md).
+
 Other Go projects may rely on these packages:
 
 - `types`: the postcard model (`types.Postcard`, `types.Metadata`, …).

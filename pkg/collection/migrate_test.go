@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -93,6 +94,7 @@ func TestOpenReadOnlyNeverMigrates(t *testing.T) {
 	withTestMigration(t, func(tx *sql.Tx) error { return nil })
 
 	_, err := OpenReadOnly(path)
+	assert.ErrorIs(t, err, ErrOutdatedSchema)
 	assert.ErrorContains(t, err, "postcards CLI")
 
 	userVersion, _ := fileVersions(t, path)
@@ -244,8 +246,77 @@ func TestOpenRejectsNewerCollections(t *testing.T) {
 	assert.NoError(t, col.Close())
 
 	_, err = Open(path)
+	assert.ErrorIs(t, err, ErrNewerSchema)
 	assert.ErrorContains(t, err, "newer version of postcards")
 
 	_, err = OpenReadOnly(path)
+	assert.ErrorIs(t, err, ErrNewerSchema)
 	assert.ErrorContains(t, err, "newer version of postcards")
+
+	status, err := Status(path)
+	assert.NoError(t, err)
+	assert.Equal(t, SchemaNewer, status)
+
+	assert.ErrorIs(t, Migrate(path), ErrNewerSchema)
+}
+
+func TestFailedLaterMigrationStepLeavesOriginalVersion(t *testing.T) {
+	path := createOutdatedCollection(t)
+	oldVersion := schemaVersion()
+
+	withTestMigration(t, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`ALTER TABLE cards ADD COLUMN first_step_ran INTEGER`)
+		return err
+	})
+	withTestMigration(t, func(tx *sql.Tx) error { return errors.New("second step failed") })
+
+	assert.ErrorContains(t, Migrate(path), "second step failed")
+
+	userVersion, metaVersion := fileVersions(t, path)
+	assert.Equal(t, oldVersion, userVersion)
+	assert.Equal(t, oldVersion, metaVersion)
+
+	db, err := sqldb.Open(path, true)
+	assert.NoError(t, err)
+	defer db.Close()
+	var columnExists int
+	assert.NoError(t, db.QueryRow(`SELECT count(*) FROM pragma_table_info('cards') WHERE name = 'first_step_ran'`).Scan(&columnExists))
+	assert.Zero(t, columnExists, "an earlier step must not survive a later step's failure")
+}
+
+func TestStatus(t *testing.T) {
+	path := createOutdatedCollection(t)
+
+	status, err := Status(path)
+	assert.NoError(t, err)
+	assert.Equal(t, SchemaCurrent, status)
+
+	withTestMigration(t, func(tx *sql.Tx) error { return nil })
+
+	assert.NoError(t, os.Chmod(path, 0o444))
+	status, err = Status(path)
+	assert.NoError(t, err)
+	assert.Equal(t, SchemaOutdated, status)
+	assert.NoError(t, os.Chmod(path, 0o644))
+
+	userVersion, _ := fileVersions(t, path)
+	assert.Equal(t, schemaVersion()-1, userVersion, "checking status must not migrate")
+
+	assert.NoError(t, Migrate(path))
+	status, err = Status(path)
+	assert.NoError(t, err)
+	assert.Equal(t, SchemaCurrent, status)
+}
+
+func TestStatusRejectsNonCollections(t *testing.T) {
+	dir := t.TempDir()
+	empty := filepath.Join(dir, "empty.postcards")
+	garbage := filepath.Join(dir, "garbage.postcards")
+	assert.NoError(t, os.WriteFile(empty, nil, 0o644))
+	assert.NoError(t, os.WriteFile(garbage, []byte("definitely not a sqlite database, just some text"), 0o644))
+
+	for _, path := range []string{empty, garbage, filepath.Join(dir, "missing.postcards")} {
+		_, err := Status(path)
+		assert.Error(t, err, path)
+	}
 }
