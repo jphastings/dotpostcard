@@ -46,6 +46,9 @@ type BuildOptions struct {
 	OnCard func(name string)
 	// Cached, if set, is asked for an atproto card's image by its sha256 before the image is downloaded; a hit skips the download.
 	Cached func(sum [sha256.Size]byte) (data []byte, ok bool)
+	// OnRecord, if set, is told, for each card from an atproto postcard record, the record's at-uri
+	// and the name its card is stored under.
+	OnRecord func(uri, name string)
 	// Stop, if set, cancels the build between cards; the build then fails with its error.
 	Stop context.Context
 }
@@ -237,14 +240,14 @@ type builder struct {
 	opts    BuildOptions
 	clients map[string]*atproto.Client
 	taken   map[string]bool
-	seen    map[contentKey]bool
+	seen    map[contentKey]string
 	names   []string
 	// step, if set, is told how many sources are done of how many in total.
 	step func(done, total int)
 }
 
 func newBuilder(coll *collection.Collection, opts BuildOptions) *builder {
-	return &builder{coll: coll, opts: opts, clients: map[string]*atproto.Client{}, taken: map[string]bool{}, seen: map[contentKey]bool{}}
+	return &builder{coll: coll, opts: opts, clients: map[string]*atproto.Client{}, taken: map[string]bool{}, seen: map[contentKey]string{}}
 }
 
 // addSources stores the cards of each source. When there's one source that is a collection,
@@ -321,7 +324,8 @@ func (b *builder) addFile(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return "", b.add(sourceCard{filename: filepath.Base(path), data: data})
+	_, err = b.add(sourceCard{filename: filepath.Base(path), data: data})
+	return "", err
 }
 
 func (b *builder) addCollectionFile(path string) (string, error) {
@@ -348,7 +352,7 @@ func (b *builder) addCollectionFile(path string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		if err := b.add(sourceCard{filename: filename, data: data}); err != nil {
+		if _, err := b.add(sourceCard{filename: filename, data: data}); err != nil {
 			return "", err
 		}
 	}
@@ -410,8 +414,12 @@ func (b *builder) addRecord(client *atproto.Client, record atproto.Record, cid, 
 	if err != nil {
 		return fmt.Errorf("%s: %w", uri, err)
 	}
-	if err := b.add(sourceCard{filename: filename, data: data, record: &record}); err != nil {
+	name, err := b.add(sourceCard{filename: filename, data: data, record: &record})
+	if err != nil {
 		return fmt.Errorf("%s: %w", uri, err)
+	}
+	if b.opts.OnRecord != nil {
+		b.opts.OnRecord(uri, name)
 	}
 	return nil
 }
@@ -429,19 +437,20 @@ func (b *builder) client(authority string) (*atproto.Client, error) {
 }
 
 // add stores card unless an identical card of the same name was already stored in this run;
-// a different card with a taken name is stored under a suffixed one.
-func (b *builder) add(card sourceCard) error {
+// a different card with a taken name is stored under a suffixed one. It returns the name the
+// card is stored under, which for an identical duplicate is the existing card's.
+func (b *builder) add(card sourceCard) (string, error) {
 	if b.opts.Stop != nil && b.opts.Stop.Err() != nil {
-		return context.Cause(b.opts.Stop)
+		return "", context.Cause(b.opts.Stop)
 	}
 	baseName := web.CardNameFromPath(card.filename)
 	key := contentKey{baseName, sha256.Sum256(card.data)}
-	if b.seen[key] {
-		return nil
+	if name, ok := b.seen[key]; ok {
+		return name, nil
 	}
-	b.seen[key] = true
 
 	name := uniqueName(baseName, b.taken)
+	b.seen[key] = name
 	if name != baseName && b.opts.Warn != nil {
 		b.opts.Warn(fmt.Sprintf("%s: the name is taken by another card, so this one is stored as %s", baseName, name))
 	}
@@ -450,24 +459,24 @@ func (b *builder) add(card sourceCard) error {
 
 	if card.record != nil && b.opts.Warn != nil {
 		if err := warnOnDifference(b.opts.Warn, name, baseName, *card.record, data); err != nil {
-			return err
+			return "", err
 		}
 	}
 	if b.opts.Quality != nil {
 		var err error
 		if filename, data, err = reencode(filename, data, *b.opts.Quality); err != nil {
-			return fmt.Errorf("re-encoding %s: %w", name, err)
+			return "", fmt.Errorf("re-encoding %s: %w", name, err)
 		}
 	}
 
 	if _, err := b.coll.AddWebPostcard(filename, data); err != nil {
-		return fmt.Errorf("adding %s: %w", name, err)
+		return "", fmt.Errorf("adding %s: %w", name, err)
 	}
 	b.names = append(b.names, name)
 	if b.opts.OnCard != nil {
 		b.opts.OnCard(name)
 	}
-	return nil
+	return name, nil
 }
 
 func reencode(filename string, data []byte, quality formats.Quality) (string, []byte, error) {
