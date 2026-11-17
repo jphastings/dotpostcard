@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.51.0 (2026-11-17)
+
+### Feat
+
+- **atproto**: add the org.dotpostcard.follow lexicon
+
 ## v0.50.0 (2026-11-17)
 
 ### Feat
