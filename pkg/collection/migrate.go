@@ -3,7 +3,10 @@ package collection
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+
+	"github.com/jphastings/dotpostcard/internal/sqldb"
 )
 
 func backfillTitles(tx *sql.Tx) error {
@@ -43,8 +46,11 @@ func backfillTitles(tx *sql.Tx) error {
 // collection from schema version i+1 to version i+2. The current schema
 // version is derived from the ladder (see schemaVersion), so adding a
 // migration is just appending a step here — no version constant to bump. The
-// runner stamps PRAGMA user_version and meta.schema_version itself after
-// each step, so a migration func only alters schema/data. When appending a
+// runner runs the whole ladder in one transaction and stamps PRAGMA
+// user_version and meta.schema_version itself, so a migration func only
+// alters schema/data. Migration is lossless — card images are stored
+// untouched (no re-encoding, no quality loss) and all metadata is preserved —
+// and every new step must keep that guarantee. When appending a
 // step, also update schemaStatements in schema.go to describe the resulting
 // schema: newly-Created collections are built directly at the current
 // version and never run this ladder.
@@ -86,56 +92,123 @@ var migrations = []func(*sql.Tx) error{
 
 func schemaVersion() int { return 1 + len(migrations) }
 
+// SchemaStatus says how a collection file's schema compares with this build's.
+type SchemaStatus int
+
+const (
+	SchemaCurrent  SchemaStatus = iota // readable and writable as-is
+	SchemaOutdated                     // written by an older postcards; Migrate upgrades it
+	SchemaNewer                        // written by a newer postcards; this build can't open it
+)
+
+var (
+	// ErrOutdatedSchema is wrapped by the error OpenReadOnly returns for an outdated collection.
+	ErrOutdatedSchema = errors.New("collection schema is outdated")
+	// ErrNewerSchema is wrapped by the error Open and OpenReadOnly return for a collection from a newer postcards.
+	ErrNewerSchema = errors.New("collection schema is newer than this build supports")
+)
+
+func classifyVersion(version int) (SchemaStatus, error) {
+	switch {
+	case version < 1:
+		return 0, fmt.Errorf("not a postcard collection (found schema version %d)", version)
+	case version > schemaVersion():
+		return SchemaNewer, nil
+	case version < schemaVersion():
+		return SchemaOutdated, nil
+	default:
+		return SchemaCurrent, nil
+	}
+}
+
+func readVersion(db *sql.DB) (int, error) {
+	var version int
+	if err := db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil {
+		return 0, fmt.Errorf("reading schema version: %w", err)
+	}
+	return version, nil
+}
+
+// Status reports whether the collection at path is at the current schema,
+// needs Migrate, or is from a newer postcards. It only reads the version
+// stamp, so it's cheap and never modifies the file.
+func Status(path string) (SchemaStatus, error) {
+	db, err := sqldb.Open(path, true)
+	if err != nil {
+		return 0, fmt.Errorf("opening collection at %s: %w", path, err)
+	}
+	defer db.Close()
+
+	version, err := readVersion(db)
+	if err != nil {
+		return 0, fmt.Errorf("checking collection at %s: %w", path, err)
+	}
+	status, err := classifyVersion(version)
+	if err != nil {
+		return 0, fmt.Errorf("checking collection at %s: %w", path, err)
+	}
+	return status, nil
+}
+
+// Migrate upgrades the collection at path to the current schema, all or
+// nothing, and does nothing if it's already current. The upgrade is lossless:
+// card images are stored untouched (no re-encoding, no quality loss) and all
+// metadata is preserved. It errors, wrapping ErrNewerSchema, for a collection
+// from a newer postcards.
+func Migrate(path string) error {
+	col, err := Open(path)
+	if err != nil {
+		return err
+	}
+	return col.Close()
+}
+
 // ensureSchema errors unless db is a postcard collection at the current
 // schema version — except when an out-of-date collection is opened
 // read-write, in which case it's migrated up to the current version first.
 func ensureSchema(db *sql.DB, readOnly bool) error {
-	var version int
-	if err := db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil {
-		return fmt.Errorf("reading schema version: %w", err)
+	version, err := readVersion(db)
+	if err != nil {
+		return err
+	}
+	status, err := classifyVersion(version)
+	if err != nil {
+		return err
 	}
 
 	switch {
-	case version == schemaVersion():
+	case status == SchemaCurrent:
 		return nil
-	case version > schemaVersion():
-		return fmt.Errorf("collection uses schema version %d, but this build of postcards only supports up to %d; the collection was created by a newer version of postcards — update the app", version, schemaVersion())
-	case version < 1:
-		return fmt.Errorf("not a postcard collection (found schema version %d)", version)
+	case status == SchemaNewer:
+		return fmt.Errorf("collection uses schema version %d, but this build of postcards only supports up to %d; the collection was created by a newer version of postcards — update the app: %w", version, schemaVersion(), ErrNewerSchema)
 	case readOnly:
-		return fmt.Errorf("collection uses outdated schema version %d (current is %d) and can't be migrated while open read-only; upgrade this collection with the postcards CLI", version, schemaVersion())
+		return fmt.Errorf("collection uses outdated schema version %d (current is %d) and can't be migrated while open read-only; upgrade this collection with the postcards CLI: %w", version, schemaVersion(), ErrOutdatedSchema)
 	default:
 		return migrate(db, version)
 	}
 }
 
-// migrate runs each pending migration in its own transaction, stamping both
-// version markers before committing, so a failed step rolls back cleanly and
-// leaves the collection at the last fully-applied version.
+// migrate runs every pending migration in a single transaction, stamping both
+// version markers once at the end, so a failure at any step rolls everything
+// back and leaves the file exactly as it was — never half-migrated, even if
+// it's synced mid-way.
 func migrate(db *sql.DB, from int) error {
-	for v := from; v < schemaVersion(); v++ {
-		if err := migrateStep(db, v); err != nil {
-			return fmt.Errorf("migrating collection from schema version %d to %d: %w", v, v+1, err)
-		}
-	}
-	return nil
-}
-
-func migrateStep(db *sql.DB, from int) error {
 	tx, err := db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	if err := migrations[from-1](tx); err != nil {
-		return err
+	for v := from; v < schemaVersion(); v++ {
+		if err := migrations[v-1](tx); err != nil {
+			return fmt.Errorf("migrating collection from schema version %d to %d: %w", v, v+1, err)
+		}
 	}
 
-	if _, err := tx.Exec(fmt.Sprintf(`PRAGMA user_version = %d`, from+1)); err != nil {
+	if _, err := tx.Exec(fmt.Sprintf(`PRAGMA user_version = %d`, schemaVersion())); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(`UPDATE meta SET schema_version = ?`, from+1); err != nil {
+	if _, err := tx.Exec(`UPDATE meta SET schema_version = ?`, schemaVersion()); err != nil {
 		return err
 	}
 

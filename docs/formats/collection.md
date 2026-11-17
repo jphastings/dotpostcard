@@ -11,7 +11,7 @@ Those extracted fields, titles included, are also indexed in a SQLite FTS5 virtu
 > [!TIP]
 > Only web-format postcard files (`*.postcard`, `*.postcard.webp`, `*.postcard.jpg`, `*.postcard.jpeg`, `*.postcard.png`) can be added to a collection. Convert component bundles to the web format first with `postcards -f web`.
 
-Collections carry a schema version (in both a `meta` table and `PRAGMA user_version`), so future versions of this tool can detect and migrate older collection files. Migrating an older file backfills each card's title and rebuilds the search index; this needs the collection opened read-write, and a read-only open of an outdated file is refused.
+Collections carry a schema version (in both a `meta` table and `PRAGMA user_version`), so future versions of this tool can detect and migrate older collection files. Migrating an older file backfills each card's title and rebuilds the search index; this needs the collection opened read-write, and a read-only open of an outdated file is refused. Migration is lossless: card images are untouched and all metadata is kept. See [compatibility](../compatibility.md) for how formats evolve.
 
 ## Publishing
 

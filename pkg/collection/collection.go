@@ -71,7 +71,8 @@ func Create(path string) (*Collection, error) {
 }
 
 // Open opens an existing collection for reading and writing, first migrating
-// it to the current schema version if it was written by an older postcards.
+// it to the current schema version if it was written by an older postcards
+// (losslessly: card images are stored untouched and all metadata is preserved).
 func Open(path string) (*Collection, error) {
 	db, err := sqldb.Open(path, false)
 	if err != nil {
