@@ -41,6 +41,8 @@ Uploads write the postcard's title to the record; a postcard without one is publ
 
 A [collection](collection.md) (`*.postcards` file) can be published as one `org.dotpostcard.collection` record: a `title`, an ordered `postcards` list of [strongRefs](https://atproto.com/specs/data-model) (an at-uri and CID) to `org.dotpostcard.postcard` records, and a `createdAt` time. See [lexicons/org/dotpostcard](../../lexicons/org/dotpostcard/collection.json). The list follows the collection's own order: most recently sent first, undated cards last, then by name. Local-only details (thumbnails, the search index, filenames) aren't in the record, as they're all derivable from the postcards.
 
+An `org.dotpostcard.follow` record, in the follower's own repo, follows a collection: a `subject` at-uri of the collection record and a `createdAt` time. Deleting the record unfollows. See [lexicons/org/dotpostcard](../../lexicons/org/dotpostcard/follow.json).
+
 Publish cards straight from their files with `collection create -f atproto`, or publish an existing `*.postcards` file with `collection publish`:
 
 ```sh

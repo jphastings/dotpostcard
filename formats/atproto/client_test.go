@@ -3,7 +3,7 @@ package atproto
 import (
 	"testing"
 
-	"github.com/jphastings/dotpostcard/formats/atproto/internal/testpds"
+	"github.com/jphastings/dotpostcard/internal/testpds"
 	"github.com/jphastings/dotpostcard/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

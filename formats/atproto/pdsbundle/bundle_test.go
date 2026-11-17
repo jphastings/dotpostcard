@@ -9,9 +9,9 @@ import (
 
 	"github.com/jphastings/dotpostcard/formats"
 	"github.com/jphastings/dotpostcard/formats/atproto"
-	"github.com/jphastings/dotpostcard/formats/atproto/internal/testpds"
 	"github.com/jphastings/dotpostcard/formats/web"
 	"github.com/jphastings/dotpostcard/internal/testhelpers"
+	"github.com/jphastings/dotpostcard/internal/testpds"
 	"github.com/jphastings/dotpostcard/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
