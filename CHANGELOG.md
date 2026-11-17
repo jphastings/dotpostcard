@@ -383,6 +383,16 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.53.0 (2026-11-17)
+
+### Feat
+
+- **appcore**: stream atproto collection fetches into place
+
+### Perf
+
+- **collection**: index cached images by their stored hashes
+
 ## v0.52.0 (2026-11-17)
 
 ### Feat
