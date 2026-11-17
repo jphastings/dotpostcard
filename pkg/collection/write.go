@@ -102,6 +102,13 @@ func (c *Collection) AddWebPostcard(filename string, data []byte) (CardSummary, 
 		}
 	}
 
+	sum := sha256.Sum256(data)
+	fileSHA256 := hex.EncodeToString(sum[:])
+	// Decoding and thumbnailing are costly, and resyncing a collection mostly re-adds cards that haven't changed.
+	if summary, ok, err := c.unchangedCard(web.CardNameFromPath(filename), fileSHA256); err != nil || ok {
+		return summary, err
+	}
+
 	pc, err := web.BundleFromReader(io.NopCloser(bytes.NewReader(data)), filename).Decode(formats.DecodeOptions{})
 	if err != nil {
 		return CardSummary{}, fmt.Errorf("decoding %s: %w", filename, err)
@@ -117,7 +124,6 @@ func (c *Collection) AddWebPostcard(filename string, data []byte) (CardSummary, 
 		return CardSummary{}, fmt.Errorf("generating thumbnail for %s: %w", filename, err)
 	}
 
-	sum := sha256.Sum256(data)
 	frontBounds := pc.Front.Bounds()
 
 	row := cardRow{
@@ -126,7 +132,7 @@ func (c *Collection) AddWebPostcard(filename string, data []byte) (CardSummary, 
 		filename:           filename,
 		mimetype:           mimetype,
 		data:               data,
-		fileSHA256:         hex.EncodeToString(sum[:]),
+		fileSHA256:         fileSHA256,
 		thumb:              thumb,
 		metadataJSON:       string(metadataJSON),
 		flip:               string(pc.Meta.Flip),
@@ -150,6 +156,24 @@ func (c *Collection) AddWebPostcard(filename string, data []byte) (CardSummary, 
 	}
 
 	return c.upsertCard(row)
+}
+
+// unchangedCard reports the summary of the card called name if it's already stored with the file bytes that hash to fileSHA256.
+func (c *Collection) unchangedCard(name, fileSHA256 string) (CardSummary, bool, error) {
+	var id int64
+	var existingSHA string
+	err := c.db.QueryRow(`SELECT id, file_sha256 FROM cards WHERE name = ?`, name).Scan(&id, &existingSHA)
+	if errors.Is(err, sql.ErrNoRows) || (err == nil && existingSHA != fileSHA256) {
+		return CardSummary{}, false, nil
+	}
+	if err != nil {
+		return CardSummary{}, false, fmt.Errorf("adding %s: %w", name, err)
+	}
+	summary, err := summaryByID(c.db, id)
+	if err != nil {
+		return CardSummary{}, false, fmt.Errorf("adding %s: %w", name, err)
+	}
+	return summary, true, nil
 }
 
 func (c *Collection) upsertCard(row cardRow) (CardSummary, error) {

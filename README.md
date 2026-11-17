@@ -87,7 +87,7 @@ Other Go projects may rely on these packages:
 
 - `types`: the postcard model (`types.Postcard`, `types.Metadata`, …).
 - `formats`: `formats.Bundle` and `formats.DecodeOptions`, which decoding needs.
-- `formats/atproto`: the record types (`Record`, `Collection`, `StrongRef`), `ParseATURI`, `FetchCollection`, and the read-only client from `Anonymous` with `ListRecords`, `GetRecord` and `GetBlob`. It doesn't pull in the image toolchain or SQLite.
+- `formats/atproto`: the record types (`Record`, `Collection`, `StrongRef`), `ParseATURI`, `FetchCollection`, `FetchCollectionRecord`, and the read-only client from `Anonymous` with `ListRecords`, `GetRecord` and `GetBlob`. It doesn't pull in the image toolchain or SQLite.
 - `formats/web`: decodes a web-format image into a postcard with separate, upright sides. It needs the image toolchain.
 
 ```go
