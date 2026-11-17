@@ -383,6 +383,13 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.52.0 (2026-11-17)
+
+### Feat
+
+- **appcore**: identify fetched cards by their postcard record's at-uri
+- **appcore**: read atproto collections and follows for the app
+
 ## v0.51.0 (2026-11-17)
 
 ### Feat
