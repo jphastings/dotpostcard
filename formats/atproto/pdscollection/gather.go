@@ -44,6 +44,8 @@ type BuildOptions struct {
 	Warn func(string)
 	// OnCard, if set, is told the name of each card as it is stored.
 	OnCard func(name string)
+	// Cached, if set, is asked for an atproto card's image by its sha256 before the image is downloaded; a hit skips the download.
+	Cached func(sum [sha256.Size]byte) (data []byte, ok bool)
 	// Stop, if set, cancels the build between cards; the build then fails with its error.
 	Stop context.Context
 }
@@ -392,9 +394,17 @@ func (b *builder) addRemote(uri string) (string, error) {
 }
 
 func (b *builder) addRecord(client *atproto.Client, record atproto.Record, cid, uri string) error {
-	data, err := client.GetBlob(client.DID(), record.Image.Ref.Link)
-	if err != nil {
-		return fmt.Errorf("%s: %w", uri, err)
+	var data []byte
+	if b.opts.Cached != nil {
+		if sum, err := record.Image.SHA256(); err == nil {
+			data, _ = b.opts.Cached(sum)
+		}
+	}
+	if data == nil {
+		var err error
+		if data, err = client.GetBlob(client.DID(), record.Image.Ref.Link); err != nil {
+			return fmt.Errorf("%s: %w", uri, err)
+		}
 	}
 	filename, err := cardFilename(pdsbundle.NameFromRecord(record, cid), record.Image.MimeType)
 	if err != nil {

@@ -10,7 +10,7 @@ import (
 	"github.com/jphastings/dotpostcard/types"
 )
 
-const summaryColumns = `name, title, filename, mimetype, flip, sent_on, sender_name, recipient_name, location_name, country_code, latitude, longitude, front_px_w, front_px_h, added_at`
+const summaryColumns = `name, title, filename, mimetype, flip, sent_on, sender_name, recipient_name, location_name, country_code, latitude, longitude, front_px_w, front_px_h, added_at, file_sha256`
 
 // rowScanner is satisfied by both *sql.Row and *sql.Rows.
 type rowScanner interface {
@@ -39,7 +39,7 @@ func (s *summaryScan) dest() []any {
 	return []any{
 		&s.summary.Name, &s.summary.Title, &s.summary.Filename, &s.summary.Mimetype, &s.flip, &s.sentOn,
 		&s.senderName, &s.recipientName, &s.locationName, &s.cc, &s.lat, &s.lng,
-		&s.summary.FrontPxW, &s.summary.FrontPxH, &s.addedAt,
+		&s.summary.FrontPxW, &s.summary.FrontPxH, &s.addedAt, &s.summary.SHA256,
 	}
 }
 

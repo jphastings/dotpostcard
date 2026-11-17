@@ -1,6 +1,8 @@
 package collection
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"testing"
@@ -124,6 +126,22 @@ func TestCardData(t *testing.T) {
 
 	_, _, err = col.CardData("no-such-card")
 	assert.ErrorIs(t, err, ErrNotFound)
+}
+
+func TestSummaryCarriesFileSHA256(t *testing.T) {
+	data, filename, _, _ := encodeSample(t)
+	col := mustCreate(t)
+	_, err := col.AddWebPostcard(filename, data)
+	assert.NoError(t, err)
+
+	sum := sha256.Sum256(data)
+	list, err := col.List()
+	assert.NoError(t, err)
+	assert.Equal(t, hex.EncodeToString(sum[:]), list[0].SHA256)
+
+	found, err := col.SearchFiltered(SearchFilter{})
+	assert.NoError(t, err)
+	assert.Equal(t, list[0].SHA256, found[0].SHA256)
 }
 
 func TestAddWebPostcardIsIdempotent(t *testing.T) {

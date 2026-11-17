@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-const qualifiedSummaryColumns = `cards.name, cards.title, cards.filename, cards.mimetype, cards.flip, cards.sent_on, cards.sender_name, cards.recipient_name, cards.location_name, cards.country_code, cards.latitude, cards.longitude, cards.front_px_w, cards.front_px_h, cards.added_at`
+const qualifiedSummaryColumns = `cards.name, cards.title, cards.filename, cards.mimetype, cards.flip, cards.sent_on, cards.sender_name, cards.recipient_name, cards.location_name, cards.country_code, cards.latitude, cards.longitude, cards.front_px_w, cards.front_px_h, cards.added_at, cards.file_sha256`
 
 // SearchResult is a CardSummary plus the full-text-search context: a
 // highlighted snippet of the matching text, and its bm25 rank (lower is

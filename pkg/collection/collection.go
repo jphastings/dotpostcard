@@ -46,6 +46,7 @@ type CardSummary struct {
 	FrontPxH      int         `json:"front_px_h"`
 	HasBack       bool        `json:"has_back"`
 	AddedAt       time.Time   `json:"added_at,omitzero"`
+	SHA256        string      `json:"sha256"`
 }
 
 // Create makes a new, empty collection file. It errors if path already exists.
