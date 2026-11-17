@@ -1,7 +1,9 @@
 package collection
 
 import (
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -105,6 +107,32 @@ func (c *Collection) List() ([]CardSummary, error) {
 	}
 
 	return summaries, nil
+}
+
+// CardNamesBySHA256 maps the sha256 of each card's stored file, as recorded when the card was added, to the card's name.
+func (c *Collection) CardNamesBySHA256() (map[[sha256.Size]byte]string, error) {
+	rows, err := c.db.Query(`SELECT name, file_sha256 FROM cards`)
+	if err != nil {
+		return nil, fmt.Errorf("reading card hashes: %w", err)
+	}
+	defer rows.Close()
+
+	names := map[[sha256.Size]byte]string{}
+	for rows.Next() {
+		var name, hexSum string
+		if err := rows.Scan(&name, &hexSum); err != nil {
+			return nil, fmt.Errorf("reading card hashes: %w", err)
+		}
+		sum, err := hex.DecodeString(hexSum)
+		if err != nil || len(sum) != sha256.Size {
+			return nil, fmt.Errorf("card %q has an invalid file hash %q", name, hexSum)
+		}
+		names[[sha256.Size]byte(sum)] = name
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("reading card hashes: %w", err)
+	}
+	return names, nil
 }
 
 // Count returns the number of cards in the collection.

@@ -153,18 +153,12 @@ func (c *imageCache) load() {
 	if err != nil {
 		return
 	}
-	cards, err := col.List()
+	names, err := col.CardNamesBySHA256()
 	if err != nil {
 		col.Close()
 		return
 	}
-	c.col = col
-	// ponytail: indexing reads every cached image once per fetch; a stored-hash lookup in pkg/collection is the upgrade if that ever shows up as slow.
-	for _, card := range cards {
-		if data, _, err := col.CardData(card.Name); err == nil {
-			c.names[sha256.Sum256(data)] = card.Name
-		}
-	}
+	c.col, c.names = col, names
 }
 
 func (c *imageCache) lookup(sum [sha256.Size]byte) ([]byte, bool) {
