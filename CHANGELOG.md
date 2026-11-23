@@ -383,6 +383,12 @@
 
 ## 0.2.0 (2024-12-10)
 
+## v0.54.0 (2026-11-23)
+
+### Feat
+
+- **fastfoto**: offer to quit the app holding the scanner
+
 ## v0.53.0 (2026-11-17)
 
 ### Feat
