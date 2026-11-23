@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -34,7 +35,7 @@ snug against the card, and put the card's straightest edge leading. A card
 that goes in so skewed that a corner is cut off is set aside as
 for-rescan-NNNN.jpg, to feed again.
 
-Only one app can scan at a time, so close Epson FastFoto or Image Capture if they are open.
+Only one app can scan at a time, so if another has the scanner you'll be offered to quit it.
 Ctrl-C finishes the card in the scanner and saves everything scanned; press it
 again to stop without saving the postcards still being processed. If the scanner
 stops responding, switch it off and on again. Cards that overlap completely
@@ -91,6 +92,7 @@ func newCommand(run runFunc, stdout, stderr io.Writer) *cobra.Command {
 			stop, finishCard := context.WithCancel(ctx)
 			defer finishCard()
 			opts.Stop = stop
+			opts.ConfirmQuit = confirmQuit(cmd.InOrStdin(), stdout, stop)
 			signals := make(chan os.Signal, 2)
 			signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
 			defer signal.Stop(signals)
@@ -117,6 +119,32 @@ func newCommand(run runFunc, stdout, stderr io.Writer) *cobra.Command {
 	cmd.SetOut(stdout)
 	cmd.SetErr(stderr)
 	return cmd
+}
+
+// confirmQuit asks whether to quit an app, and says no without asking when nobody is there to
+// answer or once stop is cancelled by Ctrl-C.
+func confirmQuit(in io.Reader, out io.Writer, stop context.Context) func(app string) bool {
+	return func(app string) bool {
+		if f, ok := in.(*os.File); ok {
+			if info, err := f.Stat(); err != nil || info.Mode()&os.ModeCharDevice == 0 {
+				return false
+			}
+		}
+		fmt.Fprintf(out, "%s is using the scanner. Quit it? [Y/n] ", app)
+		answer := make(chan bool, 1)
+		go func() {
+			line, _ := bufio.NewReader(in).ReadString('\n')
+			// Empty replies accept the default; only end of input gives no line at all.
+			answer <- line != "" && slices.Contains([]string{"", "y", "yes"}, strings.ToLower(strings.TrimSpace(line)))
+		}()
+		select {
+		case yes := <-answer:
+			return yes
+		case <-stop.Done():
+			fmt.Fprintln(out)
+			return false
+		}
+	}
 }
 
 const exitInterrupted = 130

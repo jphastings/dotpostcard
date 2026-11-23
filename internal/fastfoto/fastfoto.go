@@ -55,6 +55,9 @@ type Options struct {
 	CardThreshold float64
 	// Open connects to the scanner; the default is the real USB scanner.
 	Open func() (Transport, error)
+	// ConfirmQuit is asked whether to quit the named app when it holds the scanner; if it
+	// says yes the app is quit and the scanner opened again, otherwise Run fails with a *BusyError.
+	ConfirmQuit func(app string) bool
 	// Stop is cancelled to finish the current card and then stop feeding.
 	Stop context.Context
 	Log  io.Writer
@@ -185,6 +188,9 @@ func Run(ctx context.Context, opts Options) (Report, error) {
 	if opts.Open == nil {
 		opts.Open = OpenUSB
 	}
+	if opts.ConfirmQuit == nil {
+		opts.ConfirmQuit = func(string) bool { return false }
+	}
 	if opts.Stop == nil {
 		opts.Stop = context.Background()
 	}
@@ -281,10 +287,23 @@ func (r *run) highestUsed() (highest int, err error) {
 	return highest, nil
 }
 
+// open connects to the scanner, offering once to quit whichever app has it.
+func (r *run) open() (Transport, error) {
+	t, err := r.opts.Open()
+	var busy *BusyError
+	if !errors.As(err, &busy) || !r.opts.ConfirmQuit(busy.App) {
+		return t, err
+	}
+	if err := busy.Quit(); err != nil {
+		return nil, err
+	}
+	return r.opts.Open()
+}
+
 // scan feeds the stack, queueing a card whenever its second side lands. New cards number on
 // from highest. unpaired is whether a side was left without its partner.
 func (r *run) scan(ctx context.Context, highest int) (unpaired, cutShort bool, err error) {
-	t, err := r.opts.Open()
+	t, err := r.open()
 	if err != nil {
 		return false, false, err
 	}

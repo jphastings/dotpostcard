@@ -10,9 +10,12 @@ import (
 	"image/jpeg"
 	"image/png"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	postcards "github.com/jphastings/dotpostcard"
 	"github.com/jphastings/dotpostcard/formats"
@@ -422,6 +425,50 @@ func runScan(t *testing.T, dir string, scanner *fakeScanner, mutate ...func(*Opt
 		m(&opts)
 	}
 	return Run(context.Background(), opts)
+}
+
+func TestBusyScannerCarriesOnWhenItsAppIsQuit(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		quit bool
+	}{{"accepted", true}, {"declined", false}} {
+		t.Run(tc.name, func(t *testing.T) {
+			sleeper := exec.Command("sleep", "60")
+			require.NoError(t, sleeper.Start())
+			exited := make(chan struct{})
+			go func() { sleeper.Wait(); close(exited) }()
+			t.Cleanup(func() { sleeper.Process.Kill(); <-exited })
+
+			scanner := newFakeScanner(scanOf(defaultSynth(), defaultSynth()), -1, false)
+			var asked []string
+			opened := 0
+			report, err := runScan(t, t.TempDir(), scanner, func(o *Options) {
+				o.Open = func() (Transport, error) {
+					if opened++; opened == 1 {
+						return nil, &BusyError{PID: sleeper.Process.Pid, App: "Sleeper"}
+					}
+					return scanner, nil
+				}
+				o.ConfirmQuit = func(app string) bool { asked = append(asked, app); return tc.quit }
+			})
+
+			assert.Equal(t, []string{"Sleeper"}, asked)
+			if tc.quit {
+				require.NoError(t, err)
+				assert.Len(t, report.Cards, 1)
+				select {
+				case <-exited:
+				case <-time.After(time.Second):
+					t.Fatal("the app wasn't quit")
+				}
+				return
+			}
+			var busy *BusyError
+			assert.ErrorAs(t, err, &busy)
+			assert.ErrorIs(t, err, ErrBusyUSB)
+			assert.NoError(t, sleeper.Process.Signal(syscall.Signal(0)), "the app is left running")
+		})
+	}
 }
 
 func TestScannedSidesBecomeACardWhateverOrderTheirMarkersArrive(t *testing.T) {

@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -34,6 +35,34 @@ var (
 	// ErrNotResponding wraps USB failures mid-session, so users see advice rather than an IOReturn code.
 	ErrNotResponding = errors.New("the scanner isn't responding: check it's switched on (it powers itself off after 10 idle minutes), and if it is, switch it off and on again")
 )
+
+// BusyError is ErrBusyUSB when the app holding the scanner is known.
+type BusyError struct {
+	PID int
+	App string
+}
+
+func (e *BusyError) Error() string { return e.App + " is using the scanner; quit it and try again" }
+
+func (e *BusyError) Unwrap() error { return ErrBusyUSB }
+
+// Quit asks the app to quit and waits for it to go.
+func (e *BusyError) Quit() error {
+	p, err := os.FindProcess(e.PID)
+	if err == nil {
+		err = p.Signal(syscall.SIGTERM)
+	}
+	if err != nil {
+		return fmt.Errorf("couldn't quit %s: %w", e.App, err)
+	}
+	for range 50 {
+		if errors.Is(p.Signal(syscall.Signal(0)), os.ErrProcessDone) {
+			return nil
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return fmt.Errorf("%s didn't quit", e.App)
+}
 
 // CRP is the scanner's hardware crop, which keeps every corner of a skewed card; OVSN
 // instead ends each side one card-length in and loses two. #CRPd020 widens the crop by

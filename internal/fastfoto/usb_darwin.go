@@ -5,7 +5,9 @@ package fastfoto
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"unsafe"
 
@@ -62,6 +64,11 @@ var (
 	cfDictSet                   func(uintptr, uintptr, uintptr)
 	cfUUIDFromString            func(uintptr, uintptr) uintptr
 	cfUUIDGetBytes              uintptr
+	ioRegistryProperty          func(uint32, uintptr, uintptr, uint32) uintptr
+	cfGetTypeID                 func(uintptr) uintptr
+	cfStringGetTypeID           func() uintptr
+	cfStringGetCString          func(uintptr, *byte, int, uint32) bool
+	procPidPath                 func(int32, *byte, uint32) int32
 )
 
 // Go preempts threads with SIGURG, and IOKit reports a transfer interrupted by it as
@@ -91,6 +98,7 @@ func loadLibs() error {
 			return
 		}
 		purego.RegisterLibFunc(&pthreadSigmask, libSystem, "pthread_sigmask")
+		purego.RegisterLibFunc(&procPidPath, libSystem, "proc_pidpath")
 		iokit, err := purego.Dlopen("/System/Library/Frameworks/IOKit.framework/IOKit", purego.RTLD_NOW)
 		if err != nil {
 			loadErr = err
@@ -107,9 +115,13 @@ func loadLibs() error {
 		purego.RegisterLibFunc(&ioDestroyPlugIn, iokit, "IODestroyPlugInInterface")
 		purego.RegisterLibFunc(&ioIteratorNext, iokit, "IOIteratorNext")
 		purego.RegisterLibFunc(&ioObjectRelease, iokit, "IOObjectRelease")
+		purego.RegisterLibFunc(&ioRegistryProperty, iokit, "IORegistryEntryCreateCFProperty")
 		purego.RegisterLibFunc(&cfRelease, cf, "CFRelease")
 		purego.RegisterLibFunc(&cfStringCreate, cf, "CFStringCreateWithCString")
 		purego.RegisterLibFunc(&cfNumberCreate, cf, "CFNumberCreate")
+		purego.RegisterLibFunc(&cfGetTypeID, cf, "CFGetTypeID")
+		purego.RegisterLibFunc(&cfStringGetTypeID, cf, "CFStringGetTypeID")
+		purego.RegisterLibFunc(&cfStringGetCString, cf, "CFStringGetCString")
 		purego.RegisterLibFunc(&cfDictSet, cf, "CFDictionarySetValue")
 		purego.RegisterLibFunc(&cfUUIDFromString, cf, "CFUUIDCreateFromString")
 		cfUUIDGetBytes, loadErr = purego.Dlsym(cf, "CFUUIDGetUUIDBytes")
@@ -257,9 +269,64 @@ func (t *iokitTransport) open() error {
 	}
 	if r := callSlot(t.iface, slotIfaceOpen); r != 0 {
 		t.iface, _ = releaseAndZero(t.iface)
+		if uint32(r) == kIOReturnExclusiveAccess {
+			return t.busyError()
+		}
 		return ioError("USBInterfaceOpen", r)
 	}
 	return t.findPipes()
+}
+
+// busyError names the app holding the interface from the owner the kernel records, which
+// reads "pid 91876, Epson Scanner Mo" with the name cut short.
+func (t *iokitTransport) busyError() error {
+	owner := t.exclusiveOwner()
+	var pid int
+	if _, err := fmt.Sscanf(owner, "pid %d", &pid); err != nil {
+		return ErrBusyUSB
+	}
+	app := processName(pid)
+	if app == "" {
+		_, app, _ = strings.Cut(owner, ", ")
+	}
+	if app == "" {
+		return ErrBusyUSB
+	}
+	return &BusyError{PID: pid, App: app}
+}
+
+func (t *iokitTransport) exclusiveOwner() string {
+	key := cfStringCreate(0, "UsbExclusiveOwner", utf8Encoding)
+	defer cfRelease(key)
+	prop := ioRegistryProperty(t.ifaceSv, key, 0, 0)
+	if prop == 0 {
+		return ""
+	}
+	defer cfRelease(prop)
+	if cfGetTypeID(prop) != cfStringGetTypeID() {
+		return ""
+	}
+	buf := make([]byte, 256)
+	var pin runtime.Pinner
+	pin.Pin(&buf[0])
+	defer pin.Unpin()
+	if !cfStringGetCString(prop, &buf[0], len(buf), utf8Encoding) {
+		return ""
+	}
+	return strings.TrimRight(string(buf), "\x00")
+}
+
+// processName is the name of pid's executable, which is whole where the owner string's is cut short.
+func processName(pid int) string {
+	buf := make([]byte, 4096)
+	var pin runtime.Pinner
+	pin.Pin(&buf[0])
+	defer pin.Unpin()
+	n := procPidPath(int32(pid), &buf[0], uint32(len(buf)))
+	if n <= 0 {
+		return ""
+	}
+	return filepath.Base(string(buf[:n]))
 }
 
 func releaseAndZero(obj uintptr) (uintptr, int32) { return 0, callSlot(obj, slotRelease) }

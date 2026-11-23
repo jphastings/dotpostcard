@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -214,4 +215,21 @@ func TestOrdinaryFailuresExitWith1(t *testing.T) {
 func TestBadLocaleIsRejected(t *testing.T) {
 	_, _, err := execute(t, nil, "--locale", "en_gb")
 	assert.ErrorContains(t, err, "en-GB")
+}
+
+func TestQuitPromptReadsTheAnswerFromStdin(t *testing.T) {
+	for input, want := range map[string]bool{"n\n": false, "\n": true, "yes\n": true, "": false} {
+		var out, errOut bytes.Buffer
+		var got bool
+		cmd := newCommand(func(_ context.Context, o fastfoto.Options) (fastfoto.Report, error) {
+			got = o.ConfirmQuit("Epson Scanner Monitor")
+			return fastfoto.Report{}, nil
+		}, &out, &errOut)
+		cmd.SetIn(strings.NewReader(input))
+		cmd.SetArgs(nil)
+		assert.NoError(t, cmd.Execute())
+
+		assert.Equal(t, want, got, "input %q", input)
+		assert.Equal(t, "Epson Scanner Monitor is using the scanner. Quit it? [Y/n] ", out.String())
+	}
 }
